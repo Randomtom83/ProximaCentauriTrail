@@ -408,3 +408,98 @@ button.btn:hover .key { color: var(--bg-deep); }
 .hidden { display: none !important; }
 .kbd { border: 1px solid var(--green-dim); border-radius: 3px; padding: 0 5px; font-size: 11px; color: var(--amber); }
 .title-art { color: var(--green); text-shadow: 0 0 8px rgba(51,255,102,0.6); }
+
+/* ---- topbar buttons ---- */
+.topbar-btns { display: flex; gap: 6px; flex: 0 0 auto; }
+#anim-btn {
+  background: transparent; color: var(--green-dim);
+  border: 1px solid var(--green-faint); font-family: var(--mono);
+  font-size: 11px; padding: 2px 8px; cursor: pointer; border-radius: 4px;
+}
+#anim-btn:hover { color: var(--green); border-color: var(--green-dim); }
+
+/* ---- route map (multi-waypoint trail) ---- */
+.routemap { margin: 8px 0 2px; }
+.rm-rail {
+  position: relative;
+  height: 30px;
+  margin: 16px 6px 8px;
+}
+.rm-line {
+  position: absolute; left: 0; right: 0; top: 14px; height: 2px;
+  background: var(--green-faint);
+}
+.rm-fill {
+  position: absolute; left: 0; top: 14px; height: 2px;
+  background: linear-gradient(90deg, var(--green-dim), var(--green));
+  box-shadow: 0 0 6px rgba(51,255,102,.5);
+  transition: width .5s ease;
+}
+.rm-node {
+  position: absolute; top: 6px; transform: translateX(-50%);
+  width: 18px; height: 18px; line-height: 16px; text-align: center;
+  font-size: 12px; border: 1px solid var(--green-faint); border-radius: 50%;
+  background: var(--bg-deep); color: var(--green-dim); cursor: default; z-index: 2;
+}
+.rm-node.visited { color: var(--green); border-color: var(--green-dim); }
+.rm-node.current {
+  color: var(--amber); border-color: var(--amber);
+  box-shadow: 0 0 8px rgba(255,207,77,.6); animation: rmpulse 1.3s infinite;
+}
+.rm-node.future { color: var(--green-faint); }
+.rm-node.win { border-color: var(--cyan); color: var(--cyan); }
+@keyframes rmpulse { 50% { box-shadow: 0 0 2px rgba(255,207,77,.3); } }
+.rm-ship {
+  position: absolute; top: -8px; transform: translateX(-50%);
+  color: var(--amber); font-size: 14px; z-index: 3; transition: left .5s ease;
+  text-shadow: 0 0 6px rgba(255,207,77,.7);
+}
+.rm-labels { position: relative; height: 14px; font-size: 11px; }
+.rm-label { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.rm-label.cur { color: var(--amber); }
+.rm-label.nxt { color: var(--cyan); }
+
+/* ---- transit animation overlay ---- */
+#transit { background: #000; }
+.transit-scene {
+  position: relative; width: 100%; max-width: 760px; height: 300px;
+  border: 1px solid var(--green-faint); border-radius: 10px; overflow: hidden;
+  background: radial-gradient(ellipse at 70% 50%, #0a160a 0%, #000 80%);
+  box-shadow: 0 0 40px rgba(51,255,102,.2);
+}
+.stars {
+  position: absolute; inset: 0; background-repeat: repeat;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, #fff 0, transparent 1px),
+    radial-gradient(1px 1px at 30% 70%, #cfc 0, transparent 1px),
+    radial-gradient(1px 1px at 55% 40%, #fff 0, transparent 1px),
+    radial-gradient(1px 1px at 80% 80%, #9f9 0, transparent 1px),
+    radial-gradient(1px 1px at 90% 30%, #fff 0, transparent 1px);
+  background-size: 200px 150px;
+}
+.stars.s1 { animation: starscroll 2.2s linear infinite; opacity: .9; }
+.stars.s2 { animation: starscroll 3.6s linear infinite; opacity: .6; background-size: 320px 200px; }
+.stars.s3 { animation: starscroll 6s linear infinite; opacity: .35; background-size: 460px 300px; }
+@keyframes starscroll { to { background-position: -200px 0; } }
+.transit-ship {
+  position: absolute; left: 38%; top: 46%; transform: translateY(-50%);
+  font-size: 26px; color: var(--green); text-shadow: 0 0 10px rgba(51,255,102,.8);
+  letter-spacing: -2px; animation: shipbob 1.4s ease-in-out infinite;
+}
+@keyframes shipbob { 50% { transform: translateY(-58%); } }
+.transit-dest {
+  position: absolute; right: 8%; top: 50%; transform: translate(50%,-50%) scale(.3);
+  font-size: 40px; opacity: 0; color: var(--cyan); text-shadow: 0 0 16px rgba(90,215,255,.8);
+}
+.transit-dest.grow { animation: destgrow 1.4s ease-out forwards; }
+@keyframes destgrow { to { transform: translate(-10%,-50%) scale(1); opacity: 1; } }
+.transit-cap {
+  position: absolute; left: 14px; bottom: 28px; font-size: 13px; color: var(--paper);
+  text-shadow: 0 0 6px rgba(51,255,102,.6);
+}
+.transit-skip {
+  position: absolute; right: 12px; bottom: 10px; font-size: 11px; color: var(--green-dim);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stars, .transit-ship, .transit-dest.grow, .rm-node.current { animation: none; }
+}

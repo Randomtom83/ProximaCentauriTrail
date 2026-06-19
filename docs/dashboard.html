@@ -145,7 +145,18 @@ var SPRINTS = [
     ["jsdom playthrough smoke test (win + loss paths)","done"],
     ["Balance pass (reactor base, hull wear)","done"],
     ["README with run + play instructions","done"],
-    ["Commit, push branch, open pull request","doing"]
+    ["Commit, push branch, open pull request","done"]
+  ]},
+  { id:"s7", name:"Sprint 7 — Route map, animation &amp; first contact", tasks:[
+    ["Multi-waypoint route map (nodes, icons, ship position, visited/current state)","done"],
+    ["Between-scene transit animation engine (cruise/dock/hazard/land, skippable)","done"],
+    ["Per-turn flyby + arrival vignettes wired into the turn loop","done"],
+    ["Animations settings toggle + reduced-motion respect","done"],
+    ["Gate all alien content behind a first-contact flag","done"],
+    ["Scripted, unpredictably-timed FIRST CONTACT reveal in deep space","done"],
+    ["Pre-contact foreshadowing events (no confirmation of life)","done"],
+    ["Post-contact alien parley/trade unlock","done"],
+    ["jsdom tests: route map, contact gating, anim skip; commit + open PR to main","doing"]
   ]}
 ];
 
@@ -165,7 +176,19 @@ var LOG = [
   { date:"2026-06-19", tag:"decision", title:"Balance: reactor base 16 → 20, hull wear 0–2 → 0–1",
     body:"Early playtests showed a guaranteed late-game brownout death spiral. Eased reactor pressure so careful play is winnable while careless play still dies — verified by automated playthroughs." },
   { date:"2026-06-19", tag:"build", title:"Verification: syntax + jsdom playthroughs",
-    body:"node --check on both scripts; jsdom harness drives full runs. Win-aware run wins 6/6 (up to FOUNDER OF PROXIMA); careless runs produce a healthy win/loss mix with zero JS errors." }
+    body:"node --check on both scripts; jsdom harness drives full runs. Win-aware run wins 6/6 (up to FOUNDER OF PROXIMA); careless runs produce a healthy win/loss mix with zero JS errors." },
+  { date:"2026-06-19", tag:"build", title:"Initial import landed on main",
+    body:"Repo was created empty with no base branch; pushing an empty main was blocked by policy. Per user decision, the first import was placed directly on main via the GitHub API. Future changes branch off main and open a reviewable PR." },
+  { date:"2026-06-19", tag:"decision", title:"Animations: per-turn transit + arrival vignettes",
+    body:"User asked for Oregon-Trail-style between-scene motion and a visible waypoint map. Chosen: a short, skippable starfield flyby on every Continue, richer docking/hazard/landing vignettes at waypoints, plus a multi-waypoint route map. Includes an ANIM toggle and reduced-motion respect; animations resolve synchronously when off so tests/a11y are unaffected." },
+  { date:"2026-06-19", tag:"decision", title:"Alien life is now a scripted surprise",
+    body:"Previously an 'Alien Probe' event fired casually, implying we already knew we weren't alone. Now ALL alien content is gated behind a one-time, unpredictably-timed FIRST CONTACT reveal in deep space (the Interstellar Void), preceded only by ambiguous foreshadowing that never confirms life. Human station trade is unchanged." },
+  { date:"2026-06-19", tag:"feature", title:"Route map + transit animation engine",
+    body:"renderRouteMap() draws all 10 waypoints as icon nodes with visited/current/future state and a live ship marker. playTransit() runs skippable cruise/dock/hazard/land scenes (parallax starfields), wired into onContinue and waypoint arrivals; idempotent finish, overlap guard, synchronous when disabled." },
+  { date:"2026-06-19", tag:"feature", title:"First contact + alien parley/trade",
+    body:"Scripted FIRST CONTACT modal (Hail / Observe / Run dark, each with consequences) flips a contact flag; events carry req:preContact|postContact so foreshadowing stops and alien encounters + a risky alien trade event unlock only after the reveal. Kept undocumented in the README to preserve the surprise." },
+  { date:"2026-06-19", tag:"build", title:"Verification: feature + animation tests",
+    body:"jsdom checks confirm the route map renders 10 nodes + ship, FIRST CONTACT fires once in deep space, no alien content appears before it (6/6), post-contact alien events unlock (5/6), and the animation overlay shows + a Space-skip advances exactly one turn. Win/loss playthroughs still pass with zero JS errors." }
 ];
 
 /* ---- rendering + interactivity ---- */

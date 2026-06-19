@@ -98,3 +98,25 @@ power/brownout, hibernation, crew morale/bonds, hazard crossings, mining, save-r
 ## Commit & PR
 Develop on `claude/intelligent-galileo-y2siqb`; commit game files + `docs/`; keep `docs/dashboard.html`
 updated each sprint; push `-u origin`; open a ready-for-review PR.
+
+## Addendum — Sprint 7: route map, transit animations & first-contact surprise
+Added after first delivery in response to two notes: the journey lacked Oregon-Trail-style between-scene
+motion and a visible waypoint map, and the game treated alien life as a known fact.
+
+- **Route map** (`renderRouteMap` in `game.js`): all 10 waypoints as icon nodes (start ⌂ / station ◉ /
+  hazard ✦ / void ❄ / Proxima ◐) with visited / current / future state and a live ship marker, replacing
+  the old single progress bar.
+- **Transit animations** (`playTransit`): short, skippable parallax-starfield scenes — a `cruise` flyby
+  on every Continue, and `dock` / `hazard` / `land` vignettes at waypoint arrivals. Idempotent finish,
+  overlap guard, an ANIM toggle in the topbar, and `prefers-reduced-motion` respect; resolves
+  synchronously when off so tests and accessibility are unaffected.
+- **First contact** (scripted surprise): a new `contact` flag gates all alien content. Events carry
+  `req: preContact | postContact`; before the reveal only human ships/stations/derelicts appear, with
+  ambiguous foreshadowing (impossible signal, geometric shadow, sensor ghost) that never confirms life.
+  A one-time, unpredictably-timed **FIRST CONTACT** event fires in the Interstellar Void (forced before
+  the final approach) with a Hail / Observe / Run-dark choice. Afterward, alien encounters and a risky
+  Xenobiologist-checked **alien parley/trade** event unlock. Deliberately undocumented in the README.
+- **Verification:** jsdom tests confirm the route map (10 nodes + ship), that first contact fires once
+  with no alien content before it, that post-contact alien events unlock, and that the animation overlay
+  shows and a Space-skip advances exactly one turn. Win/loss playthroughs still pass, zero JS errors.
+- **Delivery:** `main` now exists, so this round ships as a reviewable PR into `main`.

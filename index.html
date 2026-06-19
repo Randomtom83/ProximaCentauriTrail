@@ -16,7 +16,10 @@
     <header id="topbar">
       <span class="brand">▓ PROXIMA&nbsp;TRAIL</span>
       <span id="topbar-status"></span>
-      <button id="mute-btn" type="button" title="Toggle sound">♪ SND: ON</button>
+      <span class="topbar-btns">
+        <button id="anim-btn" type="button" title="Toggle animations">▦ ANIM: ON</button>
+        <button id="mute-btn" type="button" title="Toggle sound">♪ SND: ON</button>
+      </span>
     </header>
 
     <!-- Everything renders into here -->
@@ -26,6 +29,19 @@
       <span id="botbar-hint">EARTH IS DYING. PROXIMA CENTAURI b AWAITS.</span>
       <span class="cursor" aria-hidden="true">█</span>
     </footer>
+  </div>
+
+  <!-- Between-scene transit animation (cruise / dock / hazard / land) -->
+  <div id="transit" class="overlay hidden" aria-hidden="true">
+    <div class="transit-scene">
+      <div class="stars s1"></div>
+      <div class="stars s2"></div>
+      <div class="stars s3"></div>
+      <div id="transit-dest" class="transit-dest"></div>
+      <div id="transit-ship" class="transit-ship">⊳—■▣</div>
+      <div id="transit-cap" class="transit-cap"></div>
+      <div class="transit-skip">SKIP ▸ (click / space)</div>
+    </div>
   </div>
 
   <!-- Generic modal overlay (events / hazards / choices / load-shed) -->

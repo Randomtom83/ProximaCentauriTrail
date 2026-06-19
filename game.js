@@ -186,6 +186,8 @@
       ended: false,
       won: false,
       turn: 0,
+      contact: false,             // first contact with alien life not yet made
+      contactChoice: null,        // how the player handled first contact
       // store starts with a baseline outfit already in supplies above
       _store: { fuel: 0, oxygen: 0, food: 0, medicine: 0, parts: 0, charges: 0 }
     };
@@ -208,8 +210,10 @@
   function loadMeta() {
     try {
       var m = localStorage.getItem(META_KEY);
-      return m ? JSON.parse(m) : { best: 0, runs: [] };
-    } catch (e) { return { best: 0, runs: [] }; }
+      var parsed = m ? JSON.parse(m) : { best: 0, runs: [] };
+      if (parsed.anim == null) parsed.anim = true;   // animations on by default
+      return parsed;
+    } catch (e) { return { best: 0, runs: [], anim: true }; }
   }
   function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {} }
 
@@ -307,16 +311,21 @@
      7. The turn loop
      --------------------------------------------------------- */
   function onContinue() {
-    if (game.ended) return;
-    if (game.supplies.fuel <= 0 && game.power.allocation.drive) {
-      log("No fuel. The drive is dead — you drift, bleeding air and food.", "bad");
-    }
-    var p = computePower();
-    if (p.brownout) {
-      openBrownout(resolveTurn);
-    } else {
-      resolveTurn();
-    }
+    if (game.ended || transiting || modalOpen()) return;
+    var cap = "EN ROUTE · Day " + game.day + " · " + THRUST[game.thrust].label + " · " +
+      Math.round(game.distance) + "/" + TOTAL_DIST;
+    playTransit({ variant: "cruise", caption: cap }, function () {
+      if (game.ended) return;
+      if (game.supplies.fuel <= 0 && game.power.allocation.drive) {
+        log("No fuel. The drive is dead — you drift, bleeding air and food.", "bad");
+      }
+      var p = computePower();
+      if (p.brownout) {
+        openBrownout(resolveTurn);
+      } else {
+        resolveTurn();
+      }
+    });
   }
 
   function resolveTurn() {
@@ -422,17 +431,27 @@
     // Hull slow wear
     game.ship.hull = clamp(game.ship.hull - rint(0, 1), 0, 100);
 
-    // Random event (not every turn)
-    if (chance(0.55)) rollEvent();
+    // First contact (scripted, once, in deep space past the Oort Cloud). The exact
+    // turn is a surprise; forced once the void is behind you so it never gets skipped.
+    var contactNow = false;
+    if (!game.contact && game.waypointIndex >= 7) {
+      if (game.waypointIndex >= 8 || chance(0.32)) contactNow = true;
+    }
+    if (contactNow) {
+      game._contactPending = true;       // shown via flushQueues so it sequences cleanly
+    } else if (chance(0.55)) {
+      // Random event (not every turn)
+      rollEvent();
+    }
 
     // Arrival check
     checkArrival();
 
-    // End checks
-    if (!game.ended) checkEnd();
+    // End checks (don't let a coincidental loss override a pending win)
+    if (!game.ended && !game._win) checkEnd();
 
     save();
-    if (!game.ended) renderTravel();
+    if (!game.ended) renderTravel();     // renderTravel flushes any queued contact/win/vignette
   }
 
   function checkBreakdowns() {
@@ -471,7 +490,7 @@
       var idx = game.waypointIndex;
       game.waypointIndex++;
 
-      if (wp.kind === "win") { winGame(); return; }
+      if (wp.kind === "win") { game._win = true; return; }
       // Defer station/hazard interaction to a modal so it's not skipped.
       if (wp.hazard) { queueHazard(wp); }
       else if (wp.kind === "station") { queueStation(wp); }
@@ -524,7 +543,11 @@
     return r;
   }
 
-  function winGame() { endGame(true, "You ease into orbit over Proxima Centauri b — a pale blue world waiting beneath you."); }
+  function winGame() {
+    playTransit({ variant: "land", caption: "FINAL APPROACH · PROXIMA CENTAURI b" }, function () {
+      endGame(true, "You ease into orbit over Proxima Centauri b — a pale blue world waiting beneath you.");
+    });
+  }
 
   function endGame(won, cause) {
     if (game.ended) return;
@@ -659,14 +682,43 @@
         { label: "Record it and move on", auto: true,
           outcome: { morale: -5, text: "You log the coordinates and leave them to the dark. No one speaks for a while.", type: "warn" } }
       ] },
-    { id: "probe", w: 5, title: "Alien Probe", zones: ["void", "outer"], art: "◉─◌─◉",
-      text: "An artifact of clearly non-human make matches your course.",
+    { id: "probe", w: 5, req: "postContact", title: "Alien Probe", art: "◉─◌─◉",
+      text: "Another of their artifacts matches your course — you know now what hands shaped it.",
       choices: [
         { label: "Study it (Xenobiologist)", role: "Xenobiologist", diff: 64,
-          success: { credits: +260, morale: +8, text: "Its data is priceless. The crew is electrified by the discovery.", type: "good" },
+          success: { credits: +260, morale: +8, text: "Its data is priceless. Every reading rewrites a textbook.", type: "good" },
           failure: { res: { oxygen: -5 }, morale: -4, text: "It pulses, fries a system, and goes dark.", type: "bad" } },
         { label: "Don't touch it", auto: true,
           outcome: { text: "You watch it drift away. Some questions keep.", type: "info" } }
+      ] },
+    { id: "parley", w: 6, req: "postContact", title: "Drifting Vessel", art: "◇◈◇  ~hum~",
+      text: "One of their smaller craft slows beside you, lights cycling in patient sequence. It seems to be offering... an exchange.",
+      choices: [
+        { label: "Trade with them (Xenobiologist)", role: "Xenobiologist", diff: 58,
+          success: { res: { fuel: +14, medicine: +2, oxygen: +10 }, credits: -80, morale: +6, text: "You learn the rhythm of their bartering. They leave you richer in everything that matters out here.", type: "good" },
+          failure: { res: { oxygen: -6 }, morale: -4, text: "You misread the exchange. They withdraw, and something aboard sparks and dies.", type: "bad" } },
+        { label: "Offer salvage for their tech", auto: true,
+          outcome: { parts: -2, res: { fuel: +8, charges: +3 }, text: "A clumsy but honest swap: your scrap for their strange fuel.", type: "info" } },
+        { label: "Wave them off", auto: true,
+          outcome: { text: "You signal no. They dim, and drift back into the dark.", type: "info" } }
+      ] },
+    { id: "shoal", w: 4, req: "postContact", zones: ["void", "outer"], title: "The Shoal", art: "· ◌ ◌ ◌ ·",
+      text: "A school of living lights drifts across the void, turning together like one vast mind. They are not afraid of you.",
+      choices: [
+        { label: "Drift with them a while", auto: true,
+          outcome: { morale: +10, text: "For an hour the crew forgets the cold. Wonder is its own kind of fuel.", type: "good" } }
+      ] },
+    { id: "signal", w: 5, req: "preContact", zones: ["outer", "void"], title: "Impossible Signal", art: "/\\/\\ ? /\\/\\",
+      text: "A repeating pattern threads through the static — too regular for noise, too strange for any human code. No one will say out loud what they're thinking.",
+      choices: [
+        { label: "Log it and watch the dark", auto: true,
+          outcome: { morale: -3, text: "You file it under 'instrument error.' Nobody believes that, including you.", type: "warn" } }
+      ] },
+    { id: "shadow", w: 4, req: "preContact", zones: ["outer", "void"], title: "Geometric Shadow",
+      text: "For a heartbeat the stars ahead are blotted out by something with edges — far too straight to be a rock. Then it's gone.",
+      choices: [
+        { label: "Hold course, say nothing", auto: true,
+          outcome: { morale: -4, text: "You don't change heading. You don't sleep well, either.", type: "warn" } }
       ] },
     { id: "cache", w: 6, title: "Supply Cache",
       text: "Sensors ping a tumbling container — an old relief drop.",
@@ -702,7 +754,7 @@
           success: { res: { oxygen: -2 }, text: "Found and sealed with minimal loss.", type: "good" },
           failure: { res: { oxygen: -12 }, text: "By the time you find it, the air's half gone from one tank.", type: "bad" } }
       ] },
-    { id: "sensorghost", w: 4, title: "Sensor Ghost", zones: ["void"],
+    { id: "sensorghost", w: 4, req: "preContact", title: "Sensor Ghost", zones: ["void", "outer"],
       text: "Something huge shows on sensors, then nothing. Nerves fray.",
       choices: [
         { label: "Hold course and stay calm", auto: true,
@@ -720,6 +772,9 @@
     // zone tag for filtering
     var zone = currentZone();
     var pool = EVENTS.filter(function (e) {
+      // Gate alien content behind first contact; gate foreshadowing to before it.
+      if (e.req === "postContact" && !game.contact) return false;
+      if (e.req === "preContact" && game.contact) return false;
       if (!e.zones) return true;
       return e.zones.indexOf(zone) > -1;
     });
@@ -802,11 +857,75 @@
   var hazardQueue = [];
   function queueHazard(wp) { hazardQueue.push(wp.hazard); }
   function flushQueues() {
-    // Called from travel render when no modal is open.
-    if (modalOpen()) return;
-    if (hazardQueue.length) { var hz = hazardQueue.shift(); presentHazard(hz); return; }
-    if (stationQueue.length) { var st = stationQueue.shift(); presentStation(st); return; }
+    // Called from travel render when no modal/transit is busy. Each interaction is
+    // preceded by a short arrival vignette for the Oregon-Trail between-scene feel.
+    if (modalOpen() || transiting) return;
+    if (game._win) { game._win = false; winGame(); return; }
+    if (game._contactPending) { game._contactPending = false; presentFirstContact(); return; }
+    if (hazardQueue.length) {
+      var hz = hazardQueue.shift();
+      playTransit({ variant: "hazard", caption: "HAZARD AHEAD" }, function () { presentHazard(hz); });
+      return;
+    }
+    if (stationQueue.length) {
+      var st = stationQueue.shift();
+      playTransit({ variant: "dock", caption: "APPROACHING · " + st.name.toUpperCase() }, function () { presentStation(st); });
+      return;
+    }
     if (voidQueue.length) { var v = voidQueue.shift(); presentVoid(v); return; }
+  }
+
+  /* ---------------------------------------------------------
+     10b. First contact (scripted surprise) + aftermath
+     --------------------------------------------------------- */
+  function presentFirstContact() {
+    game.contact = true;
+    sfx("good");
+    log("◆ FIRST CONTACT — you are not alone. ◆", "sys");
+    openModal({
+      title: "✷ FIRST CONTACT ✷",
+      art: "        ◌\n   ·   ╱│╲   ·\n      ◉──┼──◉\n   ·   ╲│╱   ·\n        ◌",
+      body: "<p>Out here, past the last whisper of any human signal, the dark answers back.</p>" +
+        "<p>A structure keeps perfect pace alongside you — vast, patterned, <span class='paper'>and built by no human hand</span>. It has been waiting. The whole crew has gone silent at the ports. Whatever you do in the next breath, humanity will never be alone again.</p>",
+      choices: [
+        { label: "Hail them — open a channel  [Xenobiologist]", onClick: function () { resolveContact("hail"); } },
+        { label: "Observe in silence, record everything", onClick: function () { resolveContact("observe"); } },
+        { label: "Run dark — kill the lights and slip away", onClick: function () { resolveContact("evade"); } }
+      ]
+    });
+  }
+  function resolveContact(choice) {
+    game.contactChoice = choice;
+    closeModal();
+    if (choice === "hail") {
+      var roll = skillFor("Xenobiologist") + rint(0, 40);
+      if (roll >= 55) {
+        adjustMoraleAll(+12, true);
+        game.credits += 220;
+        game._alienFriendly = true;
+        log("They answer in geometry and light — something like welcome. The crew weeps with wonder.", "good");
+        sfx("win");
+      } else {
+        adjustMoraleAll(-6, true);
+        afflict("void fever");
+        game._alienFriendly = false;
+        log("Your hail is met with a pulse that scrambles a mind aboard. Contact — but not kindness.", "bad");
+        sfx("bad");
+      }
+    } else if (choice === "observe") {
+      adjustMoraleAll(+5, true);
+      game.credits += 130;
+      game._alienFriendly = true;
+      log("You watch, and log, and learn. The data alone will change everything — if you make it home.", "good");
+    } else {
+      game.supplies.fuel = Math.max(0, game.supplies.fuel - 6);
+      adjustMoraleAll(-2, true);
+      game._alienFriendly = false;
+      log("You run silent and dark. It lets you pass. The crew will always wonder what you fled.", "warn");
+    }
+    save();
+    checkEnd();
+    if (!game.ended) renderTravel();
   }
 
   function presentHazard(key) {
@@ -1127,6 +1246,69 @@
   function flashLog() { /* hook for future visual flash; no-op keeps calls safe */ }
 
   /* ---------------------------------------------------------
+     15b. Transit animations (between-scene, Oregon-Trail style)
+     --------------------------------------------------------- */
+  var transiting = false;
+  function animationsOn() {
+    if (meta.anim === false) return false;
+    try {
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+    } catch (e) {}
+    return true;
+  }
+  // Show a short, skippable transit scene, then call done() exactly once.
+  // variant: cruise | dock | hazard | land. Resolves synchronously if anims off.
+  function playTransit(opts, done) {
+    opts = opts || {};
+    done = done || function () {};
+    if (!animationsOn()) { done(); return; }
+    if (transiting) { done(); return; }       // never overlap
+    transiting = true;
+
+    var ov = $("#transit");
+    var ship = $("#transit-ship"), dest = $("#transit-dest"), cap = $("#transit-cap");
+    var V = {
+      cruise: { ship: "⊳—■▣",    dur: 1300, destIcon: "" },
+      dock:   { ship: "⊳—■▣ ▸",  dur: 1500, destIcon: "◉" },
+      hazard: { ship: "⊳—■▣ !",  dur: 1400, destIcon: "✦" },
+      land:   { ship: "⊳—■▣ ▸",  dur: 2200, destIcon: "◐" }
+    }[opts.variant] || { ship: "⊳—■▣", dur: 1300, destIcon: "" };
+
+    ship.textContent = V.ship;
+    cap.textContent = opts.caption || "";
+    if (V.destIcon) { dest.textContent = V.destIcon; dest.classList.remove("grow"); void dest.offsetWidth; dest.classList.add("grow"); }
+    else { dest.textContent = ""; dest.classList.remove("grow"); }
+    if (opts.variant === "hazard") sfx("warn");
+    else if (opts.variant === "land") sfx("win");
+    else sfx("tick");
+
+    ov.classList.remove("hidden");
+
+    var finished = false;
+    var timer = null;
+    function finish() {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      ov.classList.add("hidden");
+      ov.removeEventListener("click", finish);
+      document.removeEventListener("keydown", onKey, true);
+      transiting = false;
+      done();
+    }
+    function onKey(e) {
+      if (e.key === " " || e.key === "Enter" || e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();          // don't let the global handler also fire "continue"
+        finish();
+      }
+    }
+    timer = setTimeout(finish, V.dur);
+    ov.addEventListener("click", finish);
+    document.addEventListener("keydown", onKey, true);
+  }
+
+  /* ---------------------------------------------------------
      16. Rendering
      --------------------------------------------------------- */
   function renderApp() {
@@ -1283,6 +1465,40 @@
       " · Med " + s.medicine + " · Parts " + game.ship.parts + " · Charges " + s.charges + "</div>";
   }
 
+  // Multi-waypoint trail: a node per WAYPOINTS entry, ship at current distance.
+  function renderRouteMap() {
+    function icon(wp, i) {
+      if (wp.kind === "win") return "◐";
+      if (wp.kind === "start") return "⌂";
+      if (wp.hazard) return "✦";
+      if (wp.kind === "void") return "❄";
+      if (wp.kind === "station") return "◉";
+      return "⬡";
+    }
+    function abbrev(name) { return name.replace(/\s*\(.*\)/, "").replace("The ", ""); }
+    var shipPct = clamp((game.distance / TOTAL_DIST) * 100, 0, 100);
+    var nodes = "", labels = "";
+    for (var i = 0; i < WAYPOINTS.length; i++) {
+      var wp = WAYPOINTS[i];
+      var pct = clamp((CUM[i] / TOTAL_DIST) * 100, 0, 100);
+      var state = game.visited.indexOf(i) > -1 ? "visited"
+                : (i === game.waypointIndex ? "current" : "future");
+      var cls = "rm-node " + state + (wp.kind === "win" ? " win" : "");
+      nodes += "<span class='" + cls + "' style='left:" + pct + "%' title='" +
+        wp.name + " — " + wp.blurb.replace(/'/g, "") + "'>" + icon(wp, i) + "</span>";
+      if (i === game.waypointIndex || (i === game.waypointIndex - 1)) {
+        var lc = i === game.waypointIndex ? "cur" : "nxt";
+        labels += "<span class='rm-label " + lc + "' style='left:" + pct + "%'>" + abbrev(wp.name) + "</span>";
+      }
+    }
+    return "<div class='routemap'><div class='rm-rail'>" +
+      "<div class='rm-line'></div>" +
+      "<div class='rm-fill' style='width:" + shipPct + "%'></div>" +
+      nodes +
+      "<span class='rm-ship' style='left:" + shipPct + "%'>►</span>" +
+      "</div><div class='rm-labels'>" + labels + "</div></div>";
+  }
+
   /* ---- Travel (main) ---- */
   function renderTravel() {
     game.screen = "travel";
@@ -1301,9 +1517,8 @@
         (max ? bar(val, max, kind) : "") + "</div>";
     }
 
-    // Journey track
-    var shipPct = clamp((game.distance / TOTAL_DIST) * 100, 0, 100);
-    var track = "<div class='track'><span class='ship' style='left:" + shipPct + "%'>►</span><span class='dest'>PROXIMA ◐</span></div>";
+    // Journey route map (multi-waypoint trail)
+    var track = renderRouteMap();
 
     // Power line
     var powerLine = "<div class='stat'><span class='label'>Reactor</span><span class='val " + (p.brownout ? "red" : "cyan") + "'>" +
@@ -1590,6 +1805,19 @@
       if (!m) window.Sound.play("blip");
     }
   });
+
+  /* ---- animations toggle ---- */
+  (function () {
+    var btn = $("#anim-btn");
+    function label() { btn.textContent = meta.anim === false ? "▦ ANIM: OFF" : "▦ ANIM: ON"; }
+    label();
+    btn.addEventListener("click", function () {
+      meta.anim = meta.anim === false ? true : false;
+      saveMeta();
+      label();
+      sfx("blip");
+    });
+  })();
 
   /* ---------------------------------------------------------
      18. Boot
