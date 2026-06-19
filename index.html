@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROXIMA TRAIL :: a dying-Earth survival voyage</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- CRT frame -->
+  <div id="crt">
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="flicker" aria-hidden="true"></div>
+
+    <!-- Top status bar (always present) -->
+    <header id="topbar">
+      <span class="brand">▓ PROXIMA&nbsp;TRAIL</span>
+      <span id="topbar-status"></span>
+      <button id="mute-btn" type="button" title="Toggle sound">♪ SND: ON</button>
+    </header>
+
+    <!-- Everything renders into here -->
+    <main id="app" aria-live="polite"></main>
+
+    <footer id="botbar">
+      <span id="botbar-hint">EARTH IS DYING. PROXIMA CENTAURI b AWAITS.</span>
+      <span class="cursor" aria-hidden="true">█</span>
+    </footer>
+  </div>
+
+  <!-- Generic modal overlay (events / hazards / choices / load-shed) -->
+  <div id="modal" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div id="modal-title" class="modal-title"></div>
+      <div id="modal-art" class="modal-art"></div>
+      <div id="modal-body" class="modal-body"></div>
+      <div id="modal-choices" class="modal-choices"></div>
+    </div>
+  </div>
+
+  <!-- Mining mini-game overlay -->
+  <div id="minigame" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box wide">
+      <div class="modal-title">⛏ ASTEROID MINING</div>
+      <div id="mg-hud" class="mg-hud"></div>
+      <div id="mg-field" class="mg-field"></div>
+      <div id="mg-footer" class="mg-footer"></div>
+    </div>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
