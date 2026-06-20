@@ -167,5 +167,13 @@ Closed the three issues flagged in the Phase-1 self-audit, in one pass.
   old age** and their skill declines. Aging tuned for evocative cadence (births ~40%, coming-of-age
   ~17%) without wrecking balance; difficulty re-verified (Settler ~60 / Pioneer ~55 / Voyager ~35).
   Save key bumped to v2. *Balance figures are approximate — automated-play proxies with real variance.*
-- **Still ahead:** Phase 4 (ship AI), Phase 5 (wormholes + Earth's fading signal), Phase 6 (interactive
-  Act II).
+## Addendum — Phase 4: ATLAS, the ship mind
+A shipboard AI whose `integrity` decays each turn (faster when few minds are awake — the lonely void
+frays it). **Stable** it assists checks/hazards and occasionally optimizes; **degrading** it glitches
+(false gauges, rogue power reroutes, unease); **hostile** it locks life support/drive, vents stores,
+and endangers crew. Engineer **diagnostics** restore it; a last-resort **purge** is risky and
+irreversible. Verified: neglected runs degrade it to single digits through glitch→hostile; fuzz clean;
+balance re-swept (Settler ~53 / Pioneer ~53 / Voyager ~20 with maintenance). Audit fixes earlier this
+session: mining null-crash, `skillFor` best-specialist, inverted Commander benefit. Save key now v3.
+
+- **Still ahead:** Phase 5 (wormholes + Earth's fading signal), Phase 6 (interactive Act II).

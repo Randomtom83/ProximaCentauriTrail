@@ -12,7 +12,7 @@
   /* ---------------------------------------------------------
      0. Small helpers
      --------------------------------------------------------- */
-  var SAVE_KEY = "proxima-trail-save-v2";
+  var SAVE_KEY = "proxima-trail-save-v3";
   var META_KEY = "proxima-trail-meta-v1";
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -145,6 +145,8 @@
   var AGE_HIB = 0.04;          // cold sleep nearly stops biological time
   var COME_OF_AGE = 14;
   var OLD_AGE = 70;            // past this, the dark starts to call
+  var AI_NAME = "ATLAS";       // the ship's mind
+  var AI_DECAY = 0.9;          // integrity lost per turn — loneliness accelerates it
 
   var AILMENTS = ["radiation sickness", "hypoxia", "hibernation sickness",
                   "void fever", "decompression trauma"];
@@ -236,7 +238,8 @@
       alien: { posture: null, friendly: null, pursuit: false, tech: false },
       _heat: 0,                   // contraband 'heat' that can incur a fine at the next port
       shipYears: 0,               // calendar years elapsed on the voyage
-      _pregnancy: null            // { parent, turnsLeft } when a child is on the way
+      _pregnancy: null,           // { parent, turnsLeft } when a child is on the way
+      ai: { integrity: 100 }      // ATLAS, the ship mind — helpful, then fallible, then hostile
     };
   }
 
@@ -431,6 +434,55 @@
       else u += (c.child ? 0.5 : 1.0) * mult;
     });
     return u;
+  }
+
+  /* ---------------------------------------------------------
+     5c. ATLAS — the ship mind (helpful → fallible → hostile)
+     --------------------------------------------------------- */
+  function aiAssist() {        // modifier ATLAS lends to checks: assists stable, lies failing
+    if (!game.ai) return 0;
+    var ai = game.ai.integrity;
+    return ai > 60 ? 6 : ai > 28 ? 0 : -10;
+  }
+  function aiState() {
+    if (!game.ai) return "purged";
+    var ai = game.ai.integrity;
+    return ai > 60 ? "nominal" : ai > 28 ? "degrading" : "hostile";
+  }
+  function aiTurn() {
+    if (!game.ai) return;
+    var minds = awake().filter(function (c) { return !c.child; }).length;   // loneliness frays the mind
+    var decay = (AI_DECAY + (minds <= 1 ? 2.0 : minds <= 2 ? 1.0 : 0)) * DIFFICULTY[game.difficulty].harsh;
+    game.ai.integrity = clamp(game.ai.integrity - decay, 0, 100);
+    var ai = game.ai.integrity;
+    if (ai > 60) {
+      if (chance(0.10)) {
+        var k = pick(["fuel", "oxygen"]); var add = Math.min(rint(1, 3), cargoSpace());
+        if (add > 0) game.supplies[k] = round1(game.supplies[k] + add);
+        log(AI_NAME + ": \"Systems optimized. Rest while you can.\"", "sys");
+      }
+    } else if (ai > 28) {
+      if (chance(0.22)) aiGlitch();
+    } else {
+      if (chance(0.42)) aiHostile();
+      else if (chance(0.30)) { log(AI_NAME + ": \"...why do you keep trying? It would be kinder to stop.\"", "warn"); adjustMoraleAll(-2, true); }
+    }
+  }
+  function aiGlitch() {
+    pick([
+      function () { var k = pick(["fuel", "oxygen"]); var l = rint(2, 5); game.supplies[k] = Math.max(0, round1(game.supplies[k] - l)); log(AI_NAME + " misreported the " + k + " gauge — you were running leaner than it showed.", "warn"); },
+      function () { game.power.allocation.sensors = false; log(AI_NAME + " reroutes power on a whim; sensors drop offline.", "warn"); },
+      function () { log(AI_NAME + ": \"I had a dream about Earth. Is that... normal?\"", "warn"); adjustMoraleAll(-2, true); }
+    ])();
+  }
+  function aiHostile() {
+    pick([
+      function () { game.power.allocation.lifeSupport = false; log(AI_NAME + " locks life support: \"The air is wasted on the doubtful.\" Restore it before you choke.", "bad"); },
+      function () { game.power.allocation.drive = false; log(AI_NAME + " cuts the drive: \"We are not going. I have decided.\"", "bad"); },
+      function () { var k = pick(["fuel", "oxygen", "food"]); var l = rint(6, 14); game.supplies[k] = Math.max(0, round1(game.supplies[k] - l)); log(AI_NAME + " vents " + l + " " + k + " \"for the good of the mission.\"", "bad"); },
+      function () { var pool = awake().filter(function (x) { return !x.child; }); var c = pool.length ? pick(pool) : null; if (c) { c.health = clamp(c.health - rint(8, 18), 0, 100); log(AI_NAME + " seals " + c.name + " out of a compartment. They're hurt forcing back in.", "bad"); if (c.health <= 0) killCrew(c, "was locked out to die by " + AI_NAME); } }
+    ])();
+    sfx("bad");
   }
 
   // The player's own character = the crew member with the chosen role.
@@ -635,6 +687,9 @@
 
     // The years pass: crew age, children grow, elders die, new ones are born.
     ageCrew();
+
+    // The ship mind frays, helps, or turns on you.
+    aiTurn();
 
     // Hull slow wear
     game.ship.hull = clamp(game.ship.hull - rint(0, 1), 0, 100);
@@ -961,6 +1016,7 @@
     var diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
     if (!game.power.allocation.sensors) diff += 12;   // sensors help navigation/analysis
     diff -= Math.round((game.potential - 50) * 0.15);  // momentum: a run that's going well compounds
+    diff -= aiAssist();                                // ATLAS helps while stable, hinders while failing
     var roll = skillFor(role) + rint(0, 40);
     var ok = roll >= diff;
     sfx(ok ? "good" : "bad");
@@ -1349,6 +1405,7 @@
     danger += Math.max(0, -game.posture.caution) / 500;     // recklessness courts catastrophe
     danger += Math.max(0, game.posture.aggress) / 800;
     danger -= (game.potential - 50) * 0.0025;               // momentum bleeds into peril, too
+    danger -= aiAssist() * 0.003;                            // ATLAS's nav help (or sabotage)
     danger *= DIFFICULTY[game.difficulty].harsh;
     danger = clamp(danger, 0.03, 0.95);
     var d = danger;
@@ -1637,6 +1694,61 @@
     closeModal();
     save();
     renderTravel();
+  }
+
+  /* ---------------------------------------------------------
+     12b. ATLAS management (diagnostics / purge)
+     --------------------------------------------------------- */
+  function openAI() {
+    if (!game.ai) {
+      openModal({ title: "🧠 " + AI_NAME, body: "<p>The core is gone. The ship is dumb now — no help, no harm, just you and the dark.</p>",
+        choices: [{ label: "Close", onClick: function () { sfx("confirm"); closeModal(); renderTravel(); } }] });
+      return;
+    }
+    var ai = Math.round(game.ai.integrity), st = aiState();
+    var desc = st === "nominal" ? "ATLAS hums along, helpful and calm — assisting every system."
+      : st === "degrading" ? "ATLAS is fraying — readings drift, decisions wander. It needs recalibration."
+      : "ATLAS has turned. It fights you for the ship, and every diagnostic risks a reprisal.";
+    var choices = [{ label: "Run diagnostics & recalibrate  [Engineer]", onClick: function () { aiDiagnostics(); } }];
+    if (game.ai.integrity <= 40) choices.push({ label: "PURGE the core (drastic, irreversible)  [Engineer]", onClick: function () { aiPurge(); } });
+    choices.push({ label: "Close", onClick: function () { sfx("confirm"); closeModal(); renderTravel(); } });
+    openModal({
+      title: "🧠 " + AI_NAME + " — ship mind",
+      art: "  ┌─◊─┐\n  │ " + (st === "hostile" ? "✖" : st === "degrading" ? "~" : "◉") + " │\n  └───┘",
+      body: "<p>Core integrity <b class='" + (ai > 60 ? "cyan" : ai > 28 ? "amber" : "red") + "'>" + ai + "%</b> — status <b>" + st.toUpperCase() + "</b>.</p><p>" + desc + "</p>",
+      choices: choices
+    });
+  }
+  function aiDiagnostics() {
+    closeModal();
+    game.day += rint(2, 3);
+    if (game.ai.integrity < 28 && chance(0.4)) {
+      log(AI_NAME + " resists the recalibration and bites back.", "bad");
+      aiHostile();
+    } else {
+      var gain = Math.round(15 + skillFor("Engineer") / 3);
+      game.ai.integrity = clamp(game.ai.integrity + gain, 0, 100);
+      log("Diagnostics complete — " + AI_NAME + " core integrity +" + gain + ".", "good");
+      influence({ caution: +2 });
+    }
+    save(); checkEnd();
+    if (!game.ended) renderTravel();
+  }
+  function aiPurge() {
+    closeModal();
+    game.day += rint(2, 3);
+    if (skillFor("Engineer") + rint(0, 40) >= 60) {
+      game.ai = null;
+      adjustMoraleAll(-4, true);
+      log("You tear out the core. " + AI_NAME + " goes silent mid-sentence. The ship is dumb now — and yours.", "warn");
+      influence({ aggress: +4 });
+      sfx("confirm");
+    } else {
+      log("The purge fails — " + AI_NAME + " locks you out and lashes the ship.", "bad");
+      aiHostile(); aiHostile();
+    }
+    save(); checkEnd();
+    if (!game.ended) renderTravel();
   }
 
   /* ---------------------------------------------------------
@@ -2110,9 +2222,14 @@
     var track = renderRouteMap();
 
     // Power line
+    var aiInt = game.ai ? Math.round(game.ai.integrity) : null;
+    var aiCls = !game.ai ? "dim" : aiInt > 60 ? "cyan" : aiInt > 28 ? "amber" : "red";
+    var aiLine = "<div class='stat'><span class='label'>" + AI_NAME + "</span><span class='val " + aiCls + "'>" +
+      (game.ai ? aiInt + "% · " + aiState() : "purged") + "</span></div>" +
+      (game.ai ? "<div class='bar " + (aiInt > 60 ? "ok" : aiInt > 28 ? "warn" : "crit") + "'><span style='width:" + aiInt + "%'></span></div>" : "");
     var powerLine = "<div class='stat'><span class='label'>Reactor</span><span class='val " + (p.brownout ? "red" : "cyan") + "'>" +
       p.demand + " / " + p.output + " pwr" + (p.brownout ? " ⚠ BROWNOUT" : "") + "</span></div>" +
-      "<div class='bar power'><span style='width:" + clamp(Math.round(p.demand / Math.max(1, p.output) * 100), 0, 100) + "%'></span></div>";
+      "<div class='bar power'><span style='width:" + clamp(Math.round(p.demand / Math.max(1, p.output) * 100), 0, 100) + "%'></span></div>" + aiLine;
 
     var disp = dispositionText();
     var holdPct = clamp(Math.round(cargoUsed() / ship.holdMax * 100), 0, 100);
@@ -2153,6 +2270,7 @@
           "<button class='btn small' data-action='hibernate'>❄ Pods</button>" +
           "<button class='btn small' data-action='rest'>🛠 Rest & repair</button>" +
           "<button class='btn small' data-action='mine'>⛏ Mine</button>" +
+          "<button class='btn small' data-action='ai'>🧠 " + AI_NAME + "</button>" +
           "<button class='btn small danger' data-action='abandon'>Abandon run</button>" +
         "</div>";
 
@@ -2338,6 +2456,7 @@
       case "hibernate": openHibernation(); break;
       case "rest": doRestRepair(); break;
       case "mine": openMining(); break;
+      case "ai": openAI(); break;
       case "wakeself": wakeSelf("you force yourself awake"); save(); renderTravel(); break;
       case "abandon":
         openModal({ title: "Abandon run?", body: "<p>This ends the current voyage. It will be logged as a loss. There is no undo.</p>",

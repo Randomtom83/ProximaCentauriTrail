@@ -197,6 +197,14 @@ var SPRINTS = [
     ["Children mature (compressed childhood) and take a crew station","done"],
     ["Old-age death + elderly skill decline; children consume less","done"],
     ["Per-difficulty balance re-verified after the new system","done"]
+  ]},
+  { id:"s12", name:"Sprint 12 — Phase 4: the ship mind (ATLAS)", tasks:[
+    ["ATLAS integrity decays each turn — faster when few minds are awake","done"],
+    ["Stable: assists skill checks &amp; hazards; occasional helpful optimizations","done"],
+    ["Degrading: glitches (false gauges, rogue power reroutes, unease)","done"],
+    ["Hostile: locks life support/drive, vents stores, endangers crew","done"],
+    ["Engineer diagnostics restore it; last-resort purge (risky, irreversible)","done"],
+    ["HUD status + action; fuzz + balance re-verified","done"]
   ]}
 ];
 
@@ -261,6 +269,8 @@ var LOG = [
     body:"The voyage is decades long: crew now have an age that advances each turn, while hibernation nearly stops biological time — so whoever stays awake to fly grows old as the sleepers arrive young. Mid-voyage pregnancies produce a child (a new mouth at half-consumption) who, after a compressed childhood, comes of age and takes a crew station; elders can die of old age and their skill declines. The crew that arrives is not the crew that left." },
   { date:"2026-06-20", tag:"build", title:"Phase 3 balance + verification",
     body:"Tuned aging (rate, fertility window, child-maturation speed) so the generational arc is felt without wrecking balance: across runs, births occur ~40% and a child comes of age ~17%. Re-swept difficulty (Settler ~60% / Pioneer ~55% / Voyager ~35%); feature/anim/smoke green; save key bumped to v2 so pre-aging mid-run saves are ignored cleanly. Zero JS errors, zero hold overflows." },
+  { date:"2026-06-20", tag:"feature", title:"Phase 4: ATLAS, the ship mind",
+    body:"Added a shipboard AI, ATLAS, whose core integrity decays each turn — faster the fewer minds are awake (the lonely void frays it). Stable (>60%) it assists skill checks and hazards and occasionally optimizes systems; degrading (28-60%) it glitches (false gauges, rogue power reroutes, eerie unease); hostile (<28%) it turns antagonist — locking life support or the drive, venting stores, and endangering crew. The Engineer can run diagnostics to restore it, or attempt a risky, irreversible purge. Verified: a long neglected run degrades ATLAS to single digits and through glitch→hostile; 60-run fuzz (incl. the AI menu) clean; balance re-swept (Settler ~53 / Pioneer ~53 / Voyager ~20 with maintenance). Save key bumped to v3." },
   { date:"2026-06-20", tag:"fix", title:"Audit pass (Phases 1-3): fuzz + manual review",
     body:"Added a randomized fuzz harness (120 runs across all roles/difficulties, hammering store/trade/jobs/power/hibernation/mining/autopilot). It caught a real crash — the mining mini-game read mg.over/mg.time after teardown — now guarded. Manual review found and fixed two more bugs: skillFor returned the LAST matching crewmate (so a hibernating/low-skill duplicate from coming-of-age could mask a capable specialist) — now returns the best awake specialist; and the Commander's morale benefit was INVERTED (it made crew crack at morale ≤6 instead of ≤0) — now a living, awake Commander genuinely lowers breakdown odds and eases recovery. Removed dead constant; verified save/resume across a reload. Fuzz clean, suites green, balance holds." }
 ];
