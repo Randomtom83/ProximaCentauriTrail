@@ -12,7 +12,7 @@
   /* ---------------------------------------------------------
      0. Small helpers
      --------------------------------------------------------- */
-  var SAVE_KEY = "proxima-trail-save-v3";
+  var SAVE_KEY = "proxima-trail-save-v4";
   var META_KEY = "proxima-trail-meta-v1";
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -239,7 +239,10 @@
       _heat: 0,                   // contraband 'heat' that can incur a fine at the next port
       shipYears: 0,               // calendar years elapsed on the voyage
       _pregnancy: null,           // { parent, turnsLeft } when a child is on the way
-      ai: { integrity: 100 }      // ATLAS, the ship mind — helpful, then fallible, then hostile
+      ai: { integrity: 100 },     // ATLAS, the ship mind — helpful, then fallible, then hostile
+      earth: { status: "live", heard: 0 },  // the signal from home: live → fading → silent
+      _wormholes: 0,              // wormholes encountered (capped per run)
+      _wormholePending: false
     };
   }
 
@@ -485,6 +488,92 @@
     sfx("bad");
   }
 
+  /* ---------------------------------------------------------
+     5d. Earth's fading signal & wormholes
+     --------------------------------------------------------- */
+  function earthSignal() {
+    if (!game.earth || game.earth.status === "silent") return;
+    var prog = game.distance / TOTAL_DIST;
+    // A late, rare gut-punch rather than a steady morale tax.
+    if (prog > 0.5 && chance(0.012 + prog * 0.02)) {
+      game.earth.status = "silent";
+      adjustMoraleAll(-8, true);
+      influence({ potential: -2 });
+      log("◆ The signal from Earth stops. You wait. It does not come back. ◆", "bad");
+      sfx("death");
+      return;
+    }
+    if (game.turn % 9 === 0) {
+      game.earth.heard++;
+      var msg, mor;
+      if (prog < 0.3) { msg = pick(["Earth sends word — the evacuation lotteries grind on, and they are cheering you outward.", "A broadcast from home: children singing, badly, over the static. The crew smiles."]); mor = +3; }
+      else if (prog < 0.7) { msg = pick(["Earth's transmissions are thinner now, and graver. The news from home is not good.", "Home reports failing domes and rising seas. Still, they ask after you."]); mor = -1; }
+      else { msg = pick(["A faint signal from Earth — mostly noise, and someone reading names of the dead.", "Earth's voice is barely there now: four years stale, and fading."]); mor = -2; }
+      adjustMoraleAll(mor, true);
+      log("📡 " + msg, mor >= 0 ? "good" : "warn");
+    }
+  }
+
+  // Wormholes: a rare, optional gamble — shortcut or one-way ticket to lost. Alien knowledge
+  // makes them navigable, but they are NEVER a sure line to Proxima.
+  function presentWormhole() {
+    game._wormholes++;
+    var navigable = (game.dest.knowledge >= 35) || (game.alien && game.alien.tech);
+    openModal({
+      title: "◑ A FOLD IN SPACE",
+      art: "   ╭─◜◝─╮\n  (   ◌   )\n   ╰─◟◞─╯",
+      body: "<p>Ahead, the stars bend into a throat of light — a wormhole, the kind the theorists swore might exist, and might not.</p>" +
+        "<p>" + (navigable
+          ? "<span class='paper'>You have the knowledge to read it</span> — the strangers' charts, or your own hard-won data. You could thread it on purpose."
+          : "<span class='paper'>You have no idea where it goes.</span> Enter blind and you might shave years off the voyage — or be flung somewhere you'll spend years finding your way back from.") +
+        " It is never a sure thing.</p>",
+      choices: [
+        { label: navigable ? "Thread it (you can read the charts)" : "Enter it — roll the dice", onClick: function () { resolveWormhole(); } },
+        { label: "Steer clear, hold your course", onClick: function () { sfx("cancel"); influence({ caution: +4, explore: -2 }); log("You give the fold a wide berth. Some doors are better left shut.", "info"); closeModal(); renderTravel(); } }
+      ]
+    });
+  }
+  function resolveWormhole() {
+    closeModal();
+    influence({ explore: +6, caution: -4 });
+    var kn = clamp(game.dest.knowledge + (game.alien && game.alien.tech ? 40 : 0), 0, 100);
+    var sev = sampleWeighted({
+      shortcut:    1 + kn * 0.06,
+      neutral:     2,
+      lost:        Math.max(0.5, 3 - kn * 0.022),
+      catastrophe: Math.max(0.3, 2 - kn * 0.018)
+    });
+    if (sev === "shortcut") {
+      var cap = CUM[8] - 2;                                  // never deposits you at Proxima
+      var before = game.distance;
+      game.distance = Math.min(cap, game.distance + rint(45, 90));
+      while (game.waypointIndex < WAYPOINTS.length && game.distance >= CUM[game.waypointIndex]) { game.visited.push(game.waypointIndex); game.waypointIndex++; }
+      influence({ potential: +6 });
+      log("The fold takes you — and spits you out " + Math.round(game.distance - before) + " units closer, years saved in a heartbeat. The crew is stunned silent.", "good");
+      sfx("win");
+    } else if (sev === "neutral") {
+      game.supplies.fuel = Math.max(0, game.supplies.fuel - rint(2, 5));
+      log("The fold flickers shut as you commit; you skim its edge and pull away, nothing gained but nerve spent.", "info");
+    } else if (sev === "lost") {
+      var back = rint(20, 50); game.distance = Math.max(0, game.distance - back);
+      while (game.waypointIndex > 1 && game.distance < CUM[game.waypointIndex - 1]) game.waypointIndex--;
+      game.supplies.fuel = Math.max(0, game.supplies.fuel - rint(8, 16));
+      game.day += rint(8, 20);
+      influence({ potential: -4 });
+      log("You come out in unfamiliar sky — flung " + back + " units off course. You spend a long time, and dear fuel, just working out where you are.", "bad");
+      sfx("bad");
+    } else {
+      applyOutcome({ hull: -rint(25, 45), res: { oxygen: -rint(4, 10) } });
+      var v = pick(awake().filter(function (c) { return !c.child; }));
+      if (v) { v.health = clamp(v.health - rint(15, 30), 0, 100); if (v.health <= 0) killCrew(v, "was torn apart by the fold's tides"); }
+      influence({ potential: -6 });
+      log("The fold's tides nearly rip the ship apart. You tumble out the far side broken and bleeding.", "bad");
+      sfx("bad");
+    }
+    save(); checkEnd();
+    if (!game.ended) renderTravel();
+  }
+
   // The player's own character = the crew member with the chosen role.
   function playerChar() {
     for (var i = 0; i < game.crew.length; i++) if (game.crew[i].role === game.role) return game.crew[i];
@@ -697,6 +786,9 @@
     // A small reward for simply not giving up — persistence trends the odds up.
     influence({ persist: +1 });
 
+    // The signal from home, fading.
+    earthSignal();
+
     // Occasional qualitative omen — lets the hidden 'potential' be felt, never read.
     if (!game.autopilot && chance(0.12)) {
       var omen = game.potential >= 66 ? pick(["The crew sleeps easy tonight; the run feels almost blessed.", "Somehow it all keeps holding together. You dare to feel lucky.", "There's a good rhythm to the ship lately — don't say it out loud."])
@@ -712,6 +804,8 @@
       autopilotTurn(contactNow);           // ship runs itself, badly — you can't choose
     } else if (contactNow) {
       game._contactPending = true;         // shown via flushQueues so it sequences cleanly
+    } else if (game._wormholes < 3 && game.waypointIndex >= 4 && game.waypointIndex < 9 && chance(0.05)) {
+      game._wormholePending = true;        // a rare optional fold in space
     } else if (chance(0.55)) {
       rollEvent();                         // a normal weighted event (not every turn)
     }
@@ -881,6 +975,7 @@
     if (d.overtaken) lines.push("And you are not the first: a human beacon already pulses on the surface. A later ship, faster engines, beat you across the gulf by years. They are already home.");
     else if (d.inhabited === "natives") lines.push("And the world is not empty — patterned lights move in its night side. Someone already calls this place theirs.");
     else if (d.inhabited === "settlers") lines.push("And a derelict colony hull lies in orbit — someone tried this before you, and failed. Or did they?");
+    if (game.earth && game.earth.status === "silent") lines.push("Behind you, Earth has been silent for years. There may be no one left to tell.");
 
     openModal({
       title: "◐ ARRIVAL · PROXIMA CENTAURI b",
@@ -916,11 +1011,13 @@
     var base = p + game.posture.persist * 0.4 + game.posture.cooperate * 0.3
              + Math.min(20, survivors * 4) + Math.min(15, (game.supplies.food + game.supplies.oxygen) / 8);
     var outcome, won = false, tier = "", cause = "";
+    var earthGone = game.earth && game.earth.status === "silent";
+    var lastOfUs = earthGone ? " Earth has long since gone silent behind you — whatever takes root here may be all that is left of humankind." : "";
 
     if (path === "colonize") {
       var r = sampleWeighted({ thrive: Math.max(0, base - 30), hold: 50, wither: Math.max(0, 70 - base) });
-      if (r === "thrive") { won = true; tier = "HAVEN"; cause = "The colony takes root. Your signal crawls home at the speed of light, and in time, more come. Humanity has a second world."; }
-      else if (r === "hold") { won = true; tier = "FOOTHOLD"; cause = "A hard, clinging foothold. The colony survives — barely, bitterly — and waits on a sky that may never send anyone else."; }
+      if (r === "thrive") { won = true; tier = "HAVEN"; cause = "The colony takes root. Your signal crawls home at the speed of light, and in time, more come. Humanity has a second world." + lastOfUs; }
+      else if (r === "hold") { won = true; tier = "FOOTHOLD"; cause = "A hard, clinging foothold. The colony survives — barely, bitterly — and waits on a sky that may never send anyone else." + lastOfUs; }
       else { tier = "WITHERED"; cause = "You land, and you try, and the world is stronger than you. The last colonist dies looking up at a sky no rescue will ever cross."; }
     } else if (path === "petition") {
       var r2 = sampleWeighted({ welcomed: Math.max(0, game.posture.cooperate + base - 40), tolerated: 50, refused: Math.max(0, 60 - game.posture.cooperate) });
@@ -928,11 +1025,17 @@
       else if (r2 === "tolerated") { won = true; tier = "FOOTHOLD"; cause = "They suffer your presence at the margins. Humanity endures here, a guest forever, but it endures."; }
       else { tier = "TURNED AWAY"; cause = "They will not have you. With nowhere left to go and nothing left to burn, the ship becomes humanity's last, drifting tomb."; }
     } else if (path === "return") {
-      var r3 = sampleWeighted({ saved: Math.max(0, base - 25), late: 45, gone: Math.max(0, 65 - base) });
-      if (game.alien && game.alien.tech && chance(0.4)) { won = true; tier = "THE LONG WAY HOME"; cause = "With knowledge the strangers gave you, the way home folds short. You reach a changed Earth in time to matter. Humanity is moving."; }
-      else if (r3 === "saved") { won = true; tier = "MESSENGER"; cause = "Decades later you reach home space with the only good news in a generation. A dying Earth dares, again, to pack its bags."; }
-      else if (r3 === "late") { tier = "TOO LATE"; cause = "You make it back. The orbital cities are dark and quiet. You carried hope across the void to a house already empty."; }
-      else { tier = "LOST WITH ALL HANDS"; cause = "The voyage home is longer than the voyage out, and far less kind. Somewhere in the dark, the ship simply stops."; }
+      if (earthGone) {
+        // Home stopped answering long ago; turning back is mostly grief.
+        if (sampleWeighted({ late: 3, gone: 4 }) === "late") { tier = "TOO LATE"; cause = "You cross back to where Earth was. The cradle is silent — domes dark, the seas gone still. You carried hope across the void to an empty house."; }
+        else { tier = "LOST WITH ALL HANDS"; cause = "You turn the ship toward a home that stopped answering years ago. Somewhere in the long dark, so do you."; }
+      } else {
+        var r3 = sampleWeighted({ saved: Math.max(0, base - 25), late: 45, gone: Math.max(0, 65 - base) });
+        if (game.alien && game.alien.tech && chance(0.4)) { won = true; tier = "THE LONG WAY HOME"; cause = "With knowledge the strangers gave you, the way home folds short. You reach a changed Earth in time to matter. Humanity is moving."; }
+        else if (r3 === "saved") { won = true; tier = "MESSENGER"; cause = "Decades later you reach home space with the only good news in a generation. A dying Earth dares, again, to pack its bags."; }
+        else if (r3 === "late") { tier = "TOO LATE"; cause = "You make it back. The orbital cities are dark and quiet. You carried hope across the void to a house already empty."; }
+        else { tier = "LOST WITH ALL HANDS"; cause = "The voyage home is longer than the voyage out, and far less kind. Somewhere in the dark, the ship simply stops."; }
+      }
     } else { // pushon
       won = false; tier = "INTO THE DARK";
       if (game.alien && game.alien.tech && odds(40)) { won = true; tier = "FOLDED AWAY"; cause = "On alien charts, you slip into a fold in space and vanish toward a star no human has named. Maybe it's there. Maybe it's home. The crew chooses to hope."; }
@@ -1282,6 +1385,7 @@
     if (modalOpen() || transiting) return;
     if (game._win) { game._win = false; if (game.autopilot) wakeSelf("arrival"); winGame(); return; }
     if (game._contactPending) { game._contactPending = false; presentFirstContact(); return; }
+    if (game._wormholePending) { game._wormholePending = false; presentWormhole(); return; }
     // Autopilot: the captain is asleep, so interactions resolve without a prompt.
     if (game.autopilot) {
       if (hazardQueue.length) { autoResolveHazard(hazardQueue.shift()); return; }
@@ -2241,6 +2345,8 @@
         "<div class='stat'><span class='label'>Day</span><span class='val'>" + game.day + "  <span class='dim small'>(voyage yr " + Math.round(game.shipYears) + ")</span></span></div>" +
         "<div class='stat'><span class='label'>Next waypoint</span><span class='val cyan'>" +
           WAYPOINTS[Math.min(game.waypointIndex, WAYPOINTS.length - 1)].name + "</span></div>" +
+        "<div class='stat'><span class='label'>Signal from Earth</span><span class='val " +
+          (game.earth && game.earth.status === "silent" ? "red'>silent" : (game.distance / TOTAL_DIST > 0.6 ? "amber'>faint" : "cyan'>live")) + "</span></div>" +
         track +
         "<div class='small dim'>Thrust: <b class='paper'>" + THRUST[game.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[game.rations].label + "</b>" +
           (disp ? " · Crew: <b class='paper'>" + disp + "</b>" : "") + "</div>" +

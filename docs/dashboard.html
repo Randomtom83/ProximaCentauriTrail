@@ -205,6 +205,14 @@ var SPRINTS = [
     ["Hostile: locks life support/drive, vents stores, endangers crew","done"],
     ["Engineer diagnostics restore it; last-resort purge (risky, irreversible)","done"],
     ["HUD status + action; fuzz + balance re-verified","done"]
+  ]},
+  { id:"s13", name:"Sprint 13 — Phase 5: wormholes &amp; Earth's fading signal", tasks:[
+    ["Rare, optional wormholes — shortcut, neutral, lost, or catastrophe","done"],
+    ["Navigable only with knowledge/alien tech; never a sure line to Proxima","done"],
+    ["Lost outcome flings you off course; you spend time/fuel re-localizing","done"],
+    ["Earth's signal: live → faint → silent (a late gut-punch)","done"],
+    ["Earth's fate colors morale, arrival narrative, and the endings","done"],
+    ["HUD home-signal indicator; fuzz clean; balance restored (60/53/23)","done"]
   ]}
 ];
 
@@ -269,6 +277,8 @@ var LOG = [
     body:"The voyage is decades long: crew now have an age that advances each turn, while hibernation nearly stops biological time — so whoever stays awake to fly grows old as the sleepers arrive young. Mid-voyage pregnancies produce a child (a new mouth at half-consumption) who, after a compressed childhood, comes of age and takes a crew station; elders can die of old age and their skill declines. The crew that arrives is not the crew that left." },
   { date:"2026-06-20", tag:"build", title:"Phase 3 balance + verification",
     body:"Tuned aging (rate, fertility window, child-maturation speed) so the generational arc is felt without wrecking balance: across runs, births occur ~40% and a child comes of age ~17%. Re-swept difficulty (Settler ~60% / Pioneer ~55% / Voyager ~35%); feature/anim/smoke green; save key bumped to v2 so pre-aging mid-run saves are ignored cleanly. Zero JS errors, zero hold overflows." },
+  { date:"2026-06-20", tag:"feature", title:"Phase 5: wormholes & Earth's fading signal",
+    body:"Rare, optional wormholes appear in deep space: a gamble that can shortcut a huge distance, fizzle, fling you off course (you then burn time/fuel re-localizing), or nearly tear the ship apart. They are navigable on purpose only with hard-won knowledge or alien tech — and never a sure line to Proxima (a shortcut can't deposit you at the destination). Meanwhile Earth's signal fades from live to faint to (often) silent — a late gut-punch that hits morale and reshapes the endings: a silent Earth makes 'return' mostly grief and makes a colony 'all that is left of us.' Verified: wormholes fire ~85% of runs (shortcut vs lost both occur), Earth goes silent ~65%; fuzz clean; balance restored after softening the morale tax (Settler ~60 / Pioneer ~53 / Voyager ~23). Save key v4." },
   { date:"2026-06-20", tag:"feature", title:"Phase 4: ATLAS, the ship mind",
     body:"Added a shipboard AI, ATLAS, whose core integrity decays each turn — faster the fewer minds are awake (the lonely void frays it). Stable (>60%) it assists skill checks and hazards and occasionally optimizes systems; degrading (28-60%) it glitches (false gauges, rogue power reroutes, eerie unease); hostile (<28%) it turns antagonist — locking life support or the drive, venting stores, and endangering crew. The Engineer can run diagnostics to restore it, or attempt a risky, irreversible purge. Verified: a long neglected run degrades ATLAS to single digits and through glitch→hostile; 60-run fuzz (incl. the AI menu) clean; balance re-swept (Settler ~53 / Pioneer ~53 / Voyager ~20 with maintenance). Save key bumped to v3." },
   { date:"2026-06-20", tag:"fix", title:"Audit pass (Phases 1-3): fuzz + manual review",

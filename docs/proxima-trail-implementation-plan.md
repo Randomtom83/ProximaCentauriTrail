@@ -176,4 +176,13 @@ irreversible. Verified: neglected runs degrade it to single digits through glitc
 balance re-swept (Settler ~53 / Pioneer ~53 / Voyager ~20 with maintenance). Audit fixes earlier this
 session: mining null-crash, `skillFor` best-specialist, inverted Commander benefit. Save key now v3.
 
-- **Still ahead:** Phase 5 (wormholes + Earth's fading signal), Phase 6 (interactive Act II).
+## Addendum — Phase 5: wormholes & Earth's fading signal
+Rare, optional **wormholes** in deep space: a gamble (shortcut / neutral / lost / catastrophe),
+navigable on purpose only with knowledge or alien tech, and never a sure line to Proxima (a shortcut
+can't land you at the destination). The "lost" outcome flings you off course to re-localize. **Earth's
+signal** fades live → faint → silent (a late, rare gut-punch); its fate colors morale, the arrival
+narrative, and the endings (a silent Earth makes "return" mostly grief and a colony "all that is left
+of us"). Verified: wormholes fire ~85% of runs, Earth silent ~65%; fuzz clean; balance restored after
+softening the morale tax (Settler ~60 / Pioneer ~53 / Voyager ~23). Save key v4.
+
+- **Still ahead:** Phase 6 (interactive Act II — playable colony management or return voyage).
