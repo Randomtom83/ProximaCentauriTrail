@@ -12,7 +12,7 @@
   /* ---------------------------------------------------------
      0. Small helpers
      --------------------------------------------------------- */
-  var SAVE_KEY = "proxima-trail-save-v1";
+  var SAVE_KEY = "proxima-trail-save-v2";
   var META_KEY = "proxima-trail-meta-v1";
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -84,7 +84,7 @@
   var DIFFICULTY = {
     Settler: { mult: 1.0, credit: 1.6, harsh: 0.7,  startMult: 1.30, potential0: 58, blurb: "Forgiving. Margins to learn the ropes." },
     Pioneer: { mult: 1.6, credit: 1.1, harsh: 0.9,  startMult: 1.10, potential0: 52, blurb: "The intended balance. Death is real." },
-    Voyager: { mult: 2.2, credit: 0.85, harsh: 1.22, startMult: 0.92, potential0: 46, blurb: "Brutal. Most crews die in the dark." }
+    Voyager: { mult: 2.2, credit: 0.78, harsh: 1.38, startMult: 0.84, potential0: 42, blurb: "Brutal. Most crews die in the dark." }
   };
 
   var STORE_ITEMS = [
@@ -141,6 +141,11 @@
   var REACTOR_BASE = 20;
   var HOLD_MAX = 200;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit)
   var MAX_CREW = 8;             // ship can't carry an unlimited crowd
+  // Generational voyage: biological aging per turn (awake vs cold sleep), coming-of-age, old age.
+  var AGE_PER_TURN = 0.40;      // awake crew age ~0.4 years/turn — the void is decades long
+  var AGE_HIB = 0.04;          // cold sleep nearly stops biological time
+  var COME_OF_AGE = 14;
+  var OLD_AGE = 70;            // past this, the dark starts to call
 
   var AILMENTS = ["radiation sickness", "hypoxia", "hibernation sickness",
                   "void fever", "decompression trauma"];
@@ -177,7 +182,9 @@
         status: "Healthy",
         skill: base,
         ailment: null,
-        bonds: []
+        bonds: [],
+        age: rint(26, 42),
+        child: false
       });
     }
     // Wire two random bonds (mutual).
@@ -228,7 +235,9 @@
         overtaken: null           // sampled at arrival: did a faster expedition beat you here?
       },
       alien: { posture: null, friendly: null, pursuit: false, tech: false },
-      _heat: 0                    // contraband 'heat' that can incur a fine at the next port
+      _heat: 0,                   // contraband 'heat' that can incur a fine at the next port
+      shipYears: 0,               // calendar years elapsed on the voyage
+      _pregnancy: null            // { parent, turnsLeft } when a child is on the way
     };
   }
 
@@ -287,6 +296,7 @@
     if (best.status === "Sick" || best.status === "Injured") s -= 15;
     if (best.status === "Cracked") s -= 25;
     if (best.morale < 30) s -= 10;
+    if (best.age >= OLD_AGE) s -= Math.round((best.age - OLD_AGE) * 1.5);   // the hands slow with age
     return clamp(s, 5, 100);
   }
 
@@ -335,9 +345,89 @@
     var nm = name;
     if (!nm) { var pool = NAMES.filter(function (n) { return !used[n]; }); nm = pool.length ? pick(pool) : "Survivor-" + rint(10, 99); }
     var c = { name: nm, role: role || pick(ROLE_ORDER), health: rint(60, 90), morale: rint(55, 75),
-              status: "Healthy", skill: skill || rint(35, 70), ailment: null, bonds: [] };
+              status: "Healthy", skill: skill || rint(35, 70), ailment: null, bonds: [], age: rint(22, 44), child: false };
     game.crew.push(c);
     return c;
+  }
+  var KID_NAMES = ["Hope", "Reza", "Sol", "Indra", "Pax", " Favi", "Kit", "Mira", "Eero", "Ada", "Tomas", "Nia", "Cyrus", "Lena"];
+  function addChild(parentName) {
+    if (alive().length >= MAX_CREW) return null;
+    var used = {}; game.crew.forEach(function (c) { used[c.name] = 1; });
+    var pool = KID_NAMES.filter(function (n) { return !used[n.trim()]; });
+    var nm = (pool.length ? pick(pool) : "Child-" + rint(10, 99)).trim();
+    var c = { name: nm, role: "Child", health: 100, morale: 80, status: "Healthy",
+              skill: 0, ailment: null, bonds: parentName ? [parentName] : [], age: 0, child: true };
+    game.crew.push(c);
+    var par = byName(parentName);
+    if (par && par.bonds.indexOf(nm) < 0) par.bonds.push(nm);
+    return c;
+  }
+
+  // Generational aging: the void is decades long. Awake crew age; cold sleep nearly stops
+  // biological time, so whoever stays awake to fly grows old while the sleepers arrive young.
+  function ageCrew() {
+    game.shipYears = round1(game.shipYears + AGE_PER_TURN);
+    var living = alive();
+    for (var i = 0; i < living.length; i++) {
+      var c = living[i];
+      // Children grow fast (a compressed childhood); cold sleep nearly stops the clock for all.
+      var rate = c.status === "Hibernating" ? AGE_HIB : (c.child ? AGE_PER_TURN * 2 : AGE_PER_TURN);
+      c.age = round1(c.age + rate);
+      // Coming of age: a child born en route becomes a working crewmate.
+      if (c.child && c.age >= COME_OF_AGE) {
+        c.child = false;
+        c.role = neededRole();
+        c.skill = rint(45, 70);
+        log(c.name + " has come of age — they take the " + c.role + " station. A new generation flies the ship.", "good");
+      }
+      // Old age: past their years, the dark calls a little louder each turn.
+      if (!c.child && c.age >= OLD_AGE) {
+        var odds2 = (c.age - OLD_AGE) * 0.012 * DIFFICULTY[game.difficulty].harsh;
+        if (chance(odds2)) killCrew(c, "died of old age at " + Math.round(c.age) + ", far from any sun");
+      }
+    }
+    // Pregnancy & birth (light): needs two awake adults, room, and a little luck.
+    if (game._pregnancy) {
+      var parent = byName(game._pregnancy.parent);
+      if (!parent || parent.status === "Dead") game._pregnancy = null;
+      else if (parent.status !== "Hibernating") {       // pregnancy pauses in cold sleep
+        game._pregnancy.turnsLeft--;
+        if (game._pregnancy.turnsLeft <= 0) {
+          var kid = addChild(parent.name);
+          game._pregnancy = null;
+          if (kid) { adjustMoraleAll(+8, true); log("A child is born aboard — " + kid.name + ". The first of a generation that has never seen Earth.", "good"); sfx("good"); }
+        }
+      }
+    } else {
+      var adults = awake().filter(function (c) { return !c.child && c.age < 58 && c.morale > 38; });
+      if (adults.length >= 2 && alive().length < MAX_CREW && chance(0.05)) {
+        game._pregnancy = { parent: pick(adults).name, turnsLeft: rint(6, 11) };
+        log(byName(game._pregnancy.parent).name + " is expecting. There will be a new mouth — and a new pair of hands, in time.", "info");
+      }
+    }
+  }
+  // Pick a role the crew currently lacks a living specialist for, else a random non-Commander.
+  function neededRole() {
+    var have = {}; alive().forEach(function (c) { if (!c.child) have[c.role] = 1; });
+    var missing = ROLE_ORDER.filter(function (r) { return r !== "Commander" && !have[r]; });
+    return missing.length ? pick(missing) : pick(["Pilot", "Engineer", "Medic", "Xenobiologist"]);
+  }
+  // Consumption weight: children eat/breathe less than adults; sleepers almost nothing.
+  function consumeUnits() {
+    var u = 0;
+    alive().forEach(function (c) {
+      if (c.status === "Hibernating") u += O2_PER_SLEEPER;
+      else u += c.child ? 0.5 : 1.0;
+    });
+    return u;
+  }
+  function foodUnits(mult) {
+    var u = 0;
+    alive().forEach(function (c) {
+      if (c.status === "Hibernating") u += O2_PER_SLEEPER;
+      else u += (c.child ? 0.5 : 1.0) * mult;
+    });
+    return u;
   }
 
   // The player's own character = the crew member with the chosen role.
@@ -460,7 +550,7 @@
 
     // Oxygen: scrubbers recover only if life support is powered.
     var recover = al.lifeSupport ? SCRUBBER_RECOVERY : 0;
-    var o2use = aw.length * O2_PER_AWAKE + sl.length * O2_PER_SLEEPER;
+    var o2use = consumeUnits();    // adults 1.0, children 0.5, sleepers 0.1
     game.supplies.oxygen = round1(game.supplies.oxygen + recover - o2use);
     // Scrubbers can't overfill the hold — surplus O₂ vents to space.
     var o2over = cargoUsed() - game.ship.holdMax;
@@ -477,7 +567,7 @@
     }
 
     // Food
-    var foodUse = round1(aw.length * rat.mult + sl.length * O2_PER_SLEEPER);
+    var foodUse = round1(foodUnits(rat.mult));
     game.supplies.food = round1(game.supplies.food - foodUse);
     if (game.supplies.food <= 0) {
       game.supplies.food = 0;
@@ -539,6 +629,9 @@
 
     // Morale-driven breakdown / Crack
     checkBreakdowns();
+
+    // The years pass: crew age, children grow, elders die, new ones are born.
+    ageCrew();
 
     // Hull slow wear
     game.ship.hull = clamp(game.ship.hull - rint(0, 1), 0, 100);
@@ -2020,7 +2113,7 @@
       : "";
     var hud = apBanner +
       "<div class='panel'><div class='panel-title'>Navigation</div>" +
-        "<div class='stat'><span class='label'>Day</span><span class='val'>" + game.day + "</span></div>" +
+        "<div class='stat'><span class='label'>Day</span><span class='val'>" + game.day + "  <span class='dim small'>(voyage yr " + Math.round(game.shipYears) + ")</span></span></div>" +
         "<div class='stat'><span class='label'>Next waypoint</span><span class='val cyan'>" +
           WAYPOINTS[Math.min(game.waypointIndex, WAYPOINTS.length - 1)].name + "</span></div>" +
         track +
@@ -2072,10 +2165,13 @@
         return "<div class='bar minibar " + cls + "'><span style='width:" + pct + "%'></span></div>";
       }
       var tag = c.ailment ? " <span class='tag amber'>" + c.ailment + "</span>" : "";
+      if (c.child) tag += " <span class='tag cyan'>child</span>";
+      else if (c.age >= OLD_AGE) tag += " <span class='tag amber'>elder</span>";
+      var ageStr = c.status === "Dead" ? "" : " <span class='small dim'>" + Math.round(c.age) + "y</span>";
       return "<div class='crew-row'>" +
-        "<span class='s-" + c.status + "'>" + (c.status === "Dead" ? "✖" : c.status === "Hibernating" ? "❄" : "•") + "</span>" +
+        "<span class='s-" + c.status + "'>" + (c.status === "Dead" ? "✖" : c.status === "Hibernating" ? "❄" : c.child ? "◦" : "•") + "</span>" +
         "<span><span class='nm s-" + c.status + "'>" + c.name + "</span> <span class='rl small'>" + c.role +
-          (c.role === game.role ? "*" : "") + "</span>" + tag + "</span>" +
+          (c.role === game.role ? "*" : "") + "</span>" + ageStr + tag + "</span>" +
         "<span>" + mb(c.health) + "<span class='small dim'>hp</span></span>" +
         "<span>" + mb(c.morale, "power") + "<span class='small dim'>mor</span></span>" +
         "<span class='st small s-" + c.status + "'>" + c.status + "</span>" +

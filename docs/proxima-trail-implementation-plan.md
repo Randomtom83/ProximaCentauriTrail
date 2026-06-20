@@ -155,3 +155,17 @@ Closed the three issues flagged in the Phase-1 self-audit, in one pass.
 - **Verification:** per-difficulty jsdom sweep — Settler ~70% / Pioneer ~50% / Voyager ~20% over 30 runs
   each, zero hold overflows, zero JS errors; feature/anim/smoke suites still green.
 - **Still ahead:** Phases 2–6 (bridge aesthetic, generations, ship AI, wormholes, interactive Act II).
+
+## Addendum — Phase 2 (bridge aesthetic) & Phase 3 (generational crew)
+- **Phase 2:** full `style.css` re-theme from the green CRT to a starship-bridge look — LCARS/holographic
+  palette, rounded accent-bar panels, pill buttons, a holographic nav viewscreen, crew-station rows,
+  bridge-styled modals/mining/transit, and a RED-ALERT frame state. Logic untouched; all `game.js`
+  hooks preserved.
+- **Phase 3:** crew gain an `age` that advances each turn; **hibernation pauses biological aging**
+  (sleepers arrive young, the awake grow old). Mid-voyage **pregnancies → a child** (half-consumption
+  mouth) who, after a compressed childhood, **comes of age and takes a crew station**; **elders die of
+  old age** and their skill declines. Aging tuned for evocative cadence (births ~40%, coming-of-age
+  ~17%) without wrecking balance; difficulty re-verified (Settler ~60 / Pioneer ~55 / Voyager ~35).
+  Save key bumped to v2. *Balance figures are approximate — automated-play proxies with real variance.*
+- **Still ahead:** Phase 4 (ship AI), Phase 5 (wormholes + Earth's fading signal), Phase 6 (interactive
+  Act II).

@@ -189,6 +189,14 @@ var SPRINTS = [
     ["RED ALERT frame state when hull/O₂/fuel critical or brownout","done"],
     ["Bridge-styled modals, mining + transit viewscreens, end screen","done"],
     ["Preserve every class/id game.js depends on; verify suites still green","done"]
+  ]},
+  { id:"s11", name:"Sprint 11 — Phase 3: generational crew", tasks:[
+    ["Crew age over the years; voyage-year shown in nav","done"],
+    ["Hibernation pauses biological aging — sleepers arrive young","done"],
+    ["Pregnancy + birth mid-voyage (new mouths now, new hands later)","done"],
+    ["Children mature (compressed childhood) and take a crew station","done"],
+    ["Old-age death + elderly skill decline; children consume less","done"],
+    ["Per-difficulty balance re-verified after the new system","done"]
   ]}
 ];
 
@@ -248,7 +256,11 @@ var LOG = [
   { date:"2026-06-20", tag:"decision", title:"Aesthetic pivot: green CRT → starship bridge",
     body:"Per the user, the look moves away from the pure Oregon-Trail green terminal toward a small Star Trek / Star Wars bridge feel. The green terminal survives only as the comms log's heritage." },
   { date:"2026-06-20", tag:"feature", title:"Phase 2: bridge re-theme",
-    body:"Full style.css overhaul to an LCARS/holographic palette (deep space blues, holo cyan, LCARS amber/gold, alert red): rounded accent-bar panels, pill buttons, glowing bars, a holographic nav viewscreen for the route map, crew-station rows, bridge-styled modals and mining/transit viewscreens, and a RED-ALERT frame state that pulses when the ship is in real danger. All class/id hooks preserved; feature/anim/smoke suites and the difficulty sweep still pass with zero JS errors." }
+    body:"Full style.css overhaul to an LCARS/holographic palette (deep space blues, holo cyan, LCARS amber/gold, alert red): rounded accent-bar panels, pill buttons, glowing bars, a holographic nav viewscreen for the route map, crew-station rows, bridge-styled modals and mining/transit viewscreens, and a RED-ALERT frame state that pulses when the ship is in real danger. All class/id hooks preserved; feature/anim/smoke suites and the difficulty sweep still pass with zero JS errors." },
+  { date:"2026-06-20", tag:"feature", title:"Phase 3: generational crew",
+    body:"The voyage is decades long: crew now have an age that advances each turn, while hibernation nearly stops biological time — so whoever stays awake to fly grows old as the sleepers arrive young. Mid-voyage pregnancies produce a child (a new mouth at half-consumption) who, after a compressed childhood, comes of age and takes a crew station; elders can die of old age and their skill declines. The crew that arrives is not the crew that left." },
+  { date:"2026-06-20", tag:"build", title:"Phase 3 balance + verification",
+    body:"Tuned aging (rate, fertility window, child-maturation speed) so the generational arc is felt without wrecking balance: across runs, births occur ~40% and a child comes of age ~17%. Re-swept difficulty (Settler ~60% / Pioneer ~55% / Voyager ~35%); feature/anim/smoke green; save key bumped to v2 so pre-aging mid-run saves are ignored cleanly. Zero JS errors, zero hold overflows." }
 ];
 
 /* ---- rendering + interactivity ---- */
