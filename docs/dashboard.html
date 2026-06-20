@@ -213,7 +213,9 @@ var LOG = [
   { date:"2026-06-20", tag:"fix", title:"Brownout soft-lock + hull death-spiral",
     body:"A deep brownout (reactor output below life-support draw) could never be satisfied → infinite lock; and the brownout penalty hit hull, feeding a hull→output→brownout spiral. Now you can always proceed under brownout, and the penalty hits AIR not hull, breaking the loop." },
   { date:"2026-06-20", tag:"build", title:"Rebalance + verification (Phase 1)",
-    body:"Tuned thrust/distances/hold/supplies so a disciplined run (hibernate, reduced rations, repair) reaches Proxima and wins ~7/10 on Settler while careless play reliably dies. jsdom suite green: route map, F/F/F gating, hold-cap enforcement, lethal hazards, arrival flow, animation skip — zero JS errors." }
+    body:"Tuned thrust/distances/hold/supplies so a disciplined run (hibernate, reduced rations, repair) reaches Proxima and wins on Settler while careless play reliably dies. jsdom suite green: route map, F/F/F gating, hold-cap enforcement, lethal hazards, arrival flow, animation skip — zero JS errors." },
+  { date:"2026-06-20", tag:"fix", title:"Self-audit fixes (Phase 1)",
+    body:"Audited the Phase-1 code and fixed: (1) station trade ignored the cargo cap (could overfill the hold) — now enforced like the store/mining; (2) destination knowledge was collected but unused — now genuinely tilts arrival habitability and softens the 'overtaken/inhabited' surprises; (3) starting supplies nearly filled the hold, making outfitting vestigial — baseline lowered so loadout choice matters; added a hold readout to the store and removed dead variables." }
 ];
 
 /* ---- rendering + interactivity ---- */

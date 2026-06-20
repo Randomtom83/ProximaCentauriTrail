@@ -134,7 +134,6 @@
      --------------------------------------------------------- */
   var game = null;        // current run
   var meta = loadMeta();  // persistent across runs
-  var pendingThen = null; // continuation after a modal closes
 
   function newGame(roleKey, diffKey, names) {
     var role = ROLES[roleKey], diff = DIFFICULTY[diffKey];
@@ -181,7 +180,7 @@
       ship: { hull: 100, parts: 5, reactorBase: REACTOR_BASE, holdMax: HOLD_MAX },
       power: { output: 0, demand: 0,
                allocation: { lifeSupport: true, drive: true, medbay: true, pods: true, sensors: true } },
-      supplies: { fuel: 40, oxygen: 70, food: 70, medicine: 3, charges: 6 },
+      supplies: { fuel: 22, oxygen: 42, food: 42, medicine: 2, charges: 4 },
       cargo: { ore: 0, ice: 0, rareMetals: 0, volatiles: 0 },   // tradeable commodities (mined/looted)
       crew: crew,
       log: [],
@@ -203,8 +202,7 @@
         inhabited: null,          // sampled at arrival: null until then
         overtaken: null           // sampled at arrival: did a faster expedition beat you here?
       },
-      alien: { posture: null, friendly: null, pursuit: false, tech: false },
-      _store: { fuel: 0, oxygen: 0, food: 0, medicine: 0, parts: 0, charges: 0 }
+      alien: { posture: null, friendly: null, pursuit: false, tech: false }
     };
   }
 
@@ -671,15 +669,17 @@
 
   function arriveAtProxima() {
     var d = game.dest;
-    // Sample the situation, weighted by hidden habitability + what you learned en route.
-    var k = d.knowledge;
-    // Habitability outcome: knowledge lets you aim better but never guarantees.
-    var habScore = clamp(d.habit + (game.potential - 50) * 0.4 + rint(-25, 25), 0, 100);
+    // Sample the situation. Knowledge gathered en route (surveys, probes, a peaceful first
+    // contact) genuinely tilts the odds toward viability and softens nasty surprises — but
+    // never to certainty.
+    var habScore = clamp(d.habit + (game.potential - 50) * 0.4 + d.knowledge * 0.30 + rint(-25, 25), 0, 100);
     d.habitResult = habScore >= 66 ? "verdant" : habScore >= 42 ? "marginal" : habScore >= 22 ? "barren" : "lethal";
-    // Already inhabited? A faster expedition beat you here? (knowledge softens nasty surprises)
-    d.inhabited = sampleWeighted({ none: 6, natives: 3, settlers: 2 });
-    d.overtaken = odds(18 + Math.max(0, -game.posture.persist) * 0.3) ? true : false;
-    var coop = game.posture.cooperate;
+    // A faster expedition may have beaten you here; foresight (knowledge) makes it less likely
+    // to catch you flat-footed.
+    d.overtaken = odds(20 + Math.max(0, -game.posture.persist) * 0.3 - d.knowledge * 0.12);
+    // Whether the world is already inhabited — high knowledge means you saw it coming, which here
+    // biases away from the worst "we walked in blind" footing.
+    d.inhabited = sampleWeighted({ none: 6 + d.knowledge * 0.04, natives: 3, settlers: 2 });
 
     var lines = [];
     lines.push(d.habitResult === "verdant" ? "Below you turns a living world — blue, breathing, impossibly green at the poles."
@@ -1290,7 +1290,8 @@
             var step = +b.getAttribute("data-step");
             var dir = b.getAttribute("data-trade");
             if (dir === "buy") {
-              if (game.credits >= price) {
+              if (item !== "medicine" && cargoSpace() < step) { sfx("empty"); }   // hold cap applies here too
+              else if (game.credits >= price) {
                 game.credits -= price;
                 if (item === "parts") game.ship.parts += step; else game.supplies[item] += step;
                 sfx("buy");
@@ -1796,7 +1797,7 @@
       "<h2 class='amber'>OUTFITTING — Earth Orbit</h2>" +
       "<p class='small dim'>Spend your credits before launch. You can trade again at stations, but never this cheaply. " +
       "Earth burns below you; there is no coming back.</p>" +
-      "<div class='panel'><div class='store-row'><b>Credits remaining</b><span></span><span></span>" +
+      "<div class='panel'><div class='store-row'><b>Credits remaining</b><span class='dim small'>Hold " + cargoUsed() + "/" + game.ship.holdMax + "</span><span></span>" +
         "<span class='qty paper' id='cr'>" + game.credits + "</span></div>" + rows + "</div>" +
       "<div class='cols small'>" +
         "<div class='col panel'><div class='panel-title'>Tips</div>" +
