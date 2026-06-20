@@ -54,11 +54,11 @@
       blurb: "An automated fuel depot in the rings' amber light. Restock and breathe." },
     { name: "Heliopause / Oort Cloud", dist: 46, kind: "hazard", hazard: "nebula", mining: true,
       blurb: "The edge of the sun's reach. Cold, dark, and easy to get lost in." },
-    { name: "The Interstellar Void", dist: 150, kind: "void",
+    { name: "The Interstellar Void", dist: 180, kind: "void",
       blurb: "Years of nothing. You cannot stay awake for this. Choose who flies." },
-    { name: "Proxima Approach", dist: 40, kind: "hazard", hazard: "flare",
+    { name: "Proxima Approach", dist: 52, kind: "hazard", hazard: "flare",
       blurb: "A flaring red dwarf throws radiation across your final run." },
-    { name: "Proxima Centauri b", dist: 18, kind: "win",
+    { name: "Proxima Centauri b", dist: 20, kind: "win",
       blurb: "A pale ocean world in the habitable zone. Home, if you can land." }
   ];
 
@@ -73,11 +73,11 @@
   // Crew roles. The role the player picks sets credits + score multiplier
   // (harder/poorer role = higher multiplier, like Oregon Trail's professions).
   var ROLES = {
-    Commander:    { credits: 1850, mult: 1, blurb: "Holds the crew together. Morale floor is higher; you break ties.", specialty: "morale" },
-    Pilot:        { credits: 1500, mult: 2, blurb: "Threads hazards and shaves lost time. The void needs a flyer.", specialty: "hazard" },
-    Engineer:     { credits: 1500, mult: 2, blurb: "Repairs cost less and hold longer. Keeps the reactor lit.", specialty: "repair" },
-    Medic:        { credits: 1300, mult: 3, blurb: "Treatments land more often and burn less medicine.", specialty: "heal" },
-    Xenobiologist:{ credits: 1300, mult: 3, blurb: "Reads derelicts, probes, and signals — better encounters.", specialty: "encounter" }
+    Commander:    { credits: 980, mult: 1, blurb: "Holds the crew together. Morale floor is higher; you break ties.", specialty: "morale" },
+    Pilot:        { credits: 760, mult: 2, blurb: "Threads hazards and shaves lost time. The void needs a flyer.", specialty: "hazard" },
+    Engineer:     { credits: 760, mult: 2, blurb: "Repairs cost less and hold longer. Keeps the reactor lit.", specialty: "repair" },
+    Medic:        { credits: 620, mult: 3, blurb: "Treatments land more often and burn less medicine.", specialty: "heal" },
+    Xenobiologist:{ credits: 620, mult: 3, blurb: "Reads derelicts, probes, and signals — better encounters.", specialty: "encounter" }
   };
   var ROLE_ORDER = ["Commander", "Pilot", "Engineer", "Medic", "Xenobiologist"];
 
@@ -100,9 +100,9 @@
                "Tamsin", "Bex", "Juno", "Castel", "Wren", "Dax", "Imani", "Petrov", "Soto", "Aria"];
 
   var THRUST = {
-    cruise:   { speed: 10, fuel: 2, power: 2, days: 5, label: "Cruise" },
-    burn:     { speed: 18, fuel: 4, power: 4, days: 5, label: "Burn" },
-    overdrive:{ speed: 28, fuel: 7, power: 6, days: 4, label: "Overdrive" }
+    cruise:   { speed: 8,  fuel: 1, power: 2, days: 6, label: "Cruise" },
+    burn:     { speed: 14, fuel: 2, power: 4, days: 6, label: "Burn" },
+    overdrive:{ speed: 22, fuel: 4, power: 6, days: 5, label: "Overdrive" }
   };
   var RATIONS = {
     full:     { mult: 1.0, health: +1, morale: +1, label: "Full" },
@@ -115,6 +115,8 @@
   var O2_PER_AWAKE = 1.0;
   var O2_PER_SLEEPER = 0.1;
   var REACTOR_BASE = 20;
+  var HOLD_MAX = 200;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit)
+  var MAX_CREW = 8;             // ship can't carry an unlimited crowd
 
   var AILMENTS = ["radiation sickness", "hypoxia", "hibernation sickness",
                   "void fever", "decompression trauma"];
@@ -176,10 +178,11 @@
       visited: [0],
       thrust: "cruise",
       rations: "full",
-      ship: { hull: 100, parts: 5, reactorBase: REACTOR_BASE },
+      ship: { hull: 100, parts: 5, reactorBase: REACTOR_BASE, holdMax: HOLD_MAX },
       power: { output: 0, demand: 0,
                allocation: { lifeSupport: true, drive: true, medbay: true, pods: true, sensors: true } },
-      supplies: { fuel: 40, oxygen: 60, food: 60, medicine: 4, charges: 6 },
+      supplies: { fuel: 40, oxygen: 70, food: 70, medicine: 3, charges: 6 },
+      cargo: { ore: 0, ice: 0, rareMetals: 0, volatiles: 0 },   // tradeable commodities (mined/looted)
       crew: crew,
       log: [],
       cause: null,
@@ -188,7 +191,19 @@
       turn: 0,
       contact: false,             // first contact with alien life not yet made
       contactChoice: null,        // how the player handled first contact
-      // store starts with a baseline outfit already in supplies above
+      autopilot: false,           // true while the player-character is hibernating
+      autopilotWake: null,        // {type:'day'|'waypoint', value} wake condition
+      // --- probabilistic influence engine (outcomes are sampled, never scripted) ---
+      potential: 50,              // hidden overall mission-success probability (0..100)
+      posture: { explore: 0, aggress: 0, persist: 0, cooperate: 0, caution: 0 },
+      // --- destination: hidden + uncertain; revealed only on arrival ---
+      dest: {
+        habit: rint(15, 90),      // hidden habitability (weighted by sampling at arrival too)
+        knowledge: 0,             // grows via surveys/probes/freeze-contact → better odds at arrival
+        inhabited: null,          // sampled at arrival: null until then
+        overtaken: null           // sampled at arrival: did a faster expedition beat you here?
+      },
+      alien: { posture: null, friendly: null, pursuit: false, tech: false },
       _store: { fuel: 0, oxygen: 0, food: 0, medicine: 0, parts: 0, charges: 0 }
     };
   }
@@ -289,6 +304,75 @@
     log(c.name + " has come down with " + c.ailment + ".", "bad");
     return c;
   }
+
+  function addCrewMember(role, skill, name) {
+    if (alive().length >= MAX_CREW) return null;
+    var used = {}; game.crew.forEach(function (c) { used[c.name] = 1; });
+    var nm = name;
+    if (!nm) { var pool = NAMES.filter(function (n) { return !used[n]; }); nm = pool.length ? pick(pool) : "Survivor-" + rint(10, 99); }
+    var c = { name: nm, role: role || pick(ROLE_ORDER), health: rint(60, 90), morale: rint(55, 75),
+              status: "Healthy", skill: skill || rint(35, 70), ailment: null, bonds: [] };
+    game.crew.push(c);
+    return c;
+  }
+
+  // The player's own character = the crew member with the chosen role.
+  function playerChar() {
+    for (var i = 0; i < game.crew.length; i++) if (game.crew[i].role === game.role) return game.crew[i];
+    return null;
+  }
+  function wakeSelf(reason) {
+    if (!game.autopilot) return;
+    game.autopilot = false; game.autopilotWake = null;
+    var me = playerChar();
+    if (me && me.status === "Hibernating") {
+      me.status = me.ailment ? "Sick" : "Healthy";
+      if (chance(0.25)) { me.ailment = "hibernation sickness"; me.status = "Sick"; }
+    }
+    log("You wake from the pod" + (reason ? " — " + reason : "") + ". The bridge is yours again.", reason ? "warn" : "good");
+  }
+
+  /* ---------------------------------------------------------
+     5b. Probabilistic influence engine + cargo
+     --------------------------------------------------------- */
+  // Apply small influence deltas to the hidden potential + posture axes. No choice
+  // ever sets an outcome directly — it only bends the odds that get sampled later.
+  function influence(inf) {
+    if (!inf) return;
+    if (inf.potential) game.potential = clamp(game.potential + inf.potential, 0, 100);
+    var p = game.posture;
+    ["explore", "aggress", "persist", "cooperate", "caution"].forEach(function (k) {
+      if (inf[k]) p[k] = clamp(p[k] + inf[k], -100, 100);
+    });
+    if (inf.knowledge) game.dest.knowledge = clamp(game.dest.knowledge + inf.knowledge, 0, 100);
+  }
+  // Roll true with probability p (0..100). The universe, not an if-tree.
+  function odds(p) { return Math.random() * 100 < clamp(p, 0, 100); }
+  // Weighted-sample a key from {key: weight}.
+  function sampleWeighted(weights) {
+    var keys = Object.keys(weights), total = 0;
+    keys.forEach(function (k) { total += Math.max(0, weights[k]); });
+    if (total <= 0) return keys[0];
+    var r = Math.random() * total, acc = 0;
+    for (var i = 0; i < keys.length; i++) { acc += Math.max(0, weights[keys[i]]); if (r <= acc) return keys[i]; }
+    return keys[keys.length - 1];
+  }
+  // A one-line read of the crew's accumulated disposition (qualitative, never numeric odds).
+  function dispositionText() {
+    var p = game.posture, parts = [];
+    parts.push(p.explore >= 6 ? "exploratory" : p.aggress >= 6 ? "aggressive" : "steady");
+    if (p.persist >= 6) parts.push("dogged"); else if (p.persist <= -6) parts.push("weary");
+    if (p.cooperate >= 6) parts.push("open-handed"); else if (p.cooperate <= -6) parts.push("guarded");
+    if (p.caution >= 6) parts.push("cautious"); else if (p.caution <= -6) parts.push("reckless");
+    return parts.join(", ");
+  }
+
+  function cargoUsed() {
+    var s = game.supplies, c = game.cargo;
+    return Math.round(s.fuel + s.oxygen + s.food + s.charges + game.ship.parts +
+                      c.ore + c.ice + c.rareMetals + c.volatiles);   // medicine is light/exempt
+  }
+  function cargoSpace() { return Math.max(0, game.ship.holdMax - cargoUsed()); }
 
   /* ---------------------------------------------------------
      6. Power model
@@ -431,27 +515,61 @@
     // Hull slow wear
     game.ship.hull = clamp(game.ship.hull - rint(0, 1), 0, 100);
 
+    // A small reward for simply not giving up — persistence trends the odds up.
+    influence({ persist: +1 });
+
     // First contact (scripted, once, in deep space past the Oort Cloud). The exact
     // turn is a surprise; forced once the void is behind you so it never gets skipped.
-    var contactNow = false;
-    if (!game.contact && game.waypointIndex >= 7) {
-      if (game.waypointIndex >= 8 || chance(0.32)) contactNow = true;
-    }
-    if (contactNow) {
-      game._contactPending = true;       // shown via flushQueues so it sequences cleanly
+    var contactNow = (!game.contact && game.waypointIndex >= 7 && (game.waypointIndex >= 8 || chance(0.32)));
+
+    if (game.autopilot) {
+      autopilotTurn(contactNow);           // ship runs itself, badly — you can't choose
+    } else if (contactNow) {
+      game._contactPending = true;         // shown via flushQueues so it sequences cleanly
     } else if (chance(0.55)) {
-      // Random event (not every turn)
-      rollEvent();
+      rollEvent();                         // a normal weighted event (not every turn)
     }
 
     // Arrival check
-    checkArrival();
+    if (!game.ended) checkArrival();
 
     // End checks (don't let a coincidental loss override a pending win)
     if (!game.ended && !game._win) checkEnd();
 
     save();
     if (!game.ended) renderTravel();     // renderTravel flushes any queued contact/win/vignette
+  }
+
+  // The ship on autopilot while the captain sleeps: no choices, mounting risk, bad luck.
+  function autopilotTurn(contactNow) {
+    if (contactNow) {
+      game.contact = true; game.alien.posture = "freeze";
+      log("First contact happens while you sleep. The autopilot does the only thing it can: nothing.", "warn");
+      var f = sampleWeighted({ ignored: 5, experiment: 3, commune: 2, annihilate: 1 });   // worse than a waking freeze
+      if (f === "commune") { game.alien.friendly = true; influence({ potential: +4, knowledge: +6 }); log("Against all odds the sleeping ship is spared — even gifted. You'll never know why.", "good"); }
+      else if (f === "ignored") { log("They study the silent ship and move on, indifferent.", "info"); }
+      else if (f === "experiment") { var v = pick(awake()); if (v) killCrew(v, "was taken while the captain slept"); influence({ potential: -4 }); }
+      else { endGame(false, "First contact — and no one at the helm. They take the ship apart to see how it works."); return; }
+    }
+    game.ship.hull = clamp(game.ship.hull - rint(1, 4), 0, 100);     // unattended wear
+    if (chance(0.4)) {
+      pick([
+        function () { game.supplies.fuel = Math.max(0, game.supplies.fuel - rint(3, 8)); log("Autopilot misjudges a burn; fuel wasted.", "warn"); },
+        function () { var back = rint(4, 12); game.distance = Math.max(0, game.distance - back); log("Autopilot drifts off course — " + back + " lost.", "warn"); },
+        function () { var c = pick(awake()); if (c) { c.health = clamp(c.health - rint(8, 18), 0, 100); if (c.health <= 0) killCrew(c, "died with no one awake to help"); } log("A system fails with no hand to catch it.", "bad"); },
+        function () { game.supplies.oxygen = Math.max(0, round1(game.supplies.oxygen - rint(3, 7))); log("Scrubbers run ragged on autopilot.", "warn"); }
+      ])();
+    }
+    influence({ potential: -1 });
+    var w = game.autopilotWake;
+    if (game.ship.hull < 25 || game.supplies.oxygen < 10 || alive().length <= 1) wakeSelf("EMERGENCY");
+    else if (w && w.type === "waypoint" && game.waypointIndex > w.value) wakeSelf("waypoint reached");
+  }
+
+  function autoResolveHazard(key) {
+    var hz = HAZARDS[key]; if (!hz) return;
+    log("A hazard while you sleep — the autopilot takes " + (hz.noun || "it") + " the hard way.", "warn");
+    resolveHazard(key, pick(hz.options));   // resolveHazard adds an autopilot danger penalty
   }
 
   function checkBreakdowns() {
@@ -543,17 +661,101 @@
     return r;
   }
 
+  // Reaching Proxima is the MIDPOINT, not the win. Arrival samples a situation, offers the
+  // colonize-or-return decision, then plays a sampled Act II epilogue → a tiered ending.
   function winGame() {
     playTransit({ variant: "land", caption: "FINAL APPROACH · PROXIMA CENTAURI b" }, function () {
-      endGame(true, "You ease into orbit over Proxima Centauri b — a pale blue world waiting beneath you.");
+      arriveAtProxima();
     });
   }
 
-  function endGame(won, cause) {
+  function arriveAtProxima() {
+    var d = game.dest;
+    // Sample the situation, weighted by hidden habitability + what you learned en route.
+    var k = d.knowledge;
+    // Habitability outcome: knowledge lets you aim better but never guarantees.
+    var habScore = clamp(d.habit + (game.potential - 50) * 0.4 + rint(-25, 25), 0, 100);
+    d.habitResult = habScore >= 66 ? "verdant" : habScore >= 42 ? "marginal" : habScore >= 22 ? "barren" : "lethal";
+    // Already inhabited? A faster expedition beat you here? (knowledge softens nasty surprises)
+    d.inhabited = sampleWeighted({ none: 6, natives: 3, settlers: 2 });
+    d.overtaken = odds(18 + Math.max(0, -game.posture.persist) * 0.3) ? true : false;
+    var coop = game.posture.cooperate;
+
+    var lines = [];
+    lines.push(d.habitResult === "verdant" ? "Below you turns a living world — blue, breathing, impossibly green at the poles."
+      : d.habitResult === "marginal" ? "Below you is a hard world — thin air, cold seas, but not a grave. It could be made to hold us."
+      : d.habitResult === "barren" ? "Below you is a dead rock. The old light lied, or hoped. Nothing breathes here."
+      : "Below you is a poisoned hell — the scans were a dream. Nothing human could ever live here.");
+    if (d.overtaken) lines.push("And you are not the first: a human beacon already pulses on the surface. A later ship, faster engines, beat you across the gulf by years. They are already home.");
+    else if (d.inhabited === "natives") lines.push("And the world is not empty — patterned lights move in its night side. Someone already calls this place theirs.");
+    else if (d.inhabited === "settlers") lines.push("And a derelict colony hull lies in orbit — someone tried this before you, and failed. Or did they?");
+
+    openModal({
+      title: "◐ ARRIVAL · PROXIMA CENTAURI b",
+      art: "        ___\n      ,'   `.\n     (  PCb  )\n      `.___,'",
+      body: "<p>" + lines.join("</p><p class='paper'>") + "</p>" +
+        "<p>This is not the end. It is the hinge of the whole gamble. What do you do with what you've found?</p>",
+      choices: arrivalChoices()
+    });
+  }
+
+  function arrivalChoices() {
+    var d = game.dest, ch = [];
+    var viable = d.habitResult === "verdant" || d.habitResult === "marginal";
+    if (viable && !d.overtaken) {
+      ch.push({ label: "STAY — colonize, and signal Earth to send more", onClick: function () { resolveActTwo("colonize"); } });
+    }
+    if (viable && d.inhabited === "natives") {
+      ch.push({ label: "MAKE CONTACT — ask the natives for a place among them", onClick: function () { resolveActTwo("petition"); } });
+    }
+    ch.push({ label: "RETURN — turn around, carry the news home for more humans", onClick: function () { resolveActTwo("return"); } });
+    if (!viable) {
+      ch.push({ label: "PUSH ON — gamble the last reserves on a further star", onClick: function () { resolveActTwo("pushon"); } });
+    }
+    return ch;
+  }
+
+  // Compressed, SAMPLED Act II epilogue (Phase 6 will make this interactive).
+  function resolveActTwo(path) {
+    closeModal();
+    var d = game.dest, p = game.potential;
+    var survivors = alive().length;
+    // base success leans on potential + posture (persistence/cooperation) + surviving crew + supplies
+    var base = p + game.posture.persist * 0.4 + game.posture.cooperate * 0.3
+             + Math.min(20, survivors * 4) + Math.min(15, (game.supplies.food + game.supplies.oxygen) / 8);
+    var outcome, won = false, tier = "", cause = "";
+
+    if (path === "colonize") {
+      var r = sampleWeighted({ thrive: Math.max(0, base - 30), hold: 50, wither: Math.max(0, 70 - base) });
+      if (r === "thrive") { won = true; tier = "HAVEN"; cause = "The colony takes root. Your signal crawls home at the speed of light, and in time, more come. Humanity has a second world."; }
+      else if (r === "hold") { won = true; tier = "FOOTHOLD"; cause = "A hard, clinging foothold. The colony survives — barely, bitterly — and waits on a sky that may never send anyone else."; }
+      else { tier = "WITHERED"; cause = "You land, and you try, and the world is stronger than you. The last colonist dies looking up at a sky no rescue will ever cross."; }
+    } else if (path === "petition") {
+      var r2 = sampleWeighted({ welcomed: Math.max(0, game.posture.cooperate + base - 40), tolerated: 50, refused: Math.max(0, 60 - game.posture.cooperate) });
+      if (r2 === "welcomed") { won = true; tier = "GUESTS OF PROXIMA"; cause = "They open their world to you. Two species share one shore. It is not the colony you planned — it is something stranger, and better."; }
+      else if (r2 === "tolerated") { won = true; tier = "FOOTHOLD"; cause = "They suffer your presence at the margins. Humanity endures here, a guest forever, but it endures."; }
+      else { tier = "TURNED AWAY"; cause = "They will not have you. With nowhere left to go and nothing left to burn, the ship becomes humanity's last, drifting tomb."; }
+    } else if (path === "return") {
+      var r3 = sampleWeighted({ saved: Math.max(0, base - 25), late: 45, gone: Math.max(0, 65 - base) });
+      if (game.alien && game.alien.tech && chance(0.4)) { won = true; tier = "THE LONG WAY HOME"; cause = "With knowledge the strangers gave you, the way home folds short. You reach a changed Earth in time to matter. Humanity is moving."; }
+      else if (r3 === "saved") { won = true; tier = "MESSENGER"; cause = "Decades later you reach home space with the only good news in a generation. A dying Earth dares, again, to pack its bags."; }
+      else if (r3 === "late") { tier = "TOO LATE"; cause = "You make it back. The orbital cities are dark and quiet. You carried hope across the void to a house already empty."; }
+      else { tier = "LOST WITH ALL HANDS"; cause = "The voyage home is longer than the voyage out, and far less kind. Somewhere in the dark, the ship simply stops."; }
+    } else { // pushon
+      won = false; tier = "INTO THE DARK";
+      if (game.alien && game.alien.tech && odds(40)) { won = true; tier = "FOLDED AWAY"; cause = "On alien charts, you slip into a fold in space and vanish toward a star no human has named. Maybe it's there. Maybe it's home. The crew chooses to hope."; }
+      else cause = "You spend the last of everything chasing a further light. It is not enough. But you died reaching, not waiting.";
+    }
+
+    endGame(won, cause, tier);
+  }
+
+  function endGame(won, cause, tier) {
     if (game.ended) return;
     game.ended = true;
     game.won = won;
     game.cause = cause;
+    game.outcomeTier = tier || (won ? "ARRIVED" : "LOST");
     var sc = computeScore();
     var rank = won ? rankFor(sc.total) : rankFor(Math.min(sc.total, RANKS[2].min - 1));
     // Record run + meta
@@ -561,7 +763,7 @@
       date: new Date().toISOString().slice(0, 10),
       role: game.role, difficulty: game.difficulty,
       won: won, score: sc.total, rank: rank, day: game.day,
-      cause: cause, survivors: sc.survivors
+      cause: cause, survivors: sc.survivors, tier: game.outcomeTier
     });
     if (meta.runs.length > 25) meta.runs.pop();
     if (sc.total > meta.best) meta.best = sc.total;
@@ -584,10 +786,13 @@
   function applyOutcome(o) {
     if (!o) return "";
     if (o.res) for (var k in o.res) {
-      if (k === "credits") game.credits = Math.max(0, game.credits + o.res[k]);
-      else game.supplies[k] = Math.max(0, round1((game.supplies[k] || 0) + o.res[k]));
+      if (k === "credits") { game.credits = Math.max(0, game.credits + o.res[k]); continue; }
+      var delta = o.res[k];
+      // Positive gains of hold-bearing goods can't exceed cargo capacity.
+      if (delta > 0 && k !== "medicine") delta = Math.min(delta, cargoSpace());
+      game.supplies[k] = Math.max(0, round1((game.supplies[k] || 0) + delta));
     }
-    if (o.parts) game.ship.parts = Math.max(0, game.ship.parts + o.parts);
+    if (o.parts) game.ship.parts = Math.max(0, game.ship.parts + (o.parts > 0 ? Math.min(o.parts, cargoSpace()) : o.parts));
     if (o.hull) game.ship.hull = clamp(game.ship.hull + o.hull, 0, 100);
     if (o.morale) adjustMoraleAll(o.morale, true);
     if (o.health) {
@@ -607,6 +812,9 @@
         : pick(awake());
       if (victim) killCrew(victim, o.killVerb || "died");
     }
+    if (o.recruit) addCrewMember(o.recruit === true ? null : o.recruit);
+    if (o.clearPursuit && game.alien) game.alien.pursuit = false;
+    if (o.inf) influence(o.inf);              // bend the hidden odds (probabilistic engine)
     if (o.text) log(o.text, o.type || "info");
     return o.text || "";
   }
@@ -667,20 +875,23 @@
       text: "A dead ship tumbles ahead, hull dark. Salvage — or trap?",
       choices: [
         { label: "Board and salvage (Xenobiologist)", role: "Xenobiologist", diff: 60,
-          success: { res: { fuel: +10, parts: 0, medicine: +1 }, parts: +2, text: "A clean haul: fuel, parts, a med kit.", type: "good" },
-          failure: { hull: -8, target: "one", health: -18, text: "Something shifts in the dark. You retreat hurt.", type: "bad" } },
+          success: { res: { fuel: +10, medicine: +1 }, parts: +2, inf: { explore: +5, knowledge: +3 }, text: "A clean haul: fuel, parts, a med kit.", type: "good" },
+          failure: { hull: -8, target: "one", health: -18, inf: { explore: +4, caution: -3 }, text: "Something shifts in the dark. You retreat hurt.", type: "bad" } },
         { label: "Strip it from outside (slow, safe)", auto: true,
-          outcome: { res: { fuel: +4 }, text: "You siphon a little fuel and move on.", type: "info" } },
+          outcome: { res: { fuel: +4 }, inf: { caution: +3 }, text: "You siphon a little fuel and move on.", type: "info" } },
         { label: "Leave it. Bad feeling.", auto: true,
-          outcome: { morale: +1, text: "You give it a wide berth. The crew sleeps easier.", type: "info" } }
+          outcome: { morale: +1, inf: { caution: +4, explore: -2 }, text: "You give it a wide berth. The crew sleeps easier.", type: "info" } }
       ] },
     { id: "distress", w: 6, title: "Distress Signal",
-      text: "A weak signal pulses from a stranded pod. Survivors?",
+      text: "A weak signal pulses from a stranded pod. Survivors — and another mouth to feed if you take them in.",
       choices: [
-        { label: "Rescue them (costs supplies, raises morale)", auto: true,
-          outcome: { res: { oxygen: -6, food: -6 }, morale: +10, credits: +120, text: "You take them aboard. They share what little they have, and hope.", type: "good" } },
+        { label: "Rescue them (a new crewmate — more mouths, more hands)", auto: true,
+          outcome: { res: { oxygen: -6, food: -6 }, morale: +8, credits: +90, recruit: true,
+                     inf: { cooperate: +6, persist: +3, potential: +2 },
+                     text: "You take them aboard. A survivor joins the crew — and shares what little they have.", type: "good" } },
         { label: "Record it and move on", auto: true,
-          outcome: { morale: -5, text: "You log the coordinates and leave them to the dark. No one speaks for a while.", type: "warn" } }
+          outcome: { morale: -6, inf: { cooperate: -5, aggress: +3, potential: -2 },
+                     text: "You log the coordinates and leave them to the dark. No one speaks for a while.", type: "warn" } }
       ] },
     { id: "probe", w: 5, req: "postContact", title: "Alien Probe", art: "◉─◌─◉",
       text: "Another of their artifacts matches your course — you know now what hands shaped it.",
@@ -701,6 +912,16 @@
           outcome: { parts: -2, res: { fuel: +8, charges: +3 }, text: "A clumsy but honest swap: your scrap for their strange fuel.", type: "info" } },
         { label: "Wave them off", auto: true,
           outcome: { text: "You signal no. They dim, and drift back into the dark.", type: "info" } }
+      ] },
+    { id: "pursuit", w: 9, req: "postContact", cond: function () { return game.alien && game.alien.pursuit; },
+      title: "Still Following", art: "  ·  ◣  ·  →",
+      text: "The thing from the deep is still matching your course — closer now than the last time you dared to look.",
+      choices: [
+        { label: "Lose them in a hard burn (Pilot)", role: "Pilot", diff: 66,
+          success: { res: { fuel: -10 }, clearPursuit: true, inf: { caution: +3, potential: +2 }, text: "You shake them at last. The sensors go blessedly, achingly empty.", type: "good" },
+          failure: { hull: -rint(10, 22), res: { fuel: -8 }, inf: { potential: -3 }, text: "You burn everything and still they hold the gap. They are not done with you.", type: "bad" } },
+        { label: "Stand your ground and fight them off", auto: true,
+          outcome: { hull: -rint(14, 28), target: "one", health: -rint(10, 25), inf: { aggress: +4, potential: -2 }, text: "You trade blows in the dark. They withdraw — for now — but the ship is the worse for it.", type: "bad" } }
       ] },
     { id: "shoal", w: 4, req: "postContact", zones: ["void", "outer"], title: "The Shoal", art: "· ◌ ◌ ◌ ·",
       text: "A school of living lights drifts across the void, turning together like one vast mind. They are not afraid of you.",
@@ -736,10 +957,10 @@
     { id: "stowaway", w: 4, title: "Stowaway",
       text: "You find a refugee curled in a maintenance crawlspace.",
       choices: [
-        { label: "Welcome them (more mouths, more hands)", auto: true,
-          outcome: { res: { food: -6, oxygen: -4 }, morale: +6, text: "An extra pair of hands and a story to tell. Morale lifts.", type: "good" } },
+        { label: "Welcome them (a new crewmate — more mouths, more hands)", auto: true,
+          outcome: { res: { food: -6, oxygen: -4 }, morale: +6, recruit: true, inf: { cooperate: +5, explore: +2 }, text: "An extra pair of hands and a story to tell. They join the crew; morale lifts.", type: "good" } },
         { label: "Confine them to the brig", auto: true,
-          outcome: { morale: -3, text: "Locked away. The crew is uneasy about it.", type: "warn" } }
+          outcome: { morale: -3, inf: { cooperate: -4, aggress: +3 }, text: "Locked away. The crew is uneasy about it.", type: "warn" } }
       ] },
     { id: "morale", w: 6, title: "Quiet Evening",
       text: "For once, nothing is broken. Someone breaks out contraband coffee.",
@@ -775,6 +996,7 @@
       // Gate alien content behind first contact; gate foreshadowing to before it.
       if (e.req === "postContact" && !game.contact) return false;
       if (e.req === "preContact" && game.contact) return false;
+      if (e.cond && !e.cond()) return false;
       if (!e.zones) return true;
       return e.zones.indexOf(zone) > -1;
     });
@@ -811,45 +1033,40 @@
   /* ---------------------------------------------------------
      10. Hazard crossings (the river-crossing analog)
      --------------------------------------------------------- */
+  // Hazards resolve on a SAMPLED severity spectrum (clean → catastrophic loss), with odds
+  // bent by Pilot skill, sensors, current hull, posture, and luck. No guaranteed safe option —
+  // every approach carries a real tail risk, and a bad crossing can end the run.
   var HAZARDS = {
     belt: {
-      title: "CROSSING: The Asteroid Belt",
+      title: "CROSSING: The Asteroid Belt", noun: "the belt",
       art: "  o   .  O   ·  o\n .  O   .   o   .",
-      text: "Rock and ice tumble across your path in every direction.",
+      text: "Rock and ice tumble across your path in every direction. There is no safe way through — only ways that are less likely to kill you.",
+      deathText: "A mountain of iron you never saw comes out of the dark. The ship is shredded across the belt. The voyage ends here.",
       options: [
-        { label: "Thread it at speed (Pilot)", role: "Pilot", diff: 64,
-          success: { res: { fuel: -2 }, text: "Your pilot dances the ship through untouched.", type: "good" },
-          failure: { hull: -22, target: "one", health: -18, text: "You clip a tumbling rock. Hull and crew take the hit.", type: "bad" } },
-        { label: "Power through behind the shields", auto: true,
-          outcome: { hull: -12, res: { fuel: -3 }, text: "You bull through, shields scarred but intact.", type: "warn" } },
-        { label: "Go the long way around", auto: true,
-          outcome: { res: { fuel: -10, food: -6, oxygen: -6 }, text: "Safe, but the detour eats fuel, food, and air.", type: "info" } }
+        { label: "Thread it at speed (Pilot's hands)", role: "Pilot", risk: 0.44, cost: { res: { fuel: -3 } }, inf: { aggress: +3, caution: -3 } },
+        { label: "Power through behind the shields", risk: 0.52, cost: { hull: -8, res: { fuel: -4 } }, inf: { aggress: +2 } },
+        { label: "Pick a slow, careful path around", risk: 0.24, cost: { res: { fuel: -13, food: -6, oxygen: -6 } }, inf: { caution: +4, persist: +1 } }
       ]
     },
     flare: {
-      title: "CROSSING: Proxima Approach",
+      title: "CROSSING: Proxima Approach", noun: "the flare",
       art: "(((( ★ ))))  radiation",
-      text: "Proxima Centauri flares as you make your final run. Radiation washes over the hull.",
+      text: "Proxima flares as you make your final run — a wall of hard radiation across the doorstep. After all of it, this is where it could still end.",
+      deathText: "The flare peaks just as you commit. The hull lights up from within. So close. The ship dies in the glare of the star you crossed the dark to reach.",
       options: [
-        { label: "Shields to max (needs power)", auto: true,
-          outcome: { res: { oxygen: -8 }, hull: -6, text: "You divert everything to the screens and weather it.", type: "warn" } },
-        { label: "Slingshot through fast (Pilot)", role: "Pilot", diff: 66,
-          success: { res: { fuel: -4 }, text: "A blistering, perfect approach. You outrun the worst of it.", type: "good" },
-          failure: { ailment: "radiation sickness", target: "one", health: -22, text: "You take the dose. Someone is badly burned.", type: "bad" } },
-        { label: "Hold back and wait for a lull", auto: true,
-          outcome: { res: { food: -8, oxygen: -8 }, morale: -4, text: "You wait it out, watching the stores tick down.", type: "info" } }
+        { label: "Slingshot through fast (Pilot's hands)", role: "Pilot", risk: 0.5, cost: { res: { fuel: -5 } }, inf: { aggress: +3, caution: -3 } },
+        { label: "Shields to max and endure", risk: 0.36, cost: { res: { oxygen: -10 }, hull: -5 }, inf: { caution: +3 } },
+        { label: "Hold back for a lull (bleeds stores)", risk: 0.22, cost: { res: { food: -10, oxygen: -10 }, morale: -4 }, inf: { caution: +4, persist: -2 } }
       ]
     },
     nebula: {
-      title: "CROSSING: The Oort Cloud",
+      title: "CROSSING: The Oort Cloud", noun: "the cloud",
       art: "~ ~ . ~ fog ~ . ~ ~",
-      text: "A cold haze of ice and dust blinds your sensors at the solar system's edge.",
+      text: "A cold haze of ice and dust blinds your sensors at the solar system's edge. It is very easy, here, to get lost.",
+      deathText: "You go in, and you simply never come out. The cloud swallows the ship whole.",
       options: [
-        { label: "Navigate blind (Pilot + sensors)", role: "Pilot", diff: 60,
-          success: { text: "Steady hands find the gaps. You slip through clean.", type: "good" },
-          failure: { res: { fuel: -10 }, hull: -8, text: "You scrape through, lost and bruised, burning fuel to find the way.", type: "bad" } },
-        { label: "Crawl through slowly", auto: true,
-          outcome: { res: { food: -8, oxygen: -8 }, text: "Painstaking and safe. The stores pay for it.", type: "info" } }
+        { label: "Navigate blind (Pilot's hands)", role: "Pilot", risk: 0.5, cost: {}, inf: { explore: +4, caution: -2 }, lostRisk: true },
+        { label: "Crawl through slowly (bleeds stores)", risk: 0.3, cost: { res: { food: -10, oxygen: -10 } }, inf: { caution: +4 }, lostRisk: true }
       ]
     }
   };
@@ -860,8 +1077,14 @@
     // Called from travel render when no modal/transit is busy. Each interaction is
     // preceded by a short arrival vignette for the Oregon-Trail between-scene feel.
     if (modalOpen() || transiting) return;
-    if (game._win) { game._win = false; winGame(); return; }
+    if (game._win) { game._win = false; if (game.autopilot) wakeSelf("arrival"); winGame(); return; }
     if (game._contactPending) { game._contactPending = false; presentFirstContact(); return; }
+    // Autopilot: the captain is asleep, so interactions resolve without a prompt.
+    if (game.autopilot) {
+      if (hazardQueue.length) { autoResolveHazard(hazardQueue.shift()); return; }
+      if (stationQueue.length) { stationQueue.shift(); log("Autopilot coasts past the station — no one awake to dock or trade.", "warn"); renderTravel(); return; }
+      if (voidQueue.length) { voidQueue.shift(); renderTravel(); return; }
+    }
     if (hazardQueue.length) {
       var hz = hazardQueue.shift();
       playTransit({ variant: "hazard", caption: "HAZARD AHEAD" }, function () { presentHazard(hz); });
@@ -886,42 +1109,65 @@
       title: "✷ FIRST CONTACT ✷",
       art: "        ◌\n   ·   ╱│╲   ·\n      ◉──┼──◉\n   ·   ╲│╱   ·\n        ◌",
       body: "<p>Out here, past the last whisper of any human signal, the dark answers back.</p>" +
-        "<p>A structure keeps perfect pace alongside you — vast, patterned, <span class='paper'>and built by no human hand</span>. It has been waiting. The whole crew has gone silent at the ports. Whatever you do in the next breath, humanity will never be alone again.</p>",
+        "<p>A structure keeps perfect pace alongside you — vast, patterned, <span class='paper'>built by no human hand</span>. It has been waiting. Three instincts war on the bridge: <span class='paper'>fight, flee, or hold perfectly still</span>. No one knows what it will do. No one can.</p>",
       choices: [
-        { label: "Hail them — open a channel  [Xenobiologist]", onClick: function () { resolveContact("hail"); } },
-        { label: "Observe in silence, record everything", onClick: function () { resolveContact("observe"); } },
-        { label: "Run dark — kill the lights and slip away", onClick: function () { resolveContact("evade"); } }
+        { label: "FIGHT — power weapons, warn them off", onClick: function () { resolveContact("fight"); } },
+        { label: "FLIGHT — burn hard and run", onClick: function () { resolveContact("flight"); } },
+        { label: "FREEZE — hold still, go dark, wait", onClick: function () { resolveContact("freeze"); } }
       ]
     });
   }
+  // Fight / Flight / Freeze — each branches into SAMPLED, uncertain outcomes. No guarantees.
   function resolveContact(choice) {
     game.contactChoice = choice;
+    game.alien.posture = choice;
     closeModal();
-    if (choice === "hail") {
-      var roll = skillFor("Xenobiologist") + rint(0, 40);
-      if (roll >= 55) {
-        adjustMoraleAll(+12, true);
-        game.credits += 220;
-        game._alienFriendly = true;
-        log("They answer in geometry and light — something like welcome. The crew weeps with wonder.", "good");
-        sfx("win");
+    if (choice === "fight") {
+      influence({ aggress: +12, cooperate: -8, caution: -4, potential: -4 });
+      var sev = sampleWeighted({ repelled: 2, hurt: 5, mauled: 4, destroyed: Math.max(0.3, 2 - skillFor("Pilot") / 40) });
+      if (sev === "repelled") {
+        game.alien.tech = chance(0.5); game.alien.friendly = false;
+        if (game.alien.tech) influence({ knowledge: +10 });
+        log("You strike first and they recoil. In the wreck-light you scavenge something impossible.", "good"); sfx("good");
+      } else if (sev === "hurt") {
+        applyOutcome({ hull: -rint(18, 30) }); var c = pick(awake());
+        if (c) { c.health = clamp(c.health - rint(15, 30), 0, 100); if (c.health <= 0) killCrew(c, "fell in the exchange"); }
+        game.alien.friendly = false; game.alien.pursuit = true;
+        log("They answer your fire. Hull buckles — and they will remember this.", "bad"); sfx("bad");
+      } else if (sev === "mauled") {
+        applyOutcome({ hull: -rint(30, 50) }); var v = pick(awake()); if (v) killCrew(v, "was killed when they struck back");
+        game.alien.pursuit = true; game.alien.friendly = false; influence({ potential: -6 });
+        log("They strike back with terrible precision. You flee, bleeding.", "bad"); sfx("bad");
       } else {
-        adjustMoraleAll(-6, true);
-        afflict("void fever");
-        game._alienFriendly = false;
-        log("Your hail is met with a pulse that scrambles a mind aboard. Contact — but not kindness.", "bad");
-        sfx("bad");
+        endGame(false, "They do not forgive the first shot. The ship is unmade in a single instant of light."); return;
       }
-    } else if (choice === "observe") {
-      adjustMoraleAll(+5, true);
-      game.credits += 130;
-      game._alienFriendly = true;
-      log("You watch, and log, and learn. The data alone will change everything — if you make it home.", "good");
-    } else {
-      game.supplies.fuel = Math.max(0, game.supplies.fuel - 6);
-      adjustMoraleAll(-2, true);
-      game._alienFriendly = false;
-      log("You run silent and dark. It lets you pass. The crew will always wonder what you fled.", "warn");
+    } else if (choice === "flight") {
+      influence({ aggress: +2, caution: +4, persist: +2, cooperate: -2, potential: -1 });
+      game.supplies.fuel = Math.max(0, game.supplies.fuel - rint(6, 12));
+      if (odds(40 + skillFor("Pilot") * 0.4)) {
+        game.alien.pursuit = false; game.alien.friendly = null;
+        log("You burn hard into the dark and lose them. The crew breathes again — and wonders forever.", "warn");
+      } else {
+        game.alien.pursuit = true; game.alien.friendly = false;
+        log("You run. They follow — patient, matching every burn. You are not alone now, and never will be.", "bad"); sfx("bad");
+      }
+    } else { // freeze — highest variance
+      influence({ explore: +6, cooperate: +6, caution: +5, potential: +3, knowledge: +6 });
+      var f = sampleWeighted({ commune: 5, ignored: 4, experiment: 3, annihilate: 1 });
+      if (f === "commune") {
+        game.alien.friendly = true; game.alien.tech = chance(0.6);
+        adjustMoraleAll(+14, true); influence({ potential: +10, knowledge: +12 });
+        if (game.alien.tech) game.cargo.rareMetals += Math.min(cargoSpace(), 6);
+        log("You hold still — and they reach back. Meaning passes between species. The crew weeps. You carry their knowledge now, of life and of the spaces between stars.", "good"); sfx("win");
+      } else if (f === "ignored") {
+        log("You hold still. They study you a long, breathless while — then move on, vast and indifferent.", "info");
+      } else if (f === "experiment") {
+        var vv = pick(awake()); if (vv) killCrew(vv, "was taken — lights, then gone");
+        game.alien.friendly = null; influence({ potential: -3 });
+        log("You hold still. They reach into the hull and take one of you, to learn. The rest are left to grieve.", "bad"); sfx("bad");
+      } else {
+        endGame(false, "You hold still — and they decide you are not worth the keeping. The ship goes dark forever."); return;
+      }
     }
     save();
     checkEnd();
@@ -932,17 +1178,72 @@
     var hz = HAZARDS[key];
     if (!hz) return;
     var choices = hz.options.map(function (op) {
-      return {
-        label: op.label,
-        onClick: function () {
-          if (op.role) resolveCheck(op.role, op.diff, op.success, op.failure);
-          else { applyOutcome(op.outcome); sfx("select"); }
-          closeModal();
-          if (!game.ended) { checkEnd(); if (!game.ended) renderTravel(); }
-        }
-      };
+      return { label: op.label + (op.role ? "  [" + op.role + "]" : ""),
+               onClick: function () { resolveHazard(key, op); } };
     });
-    openModal({ title: "≋ " + hz.title, art: hz.art, body: hz.text, choices: choices });
+    openModal({ title: "≋ " + hz.title, art: hz.art,
+      body: hz.text + "<div class='small dim' style='margin-top:8px'>Crew disposition: " + (dispositionText() || "steady") + "</div>",
+      choices: choices });
+  }
+
+  function resolveHazard(key, op) {
+    closeModal();
+    var hz = HAZARDS[key];
+    if (op.cost) applyOutcome({ res: op.cost.res, hull: op.cost.hull, morale: op.cost.morale });
+    if (op.inf) influence(op.inf);
+    // Build the danger probability, then SAMPLE a severity. Skill/sensors/hull/posture bend it.
+    var pilot = skillFor("Pilot");
+    var danger = op.risk;
+    danger += (100 - game.ship.hull) / 240;                 // a wounded ship is in more peril
+    danger -= (op.role === "Pilot" ? pilot : pilot * 0.4) / 320;
+    if (!game.power.allocation.sensors) danger += 0.12;     // flying blind is worse
+    if (game.autopilot) danger += 0.20;                     // no one at the helm
+    danger += Math.max(0, -game.posture.caution) / 500;     // recklessness courts catastrophe
+    danger += Math.max(0, game.posture.aggress) / 800;
+    danger *= DIFFICULTY[game.difficulty].harsh;
+    danger = clamp(danger, 0.03, 0.95);
+    var d = danger;
+    var sev = sampleWeighted({
+      clean:        Math.max(0.03, (1 - d) * 1.5),
+      graze:        0.45 + d * 0.6,
+      serious:      d * 1.0,
+      casualty:     Math.max(0, d - 0.34) * 1.25,
+      crippling:    Math.max(0, d - 0.58) * 1.15,
+      catastrophic: Math.max(0, d - 0.80) * 1.0
+    });
+    applyHazardSeverity(hz, sev, op);
+    sfx(sev === "clean" || sev === "graze" ? "select" : "bad");
+    if (!game.ended) { save(); checkEnd(); if (!game.ended) renderTravel(); }
+  }
+
+  function applyHazardSeverity(hz, sev, op) {
+    var n = hz.noun || "the hazard";
+    if (sev === "clean") {
+      influence({ potential: +1, persist: +1 });
+      log("You slip through " + n + " clean — not a scratch. The crew lets out a breath.", "good");
+    } else if (sev === "graze") {
+      applyOutcome({ hull: -rint(8, 14), text: "You take a few hits crossing " + n + ". Hull scarred, nothing vital.", type: "warn" });
+    } else if (sev === "serious") {
+      applyOutcome({ hull: -rint(16, 26) });
+      if (chance(0.5)) afflict();
+      else { var c = pick(awake()); if (c) { c.health = clamp(c.health - rint(18, 30), 0, 100); if (c.health <= 0) killCrew(c, "was lost crossing " + n); else c.status = "Injured"; } }
+      log("A bad crossing of " + n + ". Real damage, and someone is hurt.", "bad");
+    } else if (sev === "casualty") {
+      applyOutcome({ hull: -rint(14, 24) });
+      var v = pick(awake()); if (v) killCrew(v, "was killed crossing " + n);
+      if (chance(0.25)) { var v2 = pick(awake()); if (v2) killCrew(v2, "died in the same disaster"); }
+      influence({ potential: -3 });
+      log(n + " takes a life. The ship limps onward, quieter than before.", "bad");
+    } else if (sev === "crippling") {
+      applyOutcome({ hull: -rint(30, 45), res: { fuel: -rint(8, 16), oxygen: -rint(6, 12) } });
+      influence({ potential: -5 });
+      if (op.lostRisk || chance(0.5)) {
+        var back = rint(8, 20); game.distance = Math.max(0, game.distance - back);
+        log("You come out of " + n + " crippled AND lost — flung " + back + " back off course.", "bad");
+      } else log("You barely survive " + n + ". The ship is gutted.", "bad");
+    } else { // catastrophic
+      endGame(false, hz.deathText || ("The ship is torn apart in " + n + ". The voyage ends here, in silence."));
+    }
   }
 
   /* ---------------------------------------------------------
@@ -1070,12 +1371,16 @@
             var c = byName(b.getAttribute("data-name"));
             if (!c) return;
             if (b.getAttribute("data-hib") === "sleep") {
+              if (c === playerChar()) { closeModal(); confirmSelfPod(); return; }
               c.status = "Hibernating";
               log(c.name + " enters cold sleep.", "info"); sfx("select");
             } else {
-              c.status = c.ailment ? "Sick" : "Healthy";
-              if (chance(0.25)) { c.ailment = "hibernation sickness"; c.status = "Sick"; log(c.name + " wakes groggy and ill.", "warn"); }
-              else log(c.name + " wakes from cold sleep.", "good");
+              if (c === playerChar() && game.autopilot) { wakeSelf(); }
+              else {
+                c.status = c.ailment ? "Sick" : "Healthy";
+                if (chance(0.25)) { c.ailment = "hibernation sickness"; c.status = "Sick"; log(c.name + " wakes groggy and ill.", "warn"); }
+                else log(c.name + " wakes from cold sleep.", "good");
+              }
               sfx("select");
             }
             closeModal(); openHibernation();
@@ -1083,6 +1388,32 @@
         });
       }
     });
+  }
+
+  // Podding the player-character is a desperate gamble — the ship goes to autopilot.
+  function confirmSelfPod() {
+    openModal({
+      title: "⚠ COMMANDER TO COLD SLEEP?",
+      art: "",
+      body: "<p class='red'>If YOU enter a pod, no one commands the ship.</p>" +
+        "<p>The ship flies itself on <b class='paper'>autopilot</b>: you make no decisions, events resolve without your hand (usually badly), and danger mounts every turn — until you wake. Choose how far you'll trust the machine.</p>",
+      choices: [
+        { label: "Sleep until the next waypoint", onClick: function () { enterAutopilot({ type: "waypoint", value: game.waypointIndex }); } },
+        { label: "Sleep — wake only on emergency", onClick: function () { enterAutopilot({ type: "emergency" }); } },
+        { label: "On second thought, stay awake", onClick: function () { sfx("cancel"); closeModal(); openHibernation(); } }
+      ]
+    });
+  }
+  function enterAutopilot(wake) {
+    var me = playerChar();
+    if (me) me.status = "Hibernating";
+    game.autopilot = true;
+    game.autopilotWake = wake;
+    log("You seal yourself into the pod. The ship is on autopilot now. Whatever happens, happens.", "warn");
+    sfx("warn");
+    closeModal();
+    save();
+    renderTravel();
   }
 
   /* ---------------------------------------------------------
@@ -1105,14 +1436,26 @@
       sys("medbay", "Medbay", ailing().length ? POWER_DRAW.medbay : 0) +
       sys("sensors", "Sensors / nav", POWER_DRAW.sensors) +
       sys("pods", "Hibernation pods", POWER_DRAW.podEach * sleepers().length);
-    var canProceed = !forced || !computePower().brownout;
+    var stillBrown = computePower().brownout;
+    // You can ALWAYS proceed — but running under-powered strains the ship (no soft-lock).
+    var label = !forced ? "Done" : (stillBrown ? "Run under brownout (systems strain)" : "Proceed");
     openModal({
       title: "⚡ Power Allocation",
       art: forced ? "!!! BROWNOUT !!!" : "",
       body: body,
-      choices: [{ label: canProceed ? (forced ? "Proceed" : "Done") : "Demand still exceeds output…",
-                  disabled: !canProceed,
-                  onClick: function () { if (!canProceed) { sfx("empty"); return; } sfx("confirm"); closeModal(); if (thenFn) thenFn(); else renderTravel(); } }],
+      choices: [{ label: label,
+                  onClick: function () {
+                    sfx("confirm");
+                    if (forced && computePower().brownout) {
+                      // Penalty hits AIR, not hull — so it punishes without feeding the
+                      // hull→output→brownout death spiral.
+                      var deficit = game.power.demand - game.power.output;
+                      game.supplies.oxygen = Math.max(0, round1(game.supplies.oxygen - deficit * 1.5));
+                      adjustHealthAll(-3, true);
+                      log("Running in brownout: scrubbers falter, the air goes thin and stale.", "bad");
+                    }
+                    closeModal(); if (thenFn) thenFn(); else renderTravel();
+                  } }],
       onBind: function (root) {
         root.querySelectorAll("[data-sys]").forEach(function (b) {
           b.addEventListener("click", function () {
@@ -1206,11 +1549,16 @@
     if (!mg || mg.over) return;
     mg.over = true;
     clearInterval(mg.timer); clearTimeout(mg.spawn);
-    game.supplies.food += mg.haul.food;
-    game.supplies.fuel += mg.haul.fuel;
-    game.ship.parts += mg.haul.parts;
-    game.supplies.charges += mg.haul.charges + mg.charges; // unused charges returned
-    log("Mining run: +" + mg.haul.food + " food, +" + mg.haul.fuel + " fuel, +" + mg.haul.parts + " parts, +" + mg.haul.charges + " charges.", "good");
+    // Returned (unused) charges don't count against the hold limit; the new haul does.
+    game.supplies.charges += mg.charges;
+    var got = { food: 0, fuel: 0, parts: 0, charges: 0 };
+    [["food", mg.haul.food], ["fuel", mg.haul.fuel], ["charges", mg.haul.charges], ["parts", mg.haul.parts]].forEach(function (p) {
+      var add = Math.min(p[1], cargoSpace());
+      if (add > 0) { if (p[0] === "parts") game.ship.parts += add; else game.supplies[p[0]] += add; got[p[0]] = add; }
+    });
+    var lost = (mg.haul.food + mg.haul.fuel + mg.haul.parts + mg.haul.charges) - (got.food + got.fuel + got.parts + got.charges);
+    log("Mining run: +" + got.food + " food, +" + got.fuel + " fuel, +" + got.parts + " parts, +" + got.charges + " charges." +
+        (lost > 0 ? " (" + lost + " jettisoned — hold full.)" : ""), "good");
     closeMinigame();
     save();
     renderTravel();
@@ -1268,11 +1616,11 @@
     var ov = $("#transit");
     var ship = $("#transit-ship"), dest = $("#transit-dest"), cap = $("#transit-cap");
     var V = {
-      cruise: { ship: "⊳—■▣",    dur: 1300, destIcon: "" },
-      dock:   { ship: "⊳—■▣ ▸",  dur: 1500, destIcon: "◉" },
-      hazard: { ship: "⊳—■▣ !",  dur: 1400, destIcon: "✦" },
-      land:   { ship: "⊳—■▣ ▸",  dur: 2200, destIcon: "◐" }
-    }[opts.variant] || { ship: "⊳—■▣", dur: 1300, destIcon: "" };
+      cruise: { ship: "⊳—■▣",    dur: 2300, destIcon: "" },
+      dock:   { ship: "⊳—■▣ ▸",  dur: 2600, destIcon: "◉" },
+      hazard: { ship: "⊳—■▣ !",  dur: 2500, destIcon: "✦" },
+      land:   { ship: "⊳—■▣ ▸",  dur: 3600, destIcon: "◐" }
+    }[opts.variant] || { ship: "⊳—■▣", dur: 2300, destIcon: "" };
 
     ship.textContent = V.ship;
     cap.textContent = opts.caption || "";
@@ -1525,35 +1873,47 @@
       p.demand + " / " + p.output + " pwr" + (p.brownout ? " ⚠ BROWNOUT" : "") + "</span></div>" +
       "<div class='bar power'><span style='width:" + clamp(Math.round(p.demand / Math.max(1, p.output) * 100), 0, 100) + "%'></span></div>";
 
-    var hud =
+    var disp = dispositionText();
+    var holdPct = clamp(Math.round(cargoUsed() / ship.holdMax * 100), 0, 100);
+    var apBanner = game.autopilot
+      ? "<div class='panel' style='border-color:var(--red)'><span class='red'>⚠ AUTOPILOT — you are in cold sleep. The ship is choosing for you.</span></div>"
+      : "";
+    var hud = apBanner +
       "<div class='panel'><div class='panel-title'>Navigation</div>" +
         "<div class='stat'><span class='label'>Day</span><span class='val'>" + game.day + "</span></div>" +
         "<div class='stat'><span class='label'>Next waypoint</span><span class='val cyan'>" +
           WAYPOINTS[Math.min(game.waypointIndex, WAYPOINTS.length - 1)].name + "</span></div>" +
         track +
-        "<div class='small dim'>Thrust: <b class='paper'>" + THRUST[game.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[game.rations].label + "</b></div>" +
+        "<div class='small dim'>Thrust: <b class='paper'>" + THRUST[game.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[game.rations].label + "</b>" +
+          (disp ? " · Crew: <b class='paper'>" + disp + "</b>" : "") + "</div>" +
       "</div>" +
       "<div class='cols'>" +
-        "<div class='col panel'><div class='panel-title'>Supplies</div><div class='hud-grid'>" +
+        "<div class='col panel'><div class='panel-title'>Supplies · Hold " + cargoUsed() + "/" + ship.holdMax + "</div>" +
+          "<div class='bar " + (holdPct > 92 ? "crit" : holdPct > 75 ? "warn" : "ok") + "'><span style='width:" + holdPct + "%'></span></div>" +
+          "<div class='hud-grid' style='margin-top:6px'>" +
           stat("Fuel", s.fuel, 100) + stat("Oxygen", s.oxygen, 100) + stat("Food", s.food, 100) +
           stat("Medicine", s.medicine, 12) + stat("Parts", ship.parts, 12) + stat("Charges", s.charges, 16) +
           "<div class='stat'><span class='label'>Credits</span><span class='val paper'>" + game.credits + "</span></div>" +
           stat("Hull", ship.hull, 100) +
         "</div>" + powerLine + "</div>" +
-        "<div class='col panel'><div class='panel-title'>Crew</div>" + crewStrip() + "</div>" +
+        "<div class='col panel'><div class='panel-title'>Crew (" + alive().length + ")</div>" + crewStrip() + "</div>" +
       "</div>";
 
-    var actions =
-      "<div class='menu row'>" +
-        "<button class='btn go' data-action='continue'>▶ Continue</button>" +
-        "<button class='btn small' data-action='thrust'>⚙ Thrust</button>" +
-        "<button class='btn small' data-action='rations'>🍽 Rations</button>" +
-        "<button class='btn small' data-action='power'>⚡ Power</button>" +
-        "<button class='btn small' data-action='hibernate'>❄ Pods</button>" +
-        "<button class='btn small' data-action='rest'>🛠 Rest & repair</button>" +
-        "<button class='btn small' data-action='mine'>⛏ Mine</button>" +
-        "<button class='btn small danger' data-action='abandon'>Abandon run</button>" +
-      "</div>";
+    var actions = game.autopilot
+      ? "<div class='menu row'>" +
+          "<button class='btn go' data-action='continue'>▶ Run on autopilot</button>" +
+          "<button class='btn small danger' data-action='wakeself'>☼ Emergency wake</button>" +
+        "</div>"
+      : "<div class='menu row'>" +
+          "<button class='btn go' data-action='continue'>▶ Continue</button>" +
+          "<button class='btn small' data-action='thrust'>⚙ Thrust</button>" +
+          "<button class='btn small' data-action='rations'>🍽 Rations</button>" +
+          "<button class='btn small' data-action='power'>⚡ Power</button>" +
+          "<button class='btn small' data-action='hibernate'>❄ Pods</button>" +
+          "<button class='btn small' data-action='rest'>🛠 Rest & repair</button>" +
+          "<button class='btn small' data-action='mine'>⛏ Mine</button>" +
+          "<button class='btn small danger' data-action='abandon'>Abandon run</button>" +
+        "</div>";
 
     app.innerHTML = hud + actions +
       "<div class='panel-title' style='margin-top:10px'>Ship's Log</div>" +
@@ -1640,9 +2000,10 @@
   function renderEnd() {
     var app = $("#app");
     var sc = game._endScore, rank = game._endRank;
+    var tier = game.outcomeTier || (game.won ? "ARRIVED" : "LOST");
     var head = game.won
-      ? "<h2 class='cyan'>✦ LANDFALL ON PROXIMA CENTAURI b ✦</h2>"
-      : "<h2 class='red'>✖ THE VOYAGE ENDS ✖</h2>";
+      ? "<h2 class='cyan'>✦ " + tier + " ✦</h2>"
+      : "<h2 class='red'>✖ " + tier + " ✖</h2>";
     var survivors = game.crew.filter(function (c) { return c.status !== "Dead"; });
     var fallen = game.crew.filter(function (c) { return c.status === "Dead"; });
     var crewSummary =
@@ -1732,6 +2093,7 @@
       case "hibernate": openHibernation(); break;
       case "rest": doRestRepair(); break;
       case "mine": openMining(); break;
+      case "wakeself": wakeSelf("you force yourself awake"); save(); renderTravel(); break;
       case "abandon":
         openModal({ title: "Abandon run?", body: "<p>This ends the current voyage. It will be logged as a loss. There is no undo.</p>",
           choices: [
@@ -1757,7 +2119,9 @@
     for (var i = 0; i < STORE_ITEMS.length; i++) if (STORE_ITEMS[i].key === key) it = STORE_ITEMS[i];
     if (!it) return;
     var cost = it.price * it.step;
+    var takesHold = key !== "medicine";
     if (dir > 0) {
+      if (takesHold && cargoSpace() < it.step) { sfx("empty"); log("The hold is full — you must leave something behind to take on more.", "warn"); renderStore(); return; }
       if (game.credits >= cost) {
         game.credits -= cost;
         if (key === "parts") game.ship.parts += it.step; else game.supplies[key] += it.step;

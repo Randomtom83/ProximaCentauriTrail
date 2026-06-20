@@ -477,21 +477,21 @@ button.btn:hover .key { color: var(--bg-deep); }
     radial-gradient(1px 1px at 90% 30%, #fff 0, transparent 1px);
   background-size: 200px 150px;
 }
-.stars.s1 { animation: starscroll 2.2s linear infinite; opacity: .9; }
-.stars.s2 { animation: starscroll 3.6s linear infinite; opacity: .6; background-size: 320px 200px; }
-.stars.s3 { animation: starscroll 6s linear infinite; opacity: .35; background-size: 460px 300px; }
+.stars.s1 { animation: starscroll 5s linear infinite; opacity: .9; }
+.stars.s2 { animation: starscroll 8s linear infinite; opacity: .6; background-size: 320px 200px; }
+.stars.s3 { animation: starscroll 13s linear infinite; opacity: .35; background-size: 460px 300px; }
 @keyframes starscroll { to { background-position: -200px 0; } }
 .transit-ship {
   position: absolute; left: 38%; top: 46%; transform: translateY(-50%);
   font-size: 26px; color: var(--green); text-shadow: 0 0 10px rgba(51,255,102,.8);
-  letter-spacing: -2px; animation: shipbob 1.4s ease-in-out infinite;
+  letter-spacing: -2px; animation: shipbob 3s ease-in-out infinite;
 }
-@keyframes shipbob { 50% { transform: translateY(-58%); } }
+@keyframes shipbob { 50% { transform: translateY(-56%); } }
 .transit-dest {
   position: absolute; right: 8%; top: 50%; transform: translate(50%,-50%) scale(.3);
   font-size: 40px; opacity: 0; color: var(--cyan); text-shadow: 0 0 16px rgba(90,215,255,.8);
 }
-.transit-dest.grow { animation: destgrow 1.4s ease-out forwards; }
+.transit-dest.grow { animation: destgrow 3s ease-out forwards; }
 @keyframes destgrow { to { transform: translate(-10%,-50%) scale(1); opacity: 1; } }
 .transit-cap {
   position: absolute; left: 14px; bottom: 28px; font-size: 13px; color: var(--paper);

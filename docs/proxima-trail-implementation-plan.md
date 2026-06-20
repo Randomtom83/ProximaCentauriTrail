@@ -120,3 +120,27 @@ motion and a visible waypoint map, and the game treated alien life as a known fa
   with no alien content before it, that post-contact alien events unlock, and that the animation overlay
   shows and a Space-skip advances exactly one turn. Win/loss playthroughs still pass, zero JS errors.
 - **Delivery:** `main` now exists, so this round ships as a reviewable PR into `main`.
+
+## Addendum — Sprint 8 / Phase 1: stakes, scarcity & uncertainty
+The game now refuses to assume you'll make it. Built on a **probabilistic influence engine** — a hidden
+mission `potential` plus posture axes (explore / aggress / persist / cooperate / caution) that choices
+nudge, with the big resolutions *sampled* from those bent odds rather than scripted.
+- **Survival pressure:** an enforced cargo **hold cap** (no buying safety); **rescued people join the
+  crew** as real mouths-and-hands; lower starting credits/supplies; **hazards** rebuilt on a sampled
+  severity spectrum (clean → graze → serious → casualty → crippling → **catastrophic run-ending loss**),
+  bent by pilot/sensors/hull/posture/luck.
+- **First contact = Fight / Flight / Freeze**, each branching into uncertain outcomes (retaliation &
+  possible destruction / a lingering pursuer / commune-ignored-experiment-annihilate), leaving a
+  persistent alien standing.
+- **Self-hibernation = autopilot:** podding your own character drops the ship to a high-risk autopilot
+  (no choices, mounting danger) until a scheduled or emergency wake.
+- **Arrival is the midpoint:** `arriveAtProxima()` samples habitability + who's already there + whether a
+  faster expedition beat you, then offers colonize-or-return → a sampled Act II epilogue → tiered endings
+  (Haven / Foothold / Messenger / Withered / Barren / Too Late / Lost). Reaching PCb is never the win by
+  itself.
+- **Pacing:** longer voyage, slower transit animation. Fixed a brownout soft-lock and a hull death-spiral.
+- **Verification:** jsdom suite green — skilled run wins ~7/10 on Settler, careless play reliably dies,
+  hold cap enforced, hazards lethal, F/F/F gating intact, zero JS errors.
+- **Deferred to the next installment:** the economy relief valves (outpost jobs, location-based prices,
+  sellable mined commodities), then Phases 2–6 (bridge aesthetic, generations, ship AI, wormholes,
+  interactive Act II).

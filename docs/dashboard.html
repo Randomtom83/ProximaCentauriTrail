@@ -91,7 +91,7 @@
    Project data. Tasks and log entries live here, edited each
    sprint as the build progresses. Statuses: "todo"|"doing"|"done".
    ============================================================ */
-var LAST_UPDATED = "2026-06-19";
+var LAST_UPDATED = "2026-06-20";
 
 var SPRINTS = [
   { id:"s0", name:"Sprint 0 — Scaffold", tasks:[
@@ -156,7 +156,20 @@ var SPRINTS = [
     ["Scripted, unpredictably-timed FIRST CONTACT reveal in deep space","done"],
     ["Pre-contact foreshadowing events (no confirmation of life)","done"],
     ["Post-contact alien parley/trade unlock","done"],
-    ["jsdom tests: route map, contact gating, anim skip; commit + open PR to main","doing"]
+    ["jsdom tests: route map, contact gating, anim skip; commit + open PR to main","done"]
+  ]},
+  { id:"s8", name:"Sprint 8 — Phase 1: stakes, scarcity &amp; uncertainty", tasks:[
+    ["Probabilistic influence engine (hidden potential + posture axes; sampled outcomes)","done"],
+    ["Cargo hold capacity, enforced at store / trade / mining / event pickups","done"],
+    ["Crew are real people: rescues add members; consumption + labor scale with crew","done"],
+    ["Tighter economy: lower starting credits and leaner supplies","done"],
+    ["Hazards are actually hazardous: sampled severity up to run-ending catastrophe","done"],
+    ["First contact = Fight / Flight / Freeze with branching, uncertain outcomes + pursuit","done"],
+    ["Self-hibernation = high-stakes autopilot; brownout soft-lock / death-spiral fixed","done"],
+    ["Arrival is the MIDPOINT: habitability + colonize-or-return + sampled Act II endings","done"],
+    ["Longer voyage + slower transit animation","done"],
+    ["Rebalance + jsdom verification (skilled run wins ~7/10; hold cap; lethal hazards)","done"],
+    ["Economy relief valves: outpost jobs, location-based prices, sellable mined ore","todo"]
   ]}
 ];
 
@@ -188,7 +201,19 @@ var LOG = [
   { date:"2026-06-19", tag:"feature", title:"First contact + alien parley/trade",
     body:"Scripted FIRST CONTACT modal (Hail / Observe / Run dark, each with consequences) flips a contact flag; events carry req:preContact|postContact so foreshadowing stops and alien encounters + a risky alien trade event unlock only after the reveal. Kept undocumented in the README to preserve the surprise." },
   { date:"2026-06-19", tag:"build", title:"Verification: feature + animation tests",
-    body:"jsdom checks confirm the route map renders 10 nodes + ship, FIRST CONTACT fires once in deep space, no alien content appears before it (6/6), post-contact alien events unlock (5/6), and the animation overlay shows + a Space-skip advances exactly one turn. Win/loss playthroughs still pass with zero JS errors." }
+    body:"jsdom checks confirm the route map renders 10 nodes + ship, FIRST CONTACT fires once in deep space, no alien content appears before it (6/6), post-contact alien events unlock (5/6), and the animation overlay shows + a Space-skip advances exactly one turn. Win/loss playthroughs still pass with zero JS errors." },
+  { date:"2026-06-20", tag:"decision", title:"Probabilistic engine: outcomes are sampled, not scripted",
+    body:"Per the user, the game is a random-event generator with influence math. Choices nudge a hidden mission 'potential' and posture axes (explore/aggress/persist/cooperate/caution); big resolutions — events, hazards, first contact, arrival — are rolled against those bent odds. Good play raises the odds, never to certainty. Disposition is shown qualitatively; numeric odds stay hidden." },
+  { date:"2026-06-20", tag:"decision", title:"Arrival at Proxima is the MIDPOINT, not the win",
+    body:"Reaching PCb resolves a sampled situation (habitability; already-inhabited; overtaken by a faster expedition) and offers colonize-and-signal vs return-for-more. A sampled Act II epilogue then yields a tiered ending — Haven / Foothold / Messenger / Withered / Barren / Too Late / Lost — so arriving is necessary, never sufficient." },
+  { date:"2026-06-20", tag:"feature", title:"Stakes & scarcity: hold cap, real crew, lethal hazards",
+    body:"Added an enforced cargo hold (no more buying safety); rescued people join the crew as real mouths-and-hands; starting credits/supplies cut; hazards rebuilt on a sampled severity spectrum that can kill crew or end the run; self-hibernation drops the ship to a high-risk autopilot." },
+  { date:"2026-06-20", tag:"feature", title:"First contact reworked to Fight / Flight / Freeze",
+    body:"Fight → they retaliate (chance of repel + tech, or destruction). Flight → they pursue (recurring hostile events until shaken). Freeze → highest variance: commune / ignored / experiment / annihilate. Sets a persistent alien standing that colors later events and the endings." },
+  { date:"2026-06-20", tag:"fix", title:"Brownout soft-lock + hull death-spiral",
+    body:"A deep brownout (reactor output below life-support draw) could never be satisfied → infinite lock; and the brownout penalty hit hull, feeding a hull→output→brownout spiral. Now you can always proceed under brownout, and the penalty hits AIR not hull, breaking the loop." },
+  { date:"2026-06-20", tag:"build", title:"Rebalance + verification (Phase 1)",
+    body:"Tuned thrust/distances/hold/supplies so a disciplined run (hibernate, reduced rations, repair) reaches Proxima and wins ~7/10 on Settler while careless play reliably dies. jsdom suite green: route map, F/F/F gating, hold-cap enforcement, lethal hazards, arrival flow, animation skip — zero JS errors." }
 ];
 
 /* ---- rendering + interactivity ---- */
