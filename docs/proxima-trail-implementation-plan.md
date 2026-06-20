@@ -141,6 +141,17 @@ nudge, with the big resolutions *sampled* from those bent odds rather than scrip
 - **Pacing:** longer voyage, slower transit animation. Fixed a brownout soft-lock and a hull death-spiral.
 - **Verification:** jsdom suite green — skilled run wins ~7/10 on Settler, careless play reliably dies,
   hold cap enforced, hazards lethal, F/F/F gating intact, zero JS errors.
-- **Deferred to the next installment:** the economy relief valves (outpost jobs, location-based prices,
-  sellable mined commodities), then Phases 2–6 (bridge aesthetic, generations, ship AI, wormholes,
-  interactive Act II).
+## Addendum — Sprint 9 / Phase 1b: economy, balance & engine depth
+Closed the three issues flagged in the Phase-1 self-audit, in one pass.
+- **Economy relief valves:** mining yields **sellable commodities** (ice/ore/volatiles/rare metals);
+  stations trade at **location-based prices** (fuel & O₂ pricier farther out, ore worth more in the
+  deep), enabling buy-low/sell-high; **skill-gated outpost jobs** (repair, clinic, survey, contraband
+  smuggling with 'heat', and a sure-pay haul) let a broke crew earn their way out. Stations became a
+  **re-openable hub** so you can trade, work, and rest in one stop.
+- **Engine depth:** hidden `potential` now adds momentum to skill checks and hazard danger; **posture
+  weights which events surface**; qualitative omens let potential be *felt* without a number.
+- **Difficulty re-tiered** for a real easy→hard spread.
+- **Fix:** scrubber O₂ could overfill the hold while hibernating — surplus now vents.
+- **Verification:** per-difficulty jsdom sweep — Settler ~70% / Pioneer ~50% / Voyager ~20% over 30 runs
+  each, zero hold overflows, zero JS errors; feature/anim/smoke suites still green.
+- **Still ahead:** Phases 2–6 (bridge aesthetic, generations, ship AI, wormholes, interactive Act II).

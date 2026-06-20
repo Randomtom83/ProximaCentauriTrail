@@ -82,9 +82,9 @@
   var ROLE_ORDER = ["Commander", "Pilot", "Engineer", "Medic", "Xenobiologist"];
 
   var DIFFICULTY = {
-    Settler: { mult: 1.0, credit: 1.25, harsh: 0.85, blurb: "Forgiving. Learn the ropes." },
-    Pioneer: { mult: 1.5, credit: 1.0, harsh: 1.0, blurb: "The intended balance." },
-    Voyager: { mult: 2.0, credit: 0.85, harsh: 1.2, blurb: "Punishing. Death is the default." }
+    Settler: { mult: 1.0, credit: 1.6, harsh: 0.7,  startMult: 1.30, potential0: 58, blurb: "Forgiving. Margins to learn the ropes." },
+    Pioneer: { mult: 1.6, credit: 1.1, harsh: 0.9,  startMult: 1.10, potential0: 52, blurb: "The intended balance. Death is real." },
+    Voyager: { mult: 2.2, credit: 0.85, harsh: 1.22, startMult: 0.92, potential0: 46, blurb: "Brutal. Most crews die in the dark." }
   };
 
   var STORE_ITEMS = [
@@ -95,6 +95,30 @@
     { key: "parts", name: "Spare parts", price: 18, step: 1, unit: "" },
     { key: "charges", name: "Mining charges", price: 9, step: 2, unit: "" }
   ];
+
+  // Tradeable commodities (mined or gifted) — sell-only, worth more the deeper you go.
+  var COMMODITIES = {
+    ice:        { name: "Ice",         base: 5,  icon: "🧊" },
+    ore:        { name: "Common ore",  base: 7,  icon: "🪨" },
+    volatiles:  { name: "Volatiles",   base: 16, icon: "⚗" },
+    rareMetals: { name: "Rare metals", base: 24, icon: "💠" }
+  };
+
+  // Location-based price. Fuel & O₂ get scarcer (pricier) the farther from Earth;
+  // commodities fetch more out in the deep. side = "buy" | "sell".
+  function priceAt(wpIndex, key, side) {
+    var df = clamp(wpIndex / (WAYPOINTS.length - 1), 0, 1);
+    if (COMMODITIES[key]) {
+      var mult = 1 + df * (key === "volatiles" || key === "ice" ? 1.4 : 0.9);
+      return Math.max(1, Math.round(COMMODITIES[key].base * mult));   // sell only
+    }
+    var it = null; for (var i = 0; i < STORE_ITEMS.length; i++) if (STORE_ITEMS[i].key === key) it = STORE_ITEMS[i];
+    if (!it) return 0;
+    var scarce = (key === "fuel" || key === "oxygen") ? 0.9 : (key === "food") ? 0.5 : 0.3;
+    var p = it.price * (1 + df * scarce);
+    return side === "buy" ? Math.max(1, Math.round(p * 1.25)) : Math.max(1, Math.round(p * 0.5));
+  }
+  function wpIndexOf(wp) { var i = WAYPOINTS.indexOf(wp); return i < 0 ? 1 : i; }
 
   var NAMES = ["Vega", "Orsk", "Lin", "Mara", "Cole", "Idris", "Nova", "Sasha", "Reyes", "Okonkwo",
                "Tamsin", "Bex", "Juno", "Castel", "Wren", "Dax", "Imani", "Petrov", "Soto", "Aria"];
@@ -180,7 +204,8 @@
       ship: { hull: 100, parts: 5, reactorBase: REACTOR_BASE, holdMax: HOLD_MAX },
       power: { output: 0, demand: 0,
                allocation: { lifeSupport: true, drive: true, medbay: true, pods: true, sensors: true } },
-      supplies: { fuel: 22, oxygen: 42, food: 42, medicine: 2, charges: 4 },
+      supplies: { fuel: Math.round(22 * diff.startMult), oxygen: Math.round(42 * diff.startMult),
+                  food: Math.round(42 * diff.startMult), medicine: 2, charges: 4 },
       cargo: { ore: 0, ice: 0, rareMetals: 0, volatiles: 0 },   // tradeable commodities (mined/looted)
       crew: crew,
       log: [],
@@ -193,7 +218,7 @@
       autopilot: false,           // true while the player-character is hibernating
       autopilotWake: null,        // {type:'day'|'waypoint', value} wake condition
       // --- probabilistic influence engine (outcomes are sampled, never scripted) ---
-      potential: 50,              // hidden overall mission-success probability (0..100)
+      potential: diff.potential0, // hidden overall mission-success probability (0..100)
       posture: { explore: 0, aggress: 0, persist: 0, cooperate: 0, caution: 0 },
       // --- destination: hidden + uncertain; revealed only on arrival ---
       dest: {
@@ -202,7 +227,8 @@
         inhabited: null,          // sampled at arrival: null until then
         overtaken: null           // sampled at arrival: did a faster expedition beat you here?
       },
-      alien: { posture: null, friendly: null, pursuit: false, tech: false }
+      alien: { posture: null, friendly: null, pursuit: false, tech: false },
+      _heat: 0                    // contraband 'heat' that can incur a fine at the next port
     };
   }
 
@@ -367,7 +393,8 @@
 
   function cargoUsed() {
     var s = game.supplies, c = game.cargo;
-    return Math.round(s.fuel + s.oxygen + s.food + s.charges + game.ship.parts +
+    // Floor so fractional O₂/food never make the integer total over-report the cap.
+    return Math.floor(s.fuel + s.oxygen + s.food + s.charges + game.ship.parts +
                       c.ore + c.ice + c.rareMetals + c.volatiles);   // medicine is light/exempt
   }
   function cargoSpace() { return Math.max(0, game.ship.holdMax - cargoUsed()); }
@@ -435,6 +462,9 @@
     var recover = al.lifeSupport ? SCRUBBER_RECOVERY : 0;
     var o2use = aw.length * O2_PER_AWAKE + sl.length * O2_PER_SLEEPER;
     game.supplies.oxygen = round1(game.supplies.oxygen + recover - o2use);
+    // Scrubbers can't overfill the hold — surplus O₂ vents to space.
+    var o2over = cargoUsed() - game.ship.holdMax;
+    if (o2over > 0) game.supplies.oxygen = Math.max(0, round1(game.supplies.oxygen - o2over));
     if (!al.lifeSupport) log("Life support unpowered — scrubbers offline.", "warn");
     if (game.supplies.oxygen <= 0) {
       game.supplies.oxygen = 0;
@@ -515,6 +545,13 @@
 
     // A small reward for simply not giving up — persistence trends the odds up.
     influence({ persist: +1 });
+
+    // Occasional qualitative omen — lets the hidden 'potential' be felt, never read.
+    if (!game.autopilot && chance(0.12)) {
+      var omen = game.potential >= 66 ? pick(["The crew sleeps easy tonight; the run feels almost blessed.", "Somehow it all keeps holding together. You dare to feel lucky.", "There's a good rhythm to the ship lately — don't say it out loud."])
+        : game.potential <= 34 ? pick(["A pall hangs over the ship. Nothing has felt right in a while.", "The crew mutters that this voyage is cursed.", "Bad luck stacks on bad luck. You feel it in your teeth."]) : null;
+      if (omen) log(omen, game.potential >= 66 ? "good" : "warn");
+    }
 
     // First contact (scripted, once, in deep space past the Oort Cloud). The exact
     // turn is a surprise; forced once the void is behind you so it never gets skipped.
@@ -823,6 +860,7 @@
   function resolveCheck(role, baseDiff, success, failure) {
     var diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
     if (!game.power.allocation.sensors) diff += 12;   // sensors help navigation/analysis
+    diff -= Math.round((game.potential - 50) * 0.15);  // momentum: a run that's going well compounds
     var roll = skillFor(role) + rint(0, 40);
     var ok = roll >= diff;
     sfx(ok ? "good" : "bad");
@@ -871,7 +909,7 @@
           success: { res: { medicine: -1 }, text: "Caught early. Contained.", type: "good" },
           failure: { ailment: true, res: { medicine: -1 }, text: "It spreads before you can isolate it.", type: "bad" } }
       ] },
-    { id: "derelict", w: 7, title: "Derelict Vessel", art: "[≣≣≣]·· drifting",
+    { id: "derelict", w: 7, mood: "discover", title: "Derelict Vessel", art: "[≣≣≣]·· drifting",
       text: "A dead ship tumbles ahead, hull dark. Salvage — or trap?",
       choices: [
         { label: "Board and salvage (Xenobiologist)", role: "Xenobiologist", diff: 60,
@@ -882,7 +920,7 @@
         { label: "Leave it. Bad feeling.", auto: true,
           outcome: { morale: +1, inf: { caution: +4, explore: -2 }, text: "You give it a wide berth. The crew sleeps easier.", type: "info" } }
       ] },
-    { id: "distress", w: 6, title: "Distress Signal",
+    { id: "distress", w: 6, mood: "crew", title: "Distress Signal",
       text: "A weak signal pulses from a stranded pod. Survivors — and another mouth to feed if you take them in.",
       choices: [
         { label: "Rescue them (a new crewmate — more mouths, more hands)", auto: true,
@@ -893,7 +931,7 @@
           outcome: { morale: -6, inf: { cooperate: -5, aggress: +3, potential: -2 },
                      text: "You log the coordinates and leave them to the dark. No one speaks for a while.", type: "warn" } }
       ] },
-    { id: "probe", w: 5, req: "postContact", title: "Alien Probe", art: "◉─◌─◉",
+    { id: "probe", w: 5, mood: "discover", req: "postContact", title: "Alien Probe", art: "◉─◌─◉",
       text: "Another of their artifacts matches your course — you know now what hands shaped it.",
       choices: [
         { label: "Study it (Xenobiologist)", role: "Xenobiologist", diff: 64,
@@ -902,7 +940,7 @@
         { label: "Don't touch it", auto: true,
           outcome: { text: "You watch it drift away. Some questions keep.", type: "info" } }
       ] },
-    { id: "parley", w: 6, req: "postContact", title: "Drifting Vessel", art: "◇◈◇  ~hum~",
+    { id: "parley", w: 6, mood: "crew", req: "postContact", title: "Drifting Vessel", art: "◇◈◇  ~hum~",
       text: "One of their smaller craft slows beside you, lights cycling in patient sequence. It seems to be offering... an exchange.",
       choices: [
         { label: "Trade with them (Xenobiologist)", role: "Xenobiologist", diff: 58,
@@ -913,7 +951,7 @@
         { label: "Wave them off", auto: true,
           outcome: { text: "You signal no. They dim, and drift back into the dark.", type: "info" } }
       ] },
-    { id: "pursuit", w: 9, req: "postContact", cond: function () { return game.alien && game.alien.pursuit; },
+    { id: "pursuit", w: 9, mood: "confront", req: "postContact", cond: function () { return game.alien && game.alien.pursuit; },
       title: "Still Following", art: "  ·  ◣  ·  →",
       text: "The thing from the deep is still matching your course — closer now than the last time you dared to look.",
       choices: [
@@ -923,19 +961,19 @@
         { label: "Stand your ground and fight them off", auto: true,
           outcome: { hull: -rint(14, 28), target: "one", health: -rint(10, 25), inf: { aggress: +4, potential: -2 }, text: "You trade blows in the dark. They withdraw — for now — but the ship is the worse for it.", type: "bad" } }
       ] },
-    { id: "shoal", w: 4, req: "postContact", zones: ["void", "outer"], title: "The Shoal", art: "· ◌ ◌ ◌ ·",
+    { id: "shoal", w: 4, mood: "discover", req: "postContact", zones: ["void", "outer"], title: "The Shoal", art: "· ◌ ◌ ◌ ·",
       text: "A school of living lights drifts across the void, turning together like one vast mind. They are not afraid of you.",
       choices: [
         { label: "Drift with them a while", auto: true,
           outcome: { morale: +10, text: "For an hour the crew forgets the cold. Wonder is its own kind of fuel.", type: "good" } }
       ] },
-    { id: "signal", w: 5, req: "preContact", zones: ["outer", "void"], title: "Impossible Signal", art: "/\\/\\ ? /\\/\\",
+    { id: "signal", w: 5, mood: "discover", req: "preContact", zones: ["outer", "void"], title: "Impossible Signal", art: "/\\/\\ ? /\\/\\",
       text: "A repeating pattern threads through the static — too regular for noise, too strange for any human code. No one will say out loud what they're thinking.",
       choices: [
         { label: "Log it and watch the dark", auto: true,
           outcome: { morale: -3, text: "You file it under 'instrument error.' Nobody believes that, including you.", type: "warn" } }
       ] },
-    { id: "shadow", w: 4, req: "preContact", zones: ["outer", "void"], title: "Geometric Shadow",
+    { id: "shadow", w: 4, mood: "caution", req: "preContact", zones: ["outer", "void"], title: "Geometric Shadow",
       text: "For a heartbeat the stars ahead are blotted out by something with edges — far too straight to be a rock. Then it's gone.",
       choices: [
         { label: "Hold course, say nothing", auto: true,
@@ -954,7 +992,7 @@
           success: { text: "Tight correction — barely any loss.", type: "good" },
           failure: { res: { fuel: -8 }, text: "You burn fuel clawing back onto course.", type: "bad" } }
       ] },
-    { id: "stowaway", w: 4, title: "Stowaway",
+    { id: "stowaway", w: 4, mood: "crew", title: "Stowaway",
       text: "You find a refugee curled in a maintenance crawlspace.",
       choices: [
         { label: "Welcome them (a new crewmate — more mouths, more hands)", auto: true,
@@ -962,7 +1000,7 @@
         { label: "Confine them to the brig", auto: true,
           outcome: { morale: -3, inf: { cooperate: -4, aggress: +3 }, text: "Locked away. The crew is uneasy about it.", type: "warn" } }
       ] },
-    { id: "morale", w: 6, title: "Quiet Evening",
+    { id: "morale", w: 6, mood: "crew", title: "Quiet Evening",
       text: "For once, nothing is broken. Someone breaks out contraband coffee.",
       choices: [
         { label: "Let them rest", auto: true,
@@ -975,7 +1013,7 @@
           success: { res: { oxygen: -2 }, text: "Found and sealed with minimal loss.", type: "good" },
           failure: { res: { oxygen: -12 }, text: "By the time you find it, the air's half gone from one tank.", type: "bad" } }
       ] },
-    { id: "sensorghost", w: 4, req: "preContact", title: "Sensor Ghost", zones: ["void", "outer"],
+    { id: "sensorghost", w: 4, mood: "caution", req: "preContact", title: "Sensor Ghost", zones: ["void", "outer"],
       text: "Something huge shows on sensors, then nothing. Nerves fray.",
       choices: [
         { label: "Hold course and stay calm", auto: true,
@@ -1000,11 +1038,20 @@
       if (!e.zones) return true;
       return e.zones.indexOf(zone) > -1;
     });
-    // weighted pick
-    var total = pool.reduce(function (s, e) { return s + e.w; }, 0);
+    // Weighted pick — but the crew's posture bends which kinds of events surface,
+    // so an aggressive run feels different from an exploratory one.
+    var total = pool.reduce(function (s, e) { return s + eventWeight(e); }, 0);
     var r = Math.random() * total, acc = 0, ev = pool[0];
-    for (var i = 0; i < pool.length; i++) { acc += pool[i].w; if (r <= acc) { ev = pool[i]; break; } }
+    for (var i = 0; i < pool.length; i++) { acc += eventWeight(pool[i]); if (r <= acc) { ev = pool[i]; break; } }
     presentEvent(ev);
+  }
+  var MOOD_AXIS = { confront: "aggress", discover: "explore", crew: "cooperate", caution: "caution" };
+  function eventWeight(e) {
+    var w = e.w;
+    if (e.mood && MOOD_AXIS[e.mood]) {
+      w *= (1 + clamp(game.posture[MOOD_AXIS[e.mood]], -100, 100) / 100 * 0.8);
+    }
+    return Math.max(0.1, w);
   }
 
   function currentZone() {
@@ -1092,6 +1139,7 @@
     }
     if (stationQueue.length) {
       var st = stationQueue.shift();
+      game._stationFresh = true;
       playTransit({ variant: "dock", caption: "APPROACHING · " + st.name.toUpperCase() }, function () { presentStation(st); });
       return;
     }
@@ -1200,6 +1248,7 @@
     if (game.autopilot) danger += 0.20;                     // no one at the helm
     danger += Math.max(0, -game.posture.caution) / 500;     // recklessness courts catastrophe
     danger += Math.max(0, game.posture.aggress) / 800;
+    danger -= (game.potential - 50) * 0.0025;               // momentum bleeds into peril, too
     danger *= DIFFICULTY[game.difficulty].harsh;
     danger = clamp(danger, 0.03, 0.95);
     var d = danger;
@@ -1252,59 +1301,77 @@
   var stationQueue = [];
   function queueStation(wp) { stationQueue.push(wp); }
   function presentStation(wp) {
+    // Contraband 'heat' catches up at the next port — but only checked once per visit.
+    if (game._stationFresh && game._heat > 0 && chance(0.5)) {
+      var fine = rint(60, 170);
+      game.credits = Math.max(0, game.credits - fine);
+      game._heat = 0;
+      log("Station security flags your manifest — a " + fine + " cr fine for that contraband.", "bad");
+    }
+    game._stationFresh = false;
     openModal({
       title: "⌖ " + wp.name,
       art: "",
-      body: wp.blurb + "<br><br>You may trade, rest, or depart.",
+      body: wp.blurb + "<br><br>You may trade, look for work, rest, or depart. (Do as many as you like, then depart.)",
       choices: [
         { label: "Trade with the station", onClick: function () { closeModal(); openTrade(wp); } },
-        { label: "Rest & repair (costs time)", onClick: function () { closeModal(); doRestRepair(); } },
+        { label: "Look for work (earn credits)", onClick: function () { closeModal(); openJobs(wp); } },
+        { label: "Rest & repair (costs time)", onClick: function () { closeModal(); doRestRepair(wp); } },
         { label: "Depart", onClick: function () { sfx("confirm"); closeModal(); renderTravel(); } }
       ]
     });
   }
 
   function openTrade(wp) {
-    // Station prices a bit higher than Earth outfitting; sell at 50%.
+    var idx = wpIndexOf(wp);
     var rows = STORE_ITEMS.map(function (it) {
-      var buy = Math.round(it.price * 1.3);
+      var buy = priceAt(idx, it.key, "buy"), sell = priceAt(idx, it.key, "sell");
+      var have = it.key === "parts" ? game.ship.parts : game.supplies[it.key];
       return "<div class='store-row'>" +
         "<span>" + it.name + "</span>" +
-        "<span class='qty'>have " + (it.key === "parts" ? game.ship.parts : game.supplies[it.key]) + "</span>" +
-        "<span class='qty'>" + buy + " cr</span>" +
+        "<span class='qty'>have " + have + "</span>" +
+        "<span class='qty small'>b" + buy + "/s" + sell + "</span>" +
         "<span class='stepper'>" +
           "<button class='btn small' data-trade='buy' data-item='" + it.key + "' data-price='" + buy + "' data-step='" + it.step + "'>Buy " + it.step + "</button>" +
-          "<button class='btn small' data-trade='sell' data-item='" + it.key + "' data-price='" + Math.round(it.price * 0.5) + "' data-step='" + it.step + "'>Sell " + it.step + "</button>" +
+          "<button class='btn small' data-trade='sell' data-item='" + it.key + "' data-price='" + sell + "' data-step='" + it.step + "'>Sell " + it.step + "</button>" +
         "</span></div>";
+    }).join("");
+    var commRows = Object.keys(COMMODITIES).map(function (ck) {
+      var have = game.cargo[ck] || 0;
+      if (have <= 0) return "";
+      var sell = priceAt(idx, ck, "sell");
+      return "<div class='store-row'>" +
+        "<span>" + COMMODITIES[ck].icon + " " + COMMODITIES[ck].name + "</span>" +
+        "<span class='qty'>have " + have + "</span>" +
+        "<span class='qty small'>s" + sell + " ea</span>" +
+        "<span class='stepper'><button class='btn small go' data-sellcomm='" + ck + "' data-price='" + sell + "'>Sell all (" + (have * sell) + ")</button></span></div>";
     }).join("");
     openModal({
       title: "⇄ Trade — " + wp.name,
       art: "",
-      body: "<div class='small dim'>Credits: <span id='trade-cr' class='paper'>" + game.credits + "</span></div>" + rows,
-      choices: [{ label: "Done", onClick: function () { sfx("confirm"); closeModal(); save(); renderTravel(); } }],
+      body: "<div class='small dim'>Credits: <span id='trade-cr' class='paper'>" + game.credits + "</span> · Hold " + cargoUsed() + "/" + game.ship.holdMax + "</div>" + rows +
+        (commRows ? "<div class='panel-title' style='margin-top:8px'>Cargo to sell</div>" + commRows : ""),
+      choices: [{ label: "Done", onClick: function () { sfx("confirm"); closeModal(); save(); presentStation(wp); } }],
       onBind: function (root) {
         root.querySelectorAll("[data-trade]").forEach(function (b) {
           b.addEventListener("click", function () {
-            var item = b.getAttribute("data-item");
-            var price = +b.getAttribute("data-price");
-            var step = +b.getAttribute("data-step");
-            var dir = b.getAttribute("data-trade");
+            var item = b.getAttribute("data-item"), price = +b.getAttribute("data-price"), step = +b.getAttribute("data-step"), dir = b.getAttribute("data-trade");
             if (dir === "buy") {
-              if (item !== "medicine" && cargoSpace() < step) { sfx("empty"); }   // hold cap applies here too
-              else if (game.credits >= price) {
-                game.credits -= price;
-                if (item === "parts") game.ship.parts += step; else game.supplies[item] += step;
-                sfx("buy");
-              } else { sfx("empty"); }
+              if (item !== "medicine" && cargoSpace() < step) { sfx("empty"); }
+              else if (game.credits >= price) { game.credits -= price; if (item === "parts") game.ship.parts += step; else game.supplies[item] += step; sfx("buy"); }
+              else { sfx("empty"); }
             } else {
               var have = item === "parts" ? game.ship.parts : game.supplies[item];
-              if (have >= step) {
-                if (item === "parts") game.ship.parts -= step; else game.supplies[item] -= step;
-                game.credits += price; sfx("select");
-              } else { sfx("empty"); }
+              if (have >= step) { if (item === "parts") game.ship.parts -= step; else game.supplies[item] -= step; game.credits += price; sfx("select"); }
+              else { sfx("empty"); }
             }
-            var cr = $("#trade-cr", root); if (cr) cr.textContent = game.credits;
-            // refresh "have" counts
+            closeModal(); openTrade(wp);
+          });
+        });
+        root.querySelectorAll("[data-sellcomm]").forEach(function (b) {
+          b.addEventListener("click", function () {
+            var ck = b.getAttribute("data-sellcomm"), price = +b.getAttribute("data-price"), have = game.cargo[ck] || 0;
+            if (have > 0) { game.credits += have * price; game.cargo[ck] = 0; log("Sold " + have + " " + COMMODITIES[ck].name + " for " + (have * price) + " cr.", "good"); sfx("buy"); }
             closeModal(); openTrade(wp);
           });
         });
@@ -1312,7 +1379,62 @@
     });
   }
 
-  function doRestRepair() {
+  // Skill-gated outpost jobs — the relief valve for a broke crew.
+  function genJobs(wpIndex) {
+    var df = wpIndex / (WAYPOINTS.length - 1);
+    var payBase = Math.round(110 + df * 240);
+    function hasRole(r) { return game.crew.some(function (c) { return c.role === r && c.status !== "Dead" && c.status !== "Hibernating"; }); }
+    var jobs = [];
+    if (hasRole("Engineer")) jobs.push({ id: "repair", label: "Repair contract", role: "Engineer", diff: 55, pay: payBase, bonus: "parts" });
+    if (hasRole("Medic")) jobs.push({ id: "med", label: "Clinic shift", role: "Medic", diff: 52, pay: Math.round(payBase * 0.9), bonus: "medicine" });
+    if (hasRole("Xenobiologist")) jobs.push({ id: "survey", label: "Survey & research", role: "Xenobiologist", diff: 58, pay: Math.round(payBase * 0.8), bonus: "knowledge" });
+    if (hasRole("Pilot") || hasRole("Xenobiologist")) jobs.push({ id: "smuggle", label: "Run contraband (risky, pays double)", role: hasRole("Pilot") ? "Pilot" : "Xenobiologist", diff: 60, pay: Math.round(payBase * 2), smuggle: true });
+    jobs.push({ id: "haul", label: "Dock labor (anyone, modest, sure pay)", role: null, diff: 0, pay: Math.round(payBase * 0.5) });
+    return jobs.slice(0, 3);
+  }
+  function openJobs(wp) {
+    var idx = wpIndexOf(wp), jobs = genJobs(idx);
+    var rows = jobs.map(function (j, i) {
+      return "<div class='store-row'><span>" + j.label + (j.role ? " <span class='dim'>[" + j.role + "]</span>" : "") + "</span>" +
+        "<span class='qty'>~" + j.pay + " cr</span><span></span>" +
+        "<span><button class='btn small' data-job='" + i + "'>Take</button></span></div>";
+    }).join("");
+    openModal({
+      title: "⚒ Work — " + wp.name,
+      body: "<div class='small dim'>Jobs depend on who's awake and able. Work costs a few days. Credits: <span class='paper'>" + game.credits + "</span></div>" + rows,
+      choices: [{ label: "Back", onClick: function () { sfx("cancel"); closeModal(); presentStation(wp); } }],
+      onBind: function (root) {
+        root.querySelectorAll("[data-job]").forEach(function (b) {
+          b.addEventListener("click", function () { resolveJob(jobs[+b.getAttribute("data-job")], wp); });
+        });
+      }
+    });
+  }
+  function resolveJob(j, wp) {
+    closeModal();
+    game.day += rint(2, 4);
+    var ok = j.role ? (skillFor(j.role) + rint(0, 40) >= j.diff) : true;
+    if (j.smuggle) {
+      if (ok) { game.credits += j.pay; game._heat = (game._heat || 0) + 1; influence({ aggress: +3, caution: -3 }); log("Contraband run pays off: +" + j.pay + " cr. But you're carrying heat now.", "good"); sfx("buy"); }
+      else { var loss = rint(40, 120); game.credits = Math.max(0, game.credits - loss); influence({ potential: -3 }); log("The contraband run goes bad — busted for " + loss + " cr and a black mark.", "bad"); sfx("bad"); }
+    } else if (ok) {
+      game.credits += j.pay;
+      if (j.bonus === "parts" && cargoSpace() > 0) game.ship.parts += 1;
+      if (j.bonus === "medicine") game.supplies.medicine += 1;
+      if (j.bonus === "knowledge") influence({ knowledge: +6, explore: +2 });
+      influence({ persist: +1, cooperate: +1 });
+      log("Honest work done: +" + j.pay + " cr" + (j.bonus && j.bonus !== "knowledge" ? " and a little " + j.bonus : "") + ".", "good"); sfx("buy");
+    } else {
+      var partial = Math.round(j.pay * 0.4);
+      game.credits += partial;
+      log("The job goes poorly — only " + partial + " cr to show for the days lost.", "warn"); sfx("select");
+    }
+    save();
+    checkEnd();
+    if (!game.ended) { if (wp) presentStation(wp); else renderTravel(); }
+  }
+
+  function doRestRepair(wp) {
     var eng = skillFor("Engineer");
     var repair = Math.round(10 + eng / 5);
     var partsUsed = Math.min(game.ship.parts, Math.ceil((100 - game.ship.hull) / 14));
@@ -1330,7 +1452,7 @@
     sfx("confirm");
     save();
     checkEnd();
-    if (!game.ended) renderTravel();
+    if (!game.ended) { if (wp) presentStation(wp); else renderTravel(); }
   }
 
   /* ---------------------------------------------------------
@@ -1485,7 +1607,7 @@
     game.supplies.fuel = Math.max(0, game.supplies.fuel - 3);
     var charges = Math.min(game.supplies.charges, 8);
     game.supplies.charges -= charges;
-    mg = { charges: charges, time: 22, haul: { food: 0, fuel: 0, parts: 0, charges: 0 }, timer: null, spawn: null, over: false };
+    mg = { charges: charges, time: 22, haul: { food: 0, fuel: 0, parts: 0, charges: 0, ice: 0, ore: 0, volatiles: 0, rareMetals: 0 }, timer: null, spawn: null, over: false };
     var ov = $("#minigame"); ov.classList.remove("hidden");
     renderMiningHud();
     $("#mg-field").innerHTML = "";
@@ -1499,9 +1621,10 @@
   }
   function renderMiningHud() {
     if (!mg) return;
+    var ore = mg.haul.ice + mg.haul.ore + mg.haul.volatiles + mg.haul.rareMetals;
     $("#mg-hud").innerHTML =
       "Charges: <b>" + mg.charges + "</b>  ·  Time: <b>" + Math.max(0, mg.time).toFixed(1) + "s</b>  ·  " +
-      "Haul — food <b>" + mg.haul.food + "</b> fuel <b>" + mg.haul.fuel + "</b> parts <b>" + mg.haul.parts + "</b> charges <b>" + mg.haul.charges + "</b>";
+      "Haul — food <b>" + mg.haul.food + "</b> fuel <b>" + mg.haul.fuel + "</b> parts <b>" + mg.haul.parts + "</b> ore <b>" + ore + "</b>";
     $("#mg-footer").innerHTML = "<span class='small dim'>Click rocks to mine. Each click spends a charge.</span>" +
       "<button class='btn small go' id='mg-stop'>Dock & keep haul</button>";
     var stop = $("#mg-stop"); if (stop) stop.onclick = endMining;
@@ -1514,11 +1637,13 @@
   function spawnRock() {
     var field = $("#mg-field"); if (!field) return;
     var kinds = [
-      { icon: "🪨", type: "food", min: 1, max: 3, w: 5 },
-      { icon: "🪨", type: "fuel", min: 1, max: 2, w: 4 },
-      { icon: "🧊", type: "fuel", min: 2, max: 4, w: 3 },
+      { icon: "🪨", type: "food", min: 1, max: 3, w: 4 },
+      { icon: "🧊", type: "fuel", min: 2, max: 4, w: 4 },
       { icon: "⛓", type: "parts", min: 1, max: 1, w: 2 },
-      { icon: "💎", type: "charges", min: 1, max: 2, w: 1 }
+      { icon: "🧊", type: "ice", min: 1, max: 3, w: 4 },          // sellable commodities
+      { icon: "🪨", type: "ore", min: 1, max: 3, w: 4 },
+      { icon: "⚗", type: "volatiles", min: 1, max: 2, w: 2 },
+      { icon: "💠", type: "rareMetals", min: 1, max: 1, w: 1 }
     ];
     var total = kinds.reduce(function (s, k) { return s + k.w; }, 0);
     var r = Math.random() * total, acc = 0, kind = kinds[0];
@@ -1552,13 +1677,21 @@
     clearInterval(mg.timer); clearTimeout(mg.spawn);
     // Returned (unused) charges don't count against the hold limit; the new haul does.
     game.supplies.charges += mg.charges;
-    var got = { food: 0, fuel: 0, parts: 0, charges: 0 };
-    [["food", mg.haul.food], ["fuel", mg.haul.fuel], ["charges", mg.haul.charges], ["parts", mg.haul.parts]].forEach(function (p) {
-      var add = Math.min(p[1], cargoSpace());
-      if (add > 0) { if (p[0] === "parts") game.ship.parts += add; else game.supplies[p[0]] += add; got[p[0]] = add; }
+    // Bank supplies first (life-critical), then sellable commodities, each clamped to the hold.
+    var got = {}, gotComm = 0, lost = 0;
+    [["food", "supply"], ["fuel", "supply"], ["charges", "supply"], ["parts", "parts"],
+     ["ice", "cargo"], ["ore", "cargo"], ["volatiles", "cargo"], ["rareMetals", "cargo"]].forEach(function (p) {
+      var want = mg.haul[p[0]] || 0; if (want <= 0) return;
+      var add = Math.min(want, cargoSpace());
+      if (add > 0) {
+        if (p[1] === "supply") game.supplies[p[0]] += add;
+        else if (p[1] === "parts") game.ship.parts += add;
+        else { game.cargo[p[0]] += add; gotComm += add; }
+        got[p[0]] = add;
+      }
+      lost += want - add;
     });
-    var lost = (mg.haul.food + mg.haul.fuel + mg.haul.parts + mg.haul.charges) - (got.food + got.fuel + got.parts + got.charges);
-    log("Mining run: +" + got.food + " food, +" + got.fuel + " fuel, +" + got.parts + " parts, +" + got.charges + " charges." +
+    log("Mining run: +" + (got.food || 0) + " food, +" + (got.fuel || 0) + " fuel, +" + (got.parts || 0) + " parts, +" + (got.charges || 0) + " charges, +" + gotComm + " sellable ore." +
         (lost > 0 ? " (" + lost + " jettisoned — hold full.)" : ""), "good");
     closeMinigame();
     save();

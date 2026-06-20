@@ -169,7 +169,17 @@ var SPRINTS = [
     ["Arrival is the MIDPOINT: habitability + colonize-or-return + sampled Act II endings","done"],
     ["Longer voyage + slower transit animation","done"],
     ["Rebalance + jsdom verification (skilled run wins ~7/10; hold cap; lethal hazards)","done"],
-    ["Economy relief valves: outpost jobs, location-based prices, sellable mined ore","todo"]
+    ["Economy relief valves: outpost jobs, location-based prices, sellable mined ore","done"]
+  ]},
+  { id:"s9", name:"Sprint 9 — Phase 1b: economy, balance &amp; engine depth", tasks:[
+    ["Sellable commodities (ice/ore/volatiles/rare metals) mined + sold at posts","done"],
+    ["Location-based pricing (fuel/O₂ pricier far out; ore sells higher in the deep)","done"],
+    ["Skill-gated outpost jobs (repair/clinic/survey/smuggle/haul) + contraband heat","done"],
+    ["Stations are a re-openable hub (trade, work, rest, depart in any order)","done"],
+    ["Engine depth: potential momentum in checks/hazards; posture weights events; omens","done"],
+    ["Difficulty re-tiered for a real easy→hard spread","done"],
+    ["Fix: scrubber O₂ could overfill the hold — surplus now vents","done"],
+    ["Per-difficulty win-rate verification (Settler ~70 / Pioneer ~50 / Voyager ~20)","done"]
   ]}
 ];
 
@@ -215,7 +225,17 @@ var LOG = [
   { date:"2026-06-20", tag:"build", title:"Rebalance + verification (Phase 1)",
     body:"Tuned thrust/distances/hold/supplies so a disciplined run (hibernate, reduced rations, repair) reaches Proxima and wins on Settler while careless play reliably dies. jsdom suite green: route map, F/F/F gating, hold-cap enforcement, lethal hazards, arrival flow, animation skip — zero JS errors." },
   { date:"2026-06-20", tag:"fix", title:"Self-audit fixes (Phase 1)",
-    body:"Audited the Phase-1 code and fixed: (1) station trade ignored the cargo cap (could overfill the hold) — now enforced like the store/mining; (2) destination knowledge was collected but unused — now genuinely tilts arrival habitability and softens the 'overtaken/inhabited' surprises; (3) starting supplies nearly filled the hold, making outfitting vestigial — baseline lowered so loadout choice matters; added a hold readout to the store and removed dead variables." }
+    body:"Audited the Phase-1 code and fixed: (1) station trade ignored the cargo cap (could overfill the hold) — now enforced like the store/mining; (2) destination knowledge was collected but unused — now genuinely tilts arrival habitability and softens the 'overtaken/inhabited' surprises; (3) starting supplies nearly filled the hold, making outfitting vestigial — baseline lowered so loadout choice matters; added a hold readout to the store and removed dead variables." },
+  { date:"2026-06-20", tag:"decision", title:"Spread the difficulty tiers",
+    body:"Per the user, difficulty should span a real easy→hard range rather than being brutal everywhere. Re-tiered Settler (forgiving: more credits/supplies, gentler), Pioneer (the intended balance), and Voyager (brutal), tuning starting credits/supplies, harshness, and starting 'potential'." },
+  { date:"2026-06-20", tag:"feature", title:"Phase 1b economy relief valves",
+    body:"Mining now yields sellable commodities (ice/ore/volatiles/rare metals); stations buy/sell at LOCATION-BASED prices (fuel & O₂ pricier the farther out, ore worth more in the deep), enabling buy-low/sell-high. Added skill-gated outpost jobs (repair, clinic, survey, contraband-smuggling with 'heat', and a sure-pay haul) so a broke crew can earn out. Stations are now a re-openable hub." },
+  { date:"2026-06-20", tag:"feature", title:"Engine depth: potential & posture felt mid-game",
+    body:"Hidden 'potential' now adds momentum to skill checks and hazard danger (a run going well/badly compounds); crew posture weights which kinds of events surface (aggressive→confrontational, exploratory→discovery, etc.); occasional qualitative omens let potential be felt without showing the number." },
+  { date:"2026-06-20", tag:"fix", title:"Scrubber O₂ could overfill the hold",
+    body:"While hibernating, scrubber recovery exceeds consumption, and recovered O₂ wasn't capped to the hold — so oxygen could creep past capacity. Surplus O₂ now vents to space. Verified: across 90 runs the hold is never exceeded." },
+  { date:"2026-06-20", tag:"build", title:"Per-difficulty balance verification (Phase 1b)",
+    body:"New jsdom sweep plays a disciplined strategy (hibernate, reduced rations, sell ore, take jobs, repair) across all three tiers: Settler ~70%, Pioneer ~50%, Voyager ~20% wins over 30 runs each, zero hold overflows, zero JS errors. Feature/anim/smoke suites still green." }
 ];
 
 /* ---- rendering + interactivity ---- */
