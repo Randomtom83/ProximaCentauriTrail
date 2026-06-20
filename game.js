@@ -990,12 +990,12 @@
     var d = game.dest, ch = [];
     var viable = d.habitResult === "verdant" || d.habitResult === "marginal";
     if (viable && !d.overtaken) {
-      ch.push({ label: "STAY — colonize, and signal Earth to send more", onClick: function () { resolveActTwo("colonize"); } });
+      ch.push({ label: "STAY — colonize, and signal Earth to send more", onClick: function () { beginColony(false); } });
     }
     if (viable && d.inhabited === "natives") {
-      ch.push({ label: "MAKE CONTACT — ask the natives for a place among them", onClick: function () { resolveActTwo("petition"); } });
+      ch.push({ label: "MAKE CONTACT — ask the natives for a place among them", onClick: function () { beginColony(true); } });
     }
-    ch.push({ label: "RETURN — turn around, carry the news home for more humans", onClick: function () { resolveActTwo("return"); } });
+    ch.push({ label: "RETURN — turn around, carry the news home for more humans", onClick: function () { beginReturn(); } });
     if (!viable) {
       ch.push({ label: "PUSH ON — gamble the last reserves on a further star", onClick: function () { resolveActTwo("pushon"); } });
     }
@@ -1042,6 +1042,139 @@
       else cause = "You spend the last of everything chasing a further light. It is not enough. But you died reaching, not waiting.";
     }
 
+    endGame(won, cause, tier);
+  }
+
+  /* ---------------------------------------------------------
+     8b. ACT II — interactive: the colony, or the long way home
+     --------------------------------------------------------- */
+  function habMult() {
+    var h = game.colony.habit;
+    return h === "verdant" ? 1.3 : h === "marginal" ? 0.85 : 0.6;
+  }
+  function beginColony(petition) {
+    closeModal();
+    var surv = alive(), n = surv.length;
+    var avgMor = n ? Math.round(surv.reduce(function (s, c) { return s + c.morale; }, 0) / n) : 50;
+    game.colony = {
+      years: 0, colonists: n, food: 70, infra: 8,
+      morale: avgMor, sufficiency: 22,
+      relations: (game.dest.inhabited === "natives") ? 35 : null,
+      habit: game.dest.habitResult, petition: !!petition, reinforced: false
+    };
+    game.screen = "colony";
+    game.log.push({ msg: "═══ ACT II — THE COLONY ═══", type: "sys", day: game.day });
+    log("You commit to the ground beneath Proxima's red light. " + n + " souls begin a colony on a " +
+        (game.colony.habit === "verdant" ? "green, breathing" : "hard, marginal") + " world.", "sys");
+    if (game.colony.relations != null) log("The natives watch from the treeline. Everything now depends on how you treat them.", "warn");
+    save();
+    renderColony();
+  }
+  function colonyAction(type) {
+    var col = game.colony, hm = habMult();
+    col.years++;
+    var eng = skillFor("Engineer"), xeno = skillFor("Xenobiologist"), cmd = skillFor("Commander");
+    if (type === "build") {
+      var g = Math.round((6 + eng / 9) * (0.7 + col.colonists * 0.14));
+      col.sufficiency = clamp(col.sufficiency + g, 0, 100); col.food -= 3;
+      log("Year " + col.years + ": crews raise habitats and power — self-sufficiency +" + g + ".", "good");
+    } else if (type === "farm") {
+      var f = Math.round((11 + xeno / 7) * hm * (0.7 + col.colonists * 0.14));
+      col.food += f; log("Year " + col.years + ": fields and tanks yield +" + f + " food.", "good");
+    } else if (type === "explore") {
+      var r = sampleWeighted({ find: 5, quiet: 4, danger: 3 });
+      if (r === "find") { var ff = rint(8, 18); col.food += ff; influence({ knowledge: +4 }); log("Survey strikes lucky: +" + ff + " food and new ground mapped.", "good"); }
+      else if (r === "quiet") log("A long survey — little to show but a better map.", "info");
+      else { col.colonists = Math.max(0, col.colonists - 1); col.morale = clamp(col.morale - 6, 0, 100); log("The survey goes wrong — a colonist is lost to the wild.", "bad"); }
+    } else if (type === "tend") {
+      col.morale = clamp(col.morale + 9, 0, 100);
+      if (chance(0.30) && col.colonists < 30) { col.colonists++; log("A child is born to the colony — hope, squalling.", "good"); }
+      else log("You tend the people; spirits lift.", "good");
+    } else if (type === "diplomacy" && col.relations != null) {
+      var d = Math.round(6 + Math.max(cmd, xeno) / 12);
+      col.relations = clamp(col.relations + d, 0, 100);
+      log("You parley with the natives — relations +" + d + ".", "good");
+    }
+    col.food -= Math.round(col.colonists * 2.5);   // upkeep
+    if (col.food < 0) { col.food = 0; col.colonists = Math.max(0, col.colonists - 1); col.morale = clamp(col.morale - 8, 0, 100); log("Stores run dry — the colony goes hungry and buries one of its own.", "bad"); }
+    colonyEvent();
+    sfx("tick");
+    if (!endColonyCheck()) renderColony();
+  }
+  function colonyEvent() {
+    var col = game.colony, hm = habMult();
+    if (!chance(0.5)) return;
+    var e = sampleWeighted({
+      storm: 3, disease: 2, harvest: 3.5, breakthrough: 2.5, birth: 2,
+      raid: (col.relations != null && col.relations < 40) ? 2.5 : 0,
+      gift: (col.relations != null && col.relations >= 60) ? 3 : 0,
+      reinforce: (game.earth && game.earth.status === "silent") ? 0.5 : 1.8
+    });
+    if (e === "storm") { var d = Math.round(rint(3, 8) / hm); col.food = Math.max(0, col.food - d); col.sufficiency = clamp(col.sufficiency - rint(1, 4), 0, 100); log("A brutal season batters the colony — stores and works damaged.", "bad"); }
+    else if (e === "disease") { if (skillFor("Medic") + rint(0, 40) >= 52) log("A sickness sweeps through, but the medics contain it.", "warn"); else { col.colonists = Math.max(0, col.colonists - 1); log("Disease takes a colonist before it's contained.", "bad"); } }
+    else if (e === "harvest") { var f = rint(12, 24); col.food += f; log("An unexpected bounty: +" + f + " food.", "good"); }
+    else if (e === "breakthrough") { var s = rint(5, 12); col.sufficiency = clamp(col.sufficiency + s, 0, 100); log("An engineering breakthrough — self-sufficiency +" + s + ".", "good"); }
+    else if (e === "birth") { if (col.colonists < 30) { col.colonists++; log("A birth in the colony — a generation that will call this world home.", "good"); } }
+    else if (e === "raid") { col.food = Math.max(0, col.food - rint(5, 11)); if (chance(0.25)) col.colonists = Math.max(0, col.colonists - 1); col.relations = clamp(col.relations - 5, 0, 100); log("The natives raid the stores. Grain and blood spilled.", "bad"); }
+    else if (e === "gift") { var gf = rint(8, 16); col.food += gf; col.sufficiency = clamp(col.sufficiency + rint(2, 6), 0, 100); log("The natives leave gifts at the perimeter — food and strange, useful tools.", "good"); }
+    else if (e === "reinforce") { if (!col.reinforced) { col.reinforced = true; var nn = rint(2, 5); col.colonists += nn; col.sufficiency = clamp(col.sufficiency + rint(8, 16), 0, 100); log("A ship from home makes planetfall — " + nn + " more colonists and fresh supplies. You are not alone after all.", "good"); sfx("win"); } }
+  }
+  function endColonyCheck() {
+    var col = game.colony;
+    if (col.sufficiency >= 100) {
+      if (col.petition) endGame(true, "You build a life beside the natives — two peoples on one shore. The colony is self-sustaining and growing.", "GUESTS OF PROXIMA");
+      else endGame(true, "The colony stands on its own at last — fed, powered, and growing under an alien sun. Humanity has a second cradle." + (game.earth && game.earth.status === "silent" ? " It may be the only one left." : ""), "HAVEN");
+      return true;
+    }
+    if (col.colonists <= 0) { endGame(false, "The last colonist lies down in alien soil. The settlement goes back to wilderness.", "WITHERED"); return true; }
+    if (col.relations != null && col.relations <= 0) { endGame(false, "The natives have suffered you long enough. The colony is overrun and scattered.", "TURNED AWAY"); return true; }
+    if (col.morale <= 0) { endGame(false, "The colony fractures into despair and faction, and does not survive the schism.", "WITHERED"); return true; }
+    return false;
+  }
+
+  function beginReturn() {
+    closeModal();
+    game.ret = { legs: 0, maxLegs: 6, integrity: 48, fuel: Math.round(game.supplies.fuel), oxygen: Math.round(game.supplies.oxygen), food: Math.round(game.supplies.food), crew: alive().length };
+    game.screen = "return";
+    game.log.push({ msg: "═══ ACT II — THE LONG WAY HOME ═══", type: "sys", day: game.day });
+    log("You turn the ship around and point it back the way you came — the longest, loneliest road there is.", "sys");
+    save();
+    renderReturn();
+  }
+  function returnAction(type) {
+    var r = game.ret; r.legs++;
+    if (type === "push") { r.fuel -= rint(4, 8); r.integrity += rint(3, 8); log("Leg " + r.legs + ": you burn hard for home — ground covered, fuel spent.", "info"); }
+    else if (type === "steady") { r.food -= rint(2, 5); r.oxygen -= rint(2, 5); r.integrity += rint(1, 4); log("Leg " + r.legs + ": steady as she goes.", "info"); }
+    else if (type === "scavenge") { if (sampleWeighted({ find: 5, danger: 3 }) === "find") { r.fuel += rint(5, 11); r.food += rint(5, 11); r.integrity += 2; log("You strip a derelict for fuel and stores.", "good"); } else { r.integrity -= rint(2, 6); log("The scavenge goes badly — the ship takes damage.", "bad"); } }
+    returnEvent();
+    if (r.fuel < 0 || r.oxygen < 0 || r.food < 0) { r.integrity -= 8; r.fuel = Math.max(0, r.fuel); r.oxygen = Math.max(0, r.oxygen); r.food = Math.max(0, r.food); log("Supplies run short on the long road home.", "bad"); }
+    sfx("tick");
+    if (r.legs >= r.maxLegs) { endReturn(); return; }
+    renderReturn();
+  }
+  function returnEvent() {
+    var r = game.ret;
+    if (!chance(0.55)) return;
+    var opts = { quiet: 3, overtaken: 2, derelict: 2 };
+    if (game.alien && game.alien.pursuit) opts.pursuer = 3;
+    if ((game.dest.knowledge >= 35 || (game.alien && game.alien.tech))) opts.fold = 1.5;
+    var e = sampleWeighted(opts);
+    if (e === "overtaken") { r.integrity += rint(-2, 4); log("A newer, faster ship overtakes you bound the other way — they wave, and are gone in a heartbeat. Bittersweet.", "warn"); }
+    else if (e === "derelict") { r.fuel += rint(2, 7); log("You pass a tomb-ship and take what fuel it no longer needs.", "info"); }
+    else if (e === "pursuer") { r.integrity -= rint(4, 9); var c = pick(alive().filter(function (x) { return !x.child; })); if (c) c.health = clamp(c.health - rint(8, 18), 0, 100); log("The thing that followed you is still out there. It strikes from the dark.", "bad"); sfx("bad"); }
+    else if (e === "fold") { r.integrity += rint(8, 16); log("Alien charts let you fold the way home short — months, maybe years, saved.", "good"); sfx("win"); }
+    else log("Long empty days. The crew counts them.", "info");
+  }
+  function endReturn() {
+    var r = game.ret, earthGone = game.earth && game.earth.status === "silent";
+    var won = false, tier, cause;
+    if (earthGone) {
+      if (r.integrity >= 60) { tier = "TOO LATE"; cause = "You cross back to where Earth was, whole but too late. The cradle is silent — domes dark, the seas still. You carried hope to an empty house."; }
+      else { tier = "LOST WITH ALL HANDS"; cause = "You turn toward a home that stopped answering years ago. Somewhere in the long dark, so do you."; }
+    } else if (r.integrity >= 70) { won = true; tier = "MESSENGER"; cause = "Decades later you reach home space with the only good news in a generation. A dying Earth dares, again, to pack its bags."; }
+    else if (r.integrity >= 45) { won = true; tier = "THE LONG WAY HOME"; cause = "Battered but alive, you limp into home space and pass on what you found. It will have to be enough — and somehow, it is."; }
+    else if (r.integrity >= 25) { tier = "TOO LATE"; cause = "You make it back, barely, to find the cities dark and quiet. Hope carried across the void to a house already emptying."; }
+    else { tier = "LOST WITH ALL HANDS"; cause = "The road home is longer and far less kind than the road out. Somewhere in the dark, the ship simply stops."; }
     endGame(won, cause, tier);
   }
 
@@ -2118,6 +2251,8 @@
       case "role": renderRole(); break;
       case "store": renderStore(); break;
       case "travel": renderTravel(); break;
+      case "colony": renderColony(); break;
+      case "return": renderReturn(); break;
       case "end": renderEnd(); break;
       default: renderTitle();
     }
@@ -2464,6 +2599,57 @@
     });
   }
 
+  /* ---- Act II: Colony ---- */
+  function renderColony() {
+    setAlert(false);
+    var col = game.colony, app = $("#app");
+    function bar(v, max, kind) { var pct = clamp(Math.round(v / max * 100), 0, 100); return "<div class='bar " + (kind || (pct < 25 ? "crit" : pct < 50 ? "warn" : "ok")) + "'><span style='width:" + pct + "%'></span></div>"; }
+    function stat(label, val) { return "<div class='stat'><span class='label'>" + label + "</span><span class='val'>" + val + "</span></div>"; }
+    var hud =
+      "<div class='panel'><div class='panel-title'>The Colony · Year " + col.years + " · " + col.habit + " world</div>" +
+        "<div class='stat'><span class='label'>Self-sufficiency</span><span class='val cyan'>" + Math.round(col.sufficiency) + " / 100</span></div>" + bar(col.sufficiency, 100, "power") +
+        "<div class='small dim' style='margin-top:6px'>Reach 100 to found a lasting colony.</div>" +
+      "</div>" +
+      "<div class='cols'><div class='col panel'><div class='panel-title'>Settlement</div><div class='hud-grid'>" +
+        stat("Colonists", col.colonists) + stat("Food", Math.round(col.food)) +
+        stat("Morale", Math.round(col.morale)) + (col.relations != null ? stat("Native relations", Math.round(col.relations)) : "") +
+      "</div></div>" +
+      "<div class='col panel'><div class='panel-title'>Crew of record</div>" + crewStrip() + "</div></div>";
+    var acts = "<div class='menu row'>" +
+      "<button class='btn go' data-action='colony' data-arg='build'>🏗 Build (sufficiency)</button>" +
+      "<button class='btn small' data-action='colony' data-arg='farm'>🌾 Farm (food)</button>" +
+      "<button class='btn small' data-action='colony' data-arg='explore'>🧭 Explore</button>" +
+      "<button class='btn small' data-action='colony' data-arg='tend'>❤ Tend the people</button>" +
+      (col.relations != null ? "<button class='btn small' data-action='colony' data-arg='diplomacy'>🤝 Diplomacy</button>" : "") +
+      "</div>";
+    app.innerHTML = hud + acts + "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
+    renderLog();
+  }
+
+  /* ---- Act II: the long way home ---- */
+  function renderReturn() {
+    setAlert(false);
+    var r = game.ret, app = $("#app");
+    var pct = clamp(Math.round(r.legs / r.maxLegs * 100), 0, 100);
+    function stat(label, val) { return "<div class='stat'><span class='label'>" + label + "</span><span class='val'>" + val + "</span></div>"; }
+    var hud =
+      "<div class='panel'><div class='panel-title'>The Long Way Home · Leg " + r.legs + " / " + r.maxLegs + "</div>" +
+        "<div class='track'><span class='ship' style='left:" + pct + "%'>◄</span><span class='dest' style='left:2px;right:auto'>EARTH ⊕</span></div>" +
+        "<div class='stat'><span class='label'>Voyage integrity</span><span class='val " + (r.integrity > 60 ? "cyan" : r.integrity > 35 ? "amber" : "red") + "'>" + Math.round(r.integrity) + "</span></div>" +
+        "<div class='small dim'>Signal from Earth: " + (game.earth && game.earth.status === "silent" ? "<span class='red'>silent</span>" : "faint") + "</div>" +
+      "</div>" +
+      "<div class='panel'><div class='panel-title'>Stores</div><div class='hud-grid'>" +
+        stat("Fuel", r.fuel) + stat("Oxygen", r.oxygen) + stat("Food", r.food) + stat("Crew", r.crew) +
+      "</div></div>";
+    var acts = "<div class='menu row'>" +
+      "<button class='btn go' data-action='return' data-arg='push'>▶ Push hard</button>" +
+      "<button class='btn small' data-action='return' data-arg='steady'>⏸ Steady</button>" +
+      "<button class='btn small' data-action='return' data-arg='scavenge'>⛏ Scavenge</button>" +
+      "</div>";
+    app.innerHTML = hud + acts + "<div class='panel-title' style='margin-top:10px'>Ship's Log</div><div class='log' id='log'></div>";
+    renderLog();
+  }
+
   /* ---- End screen ---- */
   function renderEnd() {
     setAlert(false);
@@ -2563,6 +2749,8 @@
       case "rest": doRestRepair(); break;
       case "mine": openMining(); break;
       case "ai": openAI(); break;
+      case "colony": colonyAction(arg); break;
+      case "return": returnAction(arg); break;
       case "wakeself": wakeSelf("you force yourself awake"); save(); renderTravel(); break;
       case "abandon":
         openModal({ title: "Abandon run?", body: "<p>This ends the current voyage. It will be logged as a loss. There is no undo.</p>",

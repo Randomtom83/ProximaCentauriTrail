@@ -185,4 +185,18 @@ narrative, and the endings (a silent Earth makes "return" mostly grief and a col
 of us"). Verified: wormholes fire ~85% of runs, Earth silent ~65%; fuzz clean; balance restored after
 softening the morale tax (Settler ~60 / Pioneer ~53 / Voyager ~23). Save key v4.
 
-- **Still ahead:** Phase 6 (interactive Act II — playable colony management or return voyage).
+## Addendum — Phase 6: interactive Act II (roadmap complete)
+Reaching Proxima is now genuinely the midpoint. The colonize-or-return decision opens a **playable**
+second act:
+- **Colony loop** (STAY / MAKE CONTACT): build (self-sufficiency), farm (food), explore, tend the
+  people, and — with natives — diplomacy, across years of storms, disease, raids, gifts, births, and a
+  possible reinforcement ship from home. Win at self-sufficiency 100 (HAVEN / GUESTS OF PROXIMA); lose
+  to starvation, unrest, or hostile natives (WITHERED / TURNED AWAY).
+- **Return loop** (RETURN): an interactive homeward voyage — push / steady / scavenge across legs with
+  encounters (faster ships overtaking you, the alien pursuer, fold-shortcuts) and an Earth that may be
+  thriving, too late, or gone (MESSENGER / THE LONG WAY HOME / TOO LATE / LOST WITH ALL HANDS).
+- New colony/return screens + routing; test harnesses updated to drive Act II. Colony economy eased
+  after an over-punishing first pass; balance held (Settler ~57 / Pioneer ~50 / Voyager ~23). Fuzz
+  clean, suites green.
+
+**All six phases are complete.** Remaining work is playtest-driven tuning and polish.
