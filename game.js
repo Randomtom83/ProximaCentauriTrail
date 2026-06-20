@@ -136,7 +136,6 @@
 
   var POWER_DRAW = { lifeSupport: 5, medbay: 3, sensors: 2, podEach: 1 };
   var SCRUBBER_RECOVERY = 4.0;   // O2 recovered per turn when life support powered
-  var O2_PER_AWAKE = 1.0;
   var O2_PER_SLEEPER = 0.1;
   var REACTOR_BASE = 20;
   var HOLD_MAX = 200;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit)
@@ -285,19 +284,23 @@
   // Effective skill for a role-based check. Dead specialist => big penalty.
   // Hibernating specialist => unavailable (penalty).
   function skillFor(role) {
-    var best = null;
+    // Pick the BEST awake specialist for this role (coming-of-age can create duplicates).
+    var bestScore = null, anyAlive = false;
     for (var i = 0; i < game.crew.length; i++) {
       var c = game.crew[i];
-      if (c.role === role) best = c;
+      if (c.role !== role || c.status === "Dead") continue;
+      anyAlive = true;
+      if (c.status === "Hibernating") continue;             // asleep at the wheel — can't act
+      var s = c.skill;
+      if (c.status === "Sick" || c.status === "Injured") s -= 15;
+      if (c.status === "Cracked") s -= 25;
+      if (c.morale < 30) s -= 10;
+      if (c.age >= OLD_AGE) s -= Math.round((c.age - OLD_AGE) * 1.5);   // the hands slow with age
+      if (bestScore === null || s > bestScore) bestScore = s;
     }
-    if (!best || best.status === "Dead") return 15;          // specialist lost
-    if (best.status === "Hibernating") return 25;            // asleep at the wheel
-    var s = best.skill;
-    if (best.status === "Sick" || best.status === "Injured") s -= 15;
-    if (best.status === "Cracked") s -= 25;
-    if (best.morale < 30) s -= 10;
-    if (best.age >= OLD_AGE) s -= Math.round((best.age - OLD_AGE) * 1.5);   // the hands slow with age
-    return clamp(s, 5, 100);
+    if (bestScore !== null) return clamp(bestScore, 5, 100);  // best awake specialist
+    if (anyAlive) return 25;                                  // all matching are hibernating
+    return 15;                                                // specialist lost entirely
   }
 
   function adjustMoraleAll(delta, awakeOnly) {
@@ -701,11 +704,15 @@
   }
 
   function checkBreakdowns() {
+    // A living, awake Commander steadies the crew: lower crack odds, easier recovery.
+    var hasCmdr = game.crew.some(function (c) { return c.role === "Commander" && c.status !== "Dead" && c.status !== "Hibernating"; });
+    var crackChance = hasCmdr ? 0.25 : 0.45;
+    var recoverMorale = hasCmdr ? 28 : 36;
     var aw = awake();
     for (var i = 0; i < aw.length; i++) {
       var c = aw[i];
-      var floor = (game.role === "Commander") ? 6 : 0;  // Commander steadies the crew
-      if (c.morale <= floor && c.status !== "Cracked" && chance(0.4)) {
+      if (c.child) continue;                          // children don't crack
+      if (c.morale <= 0 && c.status !== "Cracked" && chance(crackChance)) {
         c.status = "Cracked";
         sfx("bad");
         var what = pick([
@@ -718,7 +725,7 @@
           var r = pick(["fuel", "oxygen"]);
           game.supplies[r] = Math.max(0, game.supplies[r] - rint(6, 12));
         }
-      } else if (c.status === "Cracked" && c.morale > 35 && chance(0.4)) {
+      } else if (c.status === "Cracked" && c.morale > recoverMorale && chance(0.45)) {
         c.status = c.ailment ? "Sick" : "Healthy";
         log(c.name + " comes back to themselves. The crew exhales.", "good");
       }
@@ -1707,6 +1714,7 @@
     sfx("confirm");
     spawnLoop();
     mg.timer = setInterval(function () {
+      if (!mg) return;
       mg.time = round1(mg.time - 0.1);
       if (mg.time <= 0) endMining();
       else renderMiningHud();
@@ -1747,7 +1755,7 @@
     field.appendChild(rock);
     var ttl = setTimeout(function () { if (rock.parentNode) rock.parentNode.removeChild(rock); }, rint(1400, 2400));
     rock.addEventListener("click", function (e) {
-      if (mg.over) return;
+      if (!mg || mg.over) return;
       if (mg.charges <= 0) { sfx("empty"); return; }
       mg.charges--;
       var amt = rint(kind.min, kind.max);
