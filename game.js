@@ -1819,6 +1819,7 @@
 
   /* ---- Title ---- */
   function renderTitle() {
+    setAlert(false);
     var app = $("#app");
     var resume = loadSave();
     var art =
@@ -1874,6 +1875,7 @@
   /* ---- Role + difficulty select ---- */
   var sel = { role: "Commander", diff: "Pioneer", names: NAMES.slice(0, 5) };
   function renderRole() {
+    setAlert(false);
     var app = $("#app");
     function roleBtns() {
       return ROLE_ORDER.map(function (rk) {
@@ -1914,6 +1916,7 @@
 
   /* ---- Store ---- */
   function renderStore() {
+    setAlert(false);
     var app = $("#app");
     var rows = STORE_ITEMS.map(function (it) {
       var have = it.key === "parts" ? game.ship.parts : game.supplies[it.key];
@@ -1982,12 +1985,15 @@
   }
 
   /* ---- Travel (main) ---- */
+  function setAlert(on) { var c = document.getElementById("crt"); if (c) c.classList.toggle("alert", !!on); }
+
   function renderTravel() {
     game.screen = "travel";
     updateTopbar();
     var app = $("#app");
     var s = game.supplies, ship = game.ship;
     var p = computePower();
+    setAlert(ship.hull < 25 || s.oxygen < 10 || s.fuel <= 0 || p.brownout);   // RED ALERT when in real danger
 
     function bar(val, max, kind) {
       var pct = clamp(Math.round((val / max) * 100), 0, 100);
@@ -2132,6 +2138,7 @@
 
   /* ---- End screen ---- */
   function renderEnd() {
+    setAlert(false);
     var app = $("#app");
     var sc = game._endScore, rank = game._endRank;
     var tier = game.outcomeTier || (game.won ? "ARRIVED" : "LOST");

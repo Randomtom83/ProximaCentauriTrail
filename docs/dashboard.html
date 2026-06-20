@@ -180,6 +180,15 @@ var SPRINTS = [
     ["Difficulty re-tiered for a real easy→hard spread","done"],
     ["Fix: scrubber O₂ could overfill the hold — surplus now vents","done"],
     ["Per-difficulty win-rate verification (Settler ~70 / Pioneer ~50 / Voyager ~20)","done"]
+  ]},
+  { id:"s10", name:"Sprint 10 — Phase 2: bridge aesthetic", tasks:[
+    ["Re-theme off the green CRT to an LCARS/holographic bridge palette","done"],
+    ["Rounded accent-bar panels, pill buttons, holo bars","done"],
+    ["Route map restyled as a holographic nav viewscreen","done"],
+    ["Crew strip restyled as crew stations; comms-log keeps the terminal heritage","done"],
+    ["RED ALERT frame state when hull/O₂/fuel critical or brownout","done"],
+    ["Bridge-styled modals, mining + transit viewscreens, end screen","done"],
+    ["Preserve every class/id game.js depends on; verify suites still green","done"]
   ]}
 ];
 
@@ -235,7 +244,11 @@ var LOG = [
   { date:"2026-06-20", tag:"fix", title:"Scrubber O₂ could overfill the hold",
     body:"While hibernating, scrubber recovery exceeds consumption, and recovered O₂ wasn't capped to the hold — so oxygen could creep past capacity. Surplus O₂ now vents to space. Verified: across 90 runs the hold is never exceeded." },
   { date:"2026-06-20", tag:"build", title:"Per-difficulty balance verification (Phase 1b)",
-    body:"New jsdom sweep plays a disciplined strategy (hibernate, reduced rations, sell ore, take jobs, repair) across all three tiers: Settler ~70%, Pioneer ~50%, Voyager ~20% wins over 30 runs each, zero hold overflows, zero JS errors. Feature/anim/smoke suites still green." }
+    body:"New jsdom sweep plays a disciplined strategy (hibernate, reduced rations, sell ore, take jobs, repair) across all three tiers: Settler ~70%, Pioneer ~50%, Voyager ~20% wins over 30 runs each, zero hold overflows, zero JS errors. Feature/anim/smoke suites still green." },
+  { date:"2026-06-20", tag:"decision", title:"Aesthetic pivot: green CRT → starship bridge",
+    body:"Per the user, the look moves away from the pure Oregon-Trail green terminal toward a small Star Trek / Star Wars bridge feel. The green terminal survives only as the comms log's heritage." },
+  { date:"2026-06-20", tag:"feature", title:"Phase 2: bridge re-theme",
+    body:"Full style.css overhaul to an LCARS/holographic palette (deep space blues, holo cyan, LCARS amber/gold, alert red): rounded accent-bar panels, pill buttons, glowing bars, a holographic nav viewscreen for the route map, crew-station rows, bridge-styled modals and mining/transit viewscreens, and a RED-ALERT frame state that pulses when the ship is in real danger. All class/id hooks preserved; feature/anim/smoke suites and the difficulty sweep still pass with zero JS errors." }
 ];
 
 /* ---- rendering + interactivity ---- */
