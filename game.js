@@ -1054,6 +1054,8 @@
   }
   function beginColony(petition) {
     closeModal();
+    // Landing wakes everyone — no one rides out the colony in cold sleep.
+    game.crew.forEach(function (c) { if (c.status === "Hibernating") c.status = c.ailment ? "Sick" : "Healthy"; });
     var surv = alive(), n = surv.length;
     var avgMor = n ? Math.round(surv.reduce(function (s, c) { return s + c.morale; }, 0) / n) : 50;
     game.colony = {
@@ -1099,6 +1101,7 @@
     if (col.food < 0) { col.food = 0; col.colonists = Math.max(0, col.colonists - 1); col.morale = clamp(col.morale - 8, 0, 100); log("Stores run dry — the colony goes hungry and buries one of its own.", "bad"); }
     colonyEvent();
     sfx("tick");
+    save();
     if (!endColonyCheck()) renderColony();
   }
   function colonyEvent() {
@@ -1149,6 +1152,7 @@
     returnEvent();
     if (r.fuel < 0 || r.oxygen < 0 || r.food < 0) { r.integrity -= 8; r.fuel = Math.max(0, r.fuel); r.oxygen = Math.max(0, r.oxygen); r.food = Math.max(0, r.food); log("Supplies run short on the long road home.", "bad"); }
     sfx("tick");
+    save();
     if (r.legs >= r.maxLegs) { endReturn(); return; }
     renderReturn();
   }
@@ -2713,7 +2717,12 @@
       case "new": sfx("select"); game = null; sel = { role: "Commander", diff: "Pioneer", names: rerollNames() }; game = { screen: "role" }; renderRoleScreen(); break;
       case "resume":
         var sv = loadSave();
-        if (sv) { game = sv; game.ended = false; sfx("confirm"); game.screen = "travel"; renderApp(); }
+        if (sv) {
+          game = sv; game.ended = false; sfx("confirm");
+          // Restore the saved screen (travel / colony / return); fall back to travel.
+          if (["travel", "colony", "return"].indexOf(game.screen) < 0) game.screen = "travel";
+          renderApp();
+        }
         break;
       case "howto": showHowTo(); break;
       case "logbook": showLogbook(); break;
