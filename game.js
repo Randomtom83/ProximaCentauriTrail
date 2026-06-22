@@ -309,6 +309,12 @@
     return 15;                                                // specialist lost entirely
   }
 
+  // Is there a crew member of this role who can actually do the work — alive AND awake?
+  // (A dead or hibernating specialist must not be offered as if they could act.)
+  function hasAwakeSpecialist(role) {
+    return game.crew.some(function (c) { return c.role === role && c.status !== "Dead" && c.status !== "Hibernating"; });
+  }
+
   function adjustMoraleAll(delta, awakeOnly) {
     var list = awakeOnly ? awake() : alive();
     for (var i = 0; i < list.length; i++) list[i].morale = clamp(list[i].morale + delta, 0, 100);
@@ -1458,9 +1464,16 @@
   }
 
   function presentEvent(ev) {
-    var choices = ev.choices.map(function (ch) {
+    // A role-locked choice is only honestly available if that specialist is alive and awake.
+    var viable = ev.choices.map(function (ch) { return !ch.role || hasAwakeSpecialist(ch.role); });
+    var anyViable = viable.some(Boolean);
+    var choices = ev.choices.map(function (ch, i) {
+      var noOne = ch.role && !viable[i];
       return {
-        label: ch.label + (ch.role ? "  [" + ch.role + "]" : ""),
+        // Don't pretend a dead/sleeping specialist will do it. Block the option when there's a
+        // real alternative; if it's the ONLY option, leave it as a desperate (penalized) attempt.
+        label: ch.label + (ch.role ? "  [" + ch.role + (noOne ? " — none aboard" : "") + "]" : ""),
+        disabled: noOne && anyViable,
         onClick: function () {
           var msg;
           if (ch.role) msg = resolveCheck(ch.role, ch.diff, ch.success, ch.failure);
@@ -1622,8 +1635,12 @@
   function presentHazard(key) {
     var hz = HAZARDS[key];
     if (!hz) return;
-    var choices = hz.options.map(function (op) {
-      return { label: op.label + (op.role ? "  [" + op.role + "]" : ""),
+    var viable = hz.options.map(function (op) { return !op.role || hasAwakeSpecialist(op.role); });
+    var anyViable = viable.some(Boolean);
+    var choices = hz.options.map(function (op, i) {
+      var noOne = op.role && !viable[i];
+      return { label: op.label + (op.role ? "  [" + op.role + (noOne ? " — none aboard" : "") + "]" : ""),
+               disabled: noOne && anyViable,
                onClick: function () { resolveHazard(key, op); } };
     });
     openModal({ title: "≋ " + hz.title, art: hz.art,
@@ -1950,8 +1967,9 @@
     var desc = st === "nominal" ? "ATLAS hums along, helpful and calm — assisting every system."
       : st === "degrading" ? "ATLAS is fraying — readings drift, decisions wander. It needs recalibration."
       : "ATLAS has turned. It fights you for the ship, and every diagnostic risks a reprisal.";
-    var choices = [{ label: "Run diagnostics & recalibrate  [Engineer]", onClick: function () { aiDiagnostics(); } }];
-    if (game.ai.integrity <= 40) choices.push({ label: "PURGE the core (drastic, irreversible)  [Engineer]", onClick: function () { aiPurge(); } });
+    var eng = hasAwakeSpecialist("Engineer");
+    var choices = [{ label: "Run diagnostics & recalibrate  [Engineer" + (eng ? "" : " — none aboard") + "]", disabled: !eng, onClick: function () { aiDiagnostics(); } }];
+    if (game.ai.integrity <= 40) choices.push({ label: "PURGE the core (drastic, irreversible)  [Engineer" + (eng ? "" : " — none aboard") + "]", disabled: !eng, onClick: function () { aiPurge(); } });
     choices.push({ label: "Close", onClick: function () { sfx("confirm"); closeModal(); renderTravel(); } });
     openModal({
       title: "🧠 " + AI_NAME + " — ship mind",
@@ -2169,9 +2187,9 @@
     var box = $("#modal-choices");
     box.innerHTML = "";
     (opts.choices || []).forEach(function (ch) {
-      var b = el("button", { class: "btn" + (ch.disabled ? "" : "") }, ch.label);
+      var b = el("button", { class: "btn" + (ch.disabled ? " disabled" : "") }, ch.label);
       if (ch.disabled) b.disabled = true;
-      b.addEventListener("click", function () { sfx("blip"); ch.onClick(); });
+      b.addEventListener("click", function () { if (b.disabled) return; sfx("blip"); ch.onClick(); });
       box.appendChild(b);
     });
     $("#modal").classList.remove("hidden");
