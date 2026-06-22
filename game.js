@@ -1478,8 +1478,9 @@
     // Move the returnees out of the colony crew into the ship's crew.
     var goNames = {}; returnees.forEach(function (c) { goNames[c.name] = 1; });
     game.crew = game.crew.filter(function (c) { return !goNames[c.name]; });   // colony keeps the rest
-    // Provision the voyage from colony stores (and the ship's own tanks).
-    var prov = { fuel: 44, oxygen: 40 + Math.min(40, Math.round(col.supplies.water * 0.4)),
+    // Provision the voyage from colony stores (and a full refuel as part of the refit). The
+    // homeward crossing is ~the whole trail again, so fuel must cover it or the ark dies adrift.
+    var prov = { fuel: 78, oxygen: 46 + Math.min(40, Math.round(col.supplies.water * 0.4)),
                  food: Math.min(Math.round(col.supplies.food * 0.45), 90), medicine: Math.min(col.supplies.meds, 3) };
     col.supplies.food = Math.max(0, col.supplies.food - prov.food);
     col.supplies.water = Math.max(0, col.supplies.water - Math.round(prov.oxygen * 0.3));
@@ -1497,8 +1498,8 @@
     closeModal();
     // You scavenge and refuel at Proxima before turning around — the homeward ark sets out with a
     // real (if modest) stock on top of whatever you arrived with, not your depleted tanks.
-    var prov = { fuel: Math.max(46, Math.round(game.supplies.fuel) + 24), oxygen: Math.max(48, Math.round(game.supplies.oxygen) + 24),
-                 food: Math.max(62, Math.round(game.supplies.food) + 30), medicine: Math.max(2, game.supplies.medicine) };
+    var prov = { fuel: Math.max(78, Math.round(game.supplies.fuel) + 40), oxygen: Math.max(50, Math.round(game.supplies.oxygen) + 24),
+                 food: Math.max(64, Math.round(game.supplies.food) + 30), medicine: Math.max(2, game.supplies.medicine) };
     var crew = alive().slice();
     game.crew = [];   // everyone is now on the voyage
     startVoyage(crew, prov, false);
@@ -1515,7 +1516,9 @@
       supplies: { fuel: prov.fuel, oxygen: prov.oxygen, food: prov.food, medicine: prov.medicine || 2 },
       ship: { hull: Math.max(40, Math.round(game.ship.hull)), parts: Math.max(2, game.ship.parts), reactorBase: REACTOR_BASE },
       thrust: "cruise", rations: "full",
-      distance: 0, total: TOTAL_DIST, turn: 0, _starve: 0, _anoxia: 0
+      // The way home is shorter than the way out — you've already mapped the trail (and can lean on
+      // the fold/known shortcuts), so a live-Earth arrival is achievable before the signal dies.
+      distance: 0, total: Math.round(TOTAL_DIST * 0.62), turn: 0, _starve: 0, _anoxia: 0
     };
     save();
   }
