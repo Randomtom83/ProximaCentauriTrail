@@ -745,7 +745,9 @@
       // Anoxia escalates the longer the air stays gone — a brief gasp is survivable, but
       // suffocation compounds fast and will kill a crew that can't restore air.
       game._anoxia = (game._anoxia || 0) + 1;
-      var oHit = Math.min(46, 14 + (game._anoxia - 1) * 9);
+      // Severity scales with difficulty: forgiving tiers give marginal runs room to recover;
+      // a sustained outage still kills everywhere.
+      var oHit = Math.round(Math.min(46, 14 + (game._anoxia - 1) * 9) * (0.6 + 0.5 * DIFFICULTY[game.difficulty].harsh));
       log(game._anoxia === 1 ? "OXYGEN DEPLETED. The crew gasps in the dark."
         : "Still no air (" + game._anoxia + " turns). Lips blue, minds going — they are suffocating.", "bad");
       adjustHealthAll(-oHit, true);
@@ -764,7 +766,7 @@
       // Starvation deepens turn over turn — the first empty day is hunger; sustained famine
       // wastes the crew away and breaks their spirit until it kills.
       game._starve = (game._starve || 0) + 1;
-      var fHit = Math.min(30, 6 + (game._starve - 1) * 5);
+      var fHit = Math.round(Math.min(30, 6 + (game._starve - 1) * 5) * (0.6 + 0.5 * DIFFICULTY[game.difficulty].harsh));
       log(game._starve === 1 ? "Stores are empty. Hunger sets in."
         : game._starve <= 3 ? "Another day with no food. The crew is gaunt and failing."
         : "Starvation (" + game._starve + " turns). They are wasting away — this cannot go on.", "bad");
@@ -963,9 +965,12 @@
     if (awake().length === 0 && sleepers().length === 0) return endGame(false, "No one remains awake or alive to fly.");
     if (game.ship.hull <= 0) return endGame(false, "Hull integrity failed. The ship comes apart in the black.");
     var awk = awake();
+    // Despair must be SUSTAINED to end the run — one rock-bottom turn is a crisis you can still
+    // pull out of (rest, rations, a good event), not an instant mutiny.
     if (awk.length > 0 && awk.every(function (c) { return c.morale <= 0; })) {
-      return endGame(false, "The crew has given up. They stop the engines and let the dark take them. Mutiny of despair.");
-    }
+      game._despair = (game._despair || 0) + 1;
+      if (game._despair >= 3) return endGame(false, "The crew has given up. They stop the engines and let the dark take them. Mutiny of despair.");
+    } else game._despair = 0;
     // Stranded: no fuel, no charges to mine, not at a station, and out of air on the horizon.
     if (game.supplies.fuel <= 0 && game.supplies.charges <= 0 && game.distance < TOTAL_DIST &&
         game.supplies.oxygen < 6 && game.credits < 30) {
@@ -1490,7 +1495,10 @@
   // Arrival RETURN (turn straight around, no colony) — the whole crew flies home.
   function beginReturn() {
     closeModal();
-    var prov = { fuel: Math.round(game.supplies.fuel), oxygen: Math.round(game.supplies.oxygen), food: Math.round(game.supplies.food), medicine: game.supplies.medicine };
+    // You scavenge and refuel at Proxima before turning around — the homeward ark sets out with a
+    // real (if modest) stock on top of whatever you arrived with, not your depleted tanks.
+    var prov = { fuel: Math.max(46, Math.round(game.supplies.fuel) + 24), oxygen: Math.max(48, Math.round(game.supplies.oxygen) + 24),
+                 food: Math.max(62, Math.round(game.supplies.food) + 30), medicine: Math.max(2, game.supplies.medicine) };
     var crew = alive().slice();
     game.crew = [];   // everyone is now on the voyage
     startVoyage(crew, prov, false);
@@ -2117,7 +2125,7 @@
       }
     } else { // freeze — highest variance
       influence({ explore: +6, cooperate: +6, caution: +5, potential: +3, knowledge: +6 });
-      var f = sampleWeighted({ commune: 5, ignored: 4, experiment: 3, annihilate: 1 });
+      var f = sampleWeighted({ commune: 5, ignored: 4, experiment: 3, annihilate: Math.max(0.2, 0.5 * DIFFICULTY[game.difficulty].harsh) });
       if (f === "commune") {
         game.alien.friendly = true; game.alien.tech = chance(0.6);
         adjustMoraleAll(+14, true); influence({ potential: +10, knowledge: +12 });
@@ -2130,7 +2138,12 @@
         game.alien.friendly = null; influence({ potential: -3 });
         log("You hold still. They reach into the hull and take one of you, to learn. The rest are left to grieve.", "bad"); sfx("bad");
       } else {
-        endGame(false, "You hold still — and they decide you are not worth the keeping. The ship goes dark forever."); return;
+        // A near-catastrophe — but not an instant, unearned game over. They maul the ship and leave.
+        applyOutcome({ hull: -rint(30, 52) });
+        var nKill = rint(1, 2);
+        for (var ki = 0; ki < nKill; ki++) { var vk = pick(awake()); if (vk) killCrew(vk, "did not survive the encounter"); }
+        game.alien.friendly = null; influence({ potential: -8, caution: +4 });
+        log("You hold still — and for a heartbeat you are certain it is the end. Then they withdraw, leaving the ship gutted and grieving. You are spared, barely, and will never know why.", "bad"); sfx("bad");
       }
     }
     save();
