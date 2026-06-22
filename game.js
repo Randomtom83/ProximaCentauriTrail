@@ -82,9 +82,9 @@
   var ROLE_ORDER = ["Commander", "Pilot", "Engineer", "Medic", "Xenobiologist"];
 
   var DIFFICULTY = {
-    Settler: { mult: 1.0, credit: 1.6, harsh: 0.7,  startMult: 1.30, potential0: 58, blurb: "Forgiving. Margins to learn the ropes." },
-    Pioneer: { mult: 1.6, credit: 1.1, harsh: 0.9,  startMult: 1.10, potential0: 52, blurb: "The intended balance. Death is real." },
-    Voyager: { mult: 2.2, credit: 0.78, harsh: 1.38, startMult: 0.84, potential0: 42, blurb: "Brutal. Most crews die in the dark." }
+    Settler: { mult: 1.0, credit: 2.0, harsh: 0.5,  startMult: 1.60, potential0: 64, blurb: "Forgiving. Margins to learn the ropes." },
+    Pioneer: { mult: 1.6, credit: 1.3, harsh: 0.8,  startMult: 1.25, potential0: 55, blurb: "The intended balance. Death is real." },
+    Voyager: { mult: 2.2, credit: 0.85, harsh: 1.25, startMult: 0.92, potential0: 45, blurb: "Brutal. Most crews die in the dark." }
   };
 
   var STORE_ITEMS = [
@@ -138,7 +138,7 @@
   var SCRUBBER_RECOVERY = 4.0;   // O2 recovered per turn when life support powered
   var O2_PER_SLEEPER = 0.1;
   var REACTOR_BASE = 20;
-  var HOLD_MAX = 200;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit)
+  var HOLD_MAX = 240;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit)
   var MAX_CREW = 8;             // ship can't carry an unlimited crowd
   // Generational voyage: biological aging per turn (awake vs cold sleep), coming-of-age, old age.
   var AGE_PER_TURN = 0.40;      // awake crew age ~0.4 years/turn — the void is decades long
@@ -212,8 +212,8 @@
       ship: { hull: 100, parts: 5, reactorBase: REACTOR_BASE, holdMax: HOLD_MAX },
       power: { output: 0, demand: 0,
                allocation: { lifeSupport: true, drive: true, medbay: true, pods: true, sensors: true } },
-      supplies: { fuel: Math.round(22 * diff.startMult), oxygen: Math.round(42 * diff.startMult),
-                  food: Math.round(42 * diff.startMult), medicine: 2, charges: 4 },
+      supplies: { fuel: Math.round(24 * diff.startMult), oxygen: Math.round(46 * diff.startMult),
+                  food: Math.round(50 * diff.startMult), medicine: 2, charges: 4 },
       cargo: { ore: 0, ice: 0, rareMetals: 0, volatiles: 0 },   // tradeable commodities (mined/looted)
       crew: crew,
       log: [],
@@ -327,9 +327,10 @@
     }
   }
 
-  function killCrew(c, reasonVerb) {
+  function killCrew(c, reasonVerb, taken) {
     if (c.status === "Dead") return;
     c.status = "Dead";
+    c.taken = !!taken;          // abducted by the unknown vs simply dead — distinct in the roster
     c.health = 0;
     log(c.name + " (" + c.role + ") " + (reasonVerb || "died") + ".", "bad");
     sfx("death");
@@ -698,9 +699,16 @@
 
     var aw = awake(), sl = sleepers();
 
+    // Life support is paid per DISTANCE, not per turn. Going faster crosses the same gulf in
+    // fewer turns but burns proportionally more air and food each turn — so high thrust is a
+    // fuel-and-exposure gamble, never a way to shrink the crew's oxygen/food bill. (Cruise = 1.0,
+    // so normal play is unchanged; only burn/overdrive cost more.) When holding position, the
+    // crew still breathe at the normal per-turn rate.
+    var pace = moved > 0 ? (th.speed / THRUST.cruise.speed) : 1.0;
+
     // Oxygen: scrubbers recover only if life support is powered.
-    var recover = al.lifeSupport ? SCRUBBER_RECOVERY : 0;
-    var o2use = consumeUnits();    // adults 1.0, children 0.5, sleepers 0.1
+    var recover = (al.lifeSupport ? SCRUBBER_RECOVERY : 0) * pace;
+    var o2use = consumeUnits() * pace;    // adults 1.0, children 0.5, sleepers 0.1 (×pace)
     game.supplies.oxygen = round1(game.supplies.oxygen + recover - o2use);
     // Scrubbers can't overfill the hold — surplus O₂ vents to space.
     var o2over = cargoUsed() - game.ship.holdMax;
@@ -716,8 +724,8 @@
       log("O₂ reserves critical (" + game.supplies.oxygen + ").", "warn");
     }
 
-    // Food
-    var foodUse = round1(foodUnits(rat.mult));
+    // Food — also per distance (see pace note above).
+    var foodUse = round1(foodUnits(rat.mult) * pace);
     game.supplies.food = round1(game.supplies.food - foodUse);
     if (game.supplies.food <= 0) {
       game.supplies.food = 0;
@@ -834,7 +842,7 @@
       var f = sampleWeighted({ ignored: 5, experiment: 3, commune: 2, annihilate: 1 });   // worse than a waking freeze
       if (f === "commune") { game.alien.friendly = true; influence({ potential: +4, knowledge: +6 }); log("Against all odds the sleeping ship is spared — even gifted. You'll never know why.", "good"); }
       else if (f === "ignored") { log("They study the silent ship and move on, indifferent.", "info"); }
-      else if (f === "experiment") { var v = pick(awake()); if (v) killCrew(v, "was taken while the captain slept"); influence({ potential: -4 }); }
+      else if (f === "experiment") { var v = pick(awake()); if (v) killCrew(v, "was taken while the captain slept", true); influence({ potential: -4 }); }
       else { endGame(false, "First contact — and no one at the helm. They take the ship apart to see how it works."); return; }
     }
     game.ship.hull = clamp(game.ship.hull - rint(1, 4), 0, 100);     // unattended wear
@@ -1620,7 +1628,7 @@
       } else if (f === "ignored") {
         log("You hold still. They study you a long, breathless while — then move on, vast and indifferent.", "info");
       } else if (f === "experiment") {
-        var vv = pick(awake()); if (vv) killCrew(vv, "was taken — lights, then gone");
+        var vv = pick(awake()); if (vv) killCrew(vv, "was taken — lights, then gone", true);
         game.alien.friendly = null; influence({ potential: -3 });
         log("You hold still. They reach into the hull and take one of you, to learn. The rest are left to grieve.", "bad"); sfx("bad");
       } else {
@@ -2197,7 +2205,11 @@
   }
   function closeModal() { $("#modal").classList.add("hidden"); }
 
-  function flashLog() { /* hook for future visual flash; no-op keeps calls safe */ }
+  function flashLog() {
+    var box = $("#log"); if (!box) return;
+    var last = box.lastElementChild;
+    if (last) { last.classList.remove("flash"); void last.offsetWidth; last.classList.add("flash"); }
+  }
 
   /* ---------------------------------------------------------
      15b. Transit animations (between-scene, Oregon-Trail style)
@@ -2485,7 +2497,8 @@
     // Power line
     var aiInt = game.ai ? Math.round(game.ai.integrity) : null;
     var aiCls = !game.ai ? "dim" : aiInt > 60 ? "cyan" : aiInt > 28 ? "amber" : "red";
-    var aiLine = "<div class='stat'><span class='label'>" + AI_NAME + "</span><span class='val " + aiCls + "'>" +
+    var aiGlitch = (game.ai && aiState() !== "nominal") ? " ai-glitch" : "";   // flickers as it frays
+    var aiLine = "<div class='stat'><span class='label'>" + AI_NAME + "</span><span class='val " + aiCls + aiGlitch + "'>" +
       (game.ai ? aiInt + "% · " + aiState() : "purged") + "</span></div>" +
       (game.ai ? "<div class='bar " + (aiInt > 60 ? "ok" : aiInt > 28 ? "warn" : "crit") + "'><span style='width:" + aiInt + "%'></span></div>" : "");
     var powerLine = "<div class='stat'><span class='label'>Reactor</span><span class='val " + (p.brownout ? "red" : "cyan") + "'>" +
@@ -2547,7 +2560,10 @@
   }
 
   function crewStrip() {
-    return "<div class='crew-strip'>" + game.crew.map(function (c) {
+    // Only the LIVING are on the roster — the fallen/taken are remembered below it, so the
+    // crew list actually shrinks when you lose someone.
+    var living = game.crew.filter(function (c) { return c.status !== "Dead"; });
+    var rows = living.map(function (c) {
       function mb(v, kind) {
         var pct = clamp(v, 0, 100);
         var cls = kind || (pct < 25 ? "crit" : pct < 50 ? "warn" : "ok");
@@ -2556,16 +2572,22 @@
       var tag = c.ailment ? " <span class='tag amber'>" + c.ailment + "</span>" : "";
       if (c.child) tag += " <span class='tag cyan'>child</span>";
       else if (c.age >= OLD_AGE) tag += " <span class='tag amber'>elder</span>";
-      var ageStr = c.status === "Dead" ? "" : " <span class='small dim'>" + Math.round(c.age) + "y</span>";
+      var ageStr = " <span class='small dim'>" + Math.round(c.age) + "y</span>";
       return "<div class='crew-row'>" +
-        "<span class='s-" + c.status + "'>" + (c.status === "Dead" ? "✖" : c.status === "Hibernating" ? "❄" : c.child ? "◦" : "•") + "</span>" +
+        "<span class='s-" + c.status + "'>" + (c.status === "Hibernating" ? "❄" : c.child ? "◦" : "•") + "</span>" +
         "<span><span class='nm s-" + c.status + "'>" + c.name + "</span> <span class='rl small'>" + c.role +
           (c.role === game.role ? "*" : "") + "</span>" + ageStr + tag + "</span>" +
         "<span>" + mb(c.health) + "<span class='small dim'>hp</span></span>" +
         "<span>" + mb(c.morale, "power") + "<span class='small dim'>mor</span></span>" +
         "<span class='st small s-" + c.status + "'>" + c.status + "</span>" +
         "</div>";
-    }).join("") + "</div>";
+    }).join("");
+    var lost = game.crew.filter(function (c) { return c.status === "Dead" && !c.taken; }).map(function (c) { return c.name; });
+    var taken = game.crew.filter(function (c) { return c.status === "Dead" && c.taken; }).map(function (c) { return c.name; });
+    var memorial = "";
+    if (lost.length) memorial += "<div class='small red crew-memorial'>✖ Lost: " + lost.join(", ") + "</div>";
+    if (taken.length) memorial += "<div class='small amber crew-memorial'>◌ Taken by the unknown: " + taken.join(", ") + "</div>";
+    return "<div class='crew-strip'>" + rows + "</div>" + memorial;
   }
 
   function renderLog() {
@@ -2682,12 +2704,14 @@
       ? "<h2 class='cyan'>✦ " + tier + " ✦</h2>"
       : "<h2 class='red'>✖ " + tier + " ✖</h2>";
     var survivors = game.crew.filter(function (c) { return c.status !== "Dead"; });
-    var fallen = game.crew.filter(function (c) { return c.status === "Dead"; });
+    var lostC = game.crew.filter(function (c) { return c.status === "Dead" && !c.taken; });
+    var takenC = game.crew.filter(function (c) { return c.status === "Dead" && c.taken; });
     var crewSummary =
       "<div class='small'><b class='paper'>Survivors:</b> " +
         (survivors.length ? survivors.map(function (c) { return c.name + " (" + c.role + ")"; }).join(", ") : "<span class='red'>none</span>") +
       "</div>" +
-      (fallen.length ? "<div class='small red'><b>Lost:</b> " + fallen.map(function (c) { return c.name; }).join(", ") + "</div>" : "");
+      (lostC.length ? "<div class='small red'><b>Lost:</b> " + lostC.map(function (c) { return c.name; }).join(", ") + "</div>" : "") +
+      (takenC.length ? "<div class='small amber'><b>Taken by the unknown:</b> " + takenC.map(function (c) { return c.name; }).join(", ") + "</div>" : "");
 
     var lines =
       sl("Surviving crew (" + sc.survivors + ")", sc.crewPts) +
