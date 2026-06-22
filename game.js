@@ -124,9 +124,12 @@
                "Tamsin", "Bex", "Juno", "Castel", "Wren", "Dax", "Imani", "Petrov", "Soto", "Aria"];
 
   var THRUST = {
+    // High thrust no longer cheats survival: life support is per-distance (see resolveTurn),
+    // and burn/overdrive cost steeply more fuel + power and grind the hull (engine stress),
+    // so racing past danger self-limits via fuel starvation and brownouts.
     cruise:   { speed: 8,  fuel: 1, power: 2, days: 6, label: "Cruise" },
-    burn:     { speed: 14, fuel: 2, power: 4, days: 6, label: "Burn" },
-    overdrive:{ speed: 22, fuel: 4, power: 6, days: 5, label: "Overdrive" }
+    burn:     { speed: 12, fuel: 3, power: 5, days: 6, label: "Burn" },
+    overdrive:{ speed: 16, fuel: 7, power: 9, days: 5, label: "Overdrive" }
   };
   var RATIONS = {
     full:     { mult: 1.0, health: +1, morale: +1, label: "Full" },
@@ -338,7 +341,9 @@
     for (var i = 0; i < c.bonds.length; i++) {
       var p = byName(c.bonds[i]);
       if (p && p.status !== "Dead") {
-        p.morale = clamp(p.morale - 28, 0, 100);
+        // Grief scales with difficulty — on gentler tiers a death is less likely to cascade
+        // the whole crew into a morale collapse.
+        p.morale = clamp(p.morale - Math.round(28 * DIFFICULTY[game.difficulty].harsh), 0, 100);
         log(p.name + " loses heart — they were bonded to " + c.name + ".", "warn");
       }
     }
@@ -742,7 +747,9 @@
     var ail = ailing();
     for (var i = 0; i < ail.length; i++) {
       var c = ail[i];
-      var dmg = chance(0.5) ? rint(4, 10) : rint(0, 3);
+      // Ailment lethality scales with difficulty (gentle on Settler, vicious on Voyager),
+      // so a sleeping Medic isn't an automatic death sentence on the forgiving tiers.
+      var dmg = (chance(0.5) ? rint(4, 10) : rint(0, 3)) * DIFFICULTY[game.difficulty].harsh;
       c.health = clamp(c.health - dmg, 0, 100);
       c.morale = clamp(c.morale - 2, 0, 100);
       if (c.health <= 0) killCrew(c, "lost their fight with " + c.ailment);
@@ -794,8 +801,8 @@
     // The ship mind frays, helps, or turns on you.
     aiTurn();
 
-    // Hull slow wear
-    game.ship.hull = clamp(game.ship.hull - rint(0, 1), 0, 100);
+    // Hull slow wear, plus engine stress from running hot — high thrust grinds the ship down.
+    game.ship.hull = clamp(game.ship.hull - rint(0, 1) - Math.round((pace - 1) * 2.2), 0, 100);
 
     // A small reward for simply not giving up — persistence trends the odds up.
     influence({ persist: +1 });
