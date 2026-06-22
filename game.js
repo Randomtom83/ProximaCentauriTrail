@@ -312,6 +312,24 @@
     return 15;                                                // specialist lost entirely
   }
 
+  // Strict awake-only skill for SILENT checks (no menu in front of the player): a sleeper or a
+  // dead specialist contributes NOTHING — if no qualified hand is awake, the job is done badly by
+  // whoever's left. Prevents "the Xenobiologist salvages a derelict while passed out in her pod."
+  function skillAwake(role) {
+    var best = null;
+    for (var i = 0; i < game.crew.length; i++) {
+      var c = game.crew[i];
+      if (c.role !== role || c.status === "Dead" || c.status === "Hibernating") continue;
+      var s = c.skill;
+      if (c.status === "Sick" || c.status === "Injured") s -= 15;
+      if (c.status === "Cracked") s -= 25;
+      if (c.morale < 30) s -= 10;
+      if (c.age >= OLD_AGE) s -= Math.round((c.age - OLD_AGE) * 1.5);
+      if (best === null || s > best) best = s;
+    }
+    return best === null ? 12 : clamp(best, 5, 100);   // 12 = no qualified, awake hand on the job
+  }
+
   // Is there a crew member of this role who can actually do the work — alive AND awake?
   // (A dead or hibernating specialist must not be offered as if they could act.)
   function hasAwakeSpecialist(role) {
@@ -721,12 +739,18 @@
     if (!al.lifeSupport) log("Life support unpowered — scrubbers offline.", "warn");
     if (game.supplies.oxygen <= 0) {
       game.supplies.oxygen = 0;
-      log("OXYGEN DEPLETED. The crew gasps in the dark.", "bad");
-      adjustHealthAll(-16, true);
-      adjustMoraleAll(-8, true);
+      // Anoxia escalates the longer the air stays gone — a brief gasp is survivable, but
+      // suffocation compounds fast and will kill a crew that can't restore air.
+      game._anoxia = (game._anoxia || 0) + 1;
+      var oHit = Math.min(46, 14 + (game._anoxia - 1) * 9);
+      log(game._anoxia === 1 ? "OXYGEN DEPLETED. The crew gasps in the dark."
+        : "Still no air (" + game._anoxia + " turns). Lips blue, minds going — they are suffocating.", "bad");
+      adjustHealthAll(-oHit, true);
+      adjustMoraleAll(-(6 + game._anoxia * 2), true);
       sfx("warn");
-    } else if (game.supplies.oxygen < 10) {
-      log("O₂ reserves critical (" + game.supplies.oxygen + ").", "warn");
+    } else {
+      game._anoxia = 0;
+      if (game.supplies.oxygen < 10) log("O₂ reserves critical (" + game.supplies.oxygen + ").", "warn");
     }
 
     // Food — also per distance (see pace note above).
@@ -734,10 +758,17 @@
     game.supplies.food = round1(game.supplies.food - foodUse);
     if (game.supplies.food <= 0) {
       game.supplies.food = 0;
-      log("Stores are empty. Hunger sets in.", "bad");
-      adjustHealthAll(-8, true);
-      adjustMoraleAll(-6, true);
+      // Starvation deepens turn over turn — the first empty day is hunger; sustained famine
+      // wastes the crew away and breaks their spirit until it kills.
+      game._starve = (game._starve || 0) + 1;
+      var fHit = Math.min(30, 6 + (game._starve - 1) * 5);
+      log(game._starve === 1 ? "Stores are empty. Hunger sets in."
+        : game._starve <= 3 ? "Another day with no food. The crew is gaunt and failing."
+        : "Starvation (" + game._starve + " turns). They are wasting away — this cannot go on.", "bad");
+      adjustHealthAll(-fHit, true);
+      adjustMoraleAll(-(4 + game._starve * 2), true);
     } else {
+      game._starve = 0;
       // ration health/morale effect on awake crew
       adjustHealthAll(rat.health, true);
       adjustMoraleAll(rat.morale, true);
@@ -761,7 +792,7 @@
       if (sick.length) {
         var patient = sick[0];
         game.supplies.medicine--;
-        var roll = skillFor("Medic") + rint(0, 40);
+        var roll = skillAwake("Medic") + rint(0, 40);
         if (roll >= 70) {
           patient.ailment = null;
           if (patient.status === "Sick" || patient.status === "Injured") patient.status = "Healthy";
@@ -1096,7 +1127,7 @@
   function colonyAction(type) {
     var col = game.colony, hm = habMult();
     col.years++;
-    var eng = skillFor("Engineer"), xeno = skillFor("Xenobiologist"), cmd = skillFor("Commander");
+    var eng = skillAwake("Engineer"), xeno = skillAwake("Xenobiologist"), cmd = skillAwake("Commander");
     if (type === "build") {
       var g = Math.round((6 + eng / 9) * (0.7 + col.colonists * 0.14));
       col.sufficiency = clamp(col.sufficiency + g, 0, 100); col.food -= 3;
@@ -1135,7 +1166,7 @@
       reinforce: (game.earth && game.earth.status === "silent") ? 0.5 : 1.8
     });
     if (e === "storm") { var d = Math.round(rint(3, 8) / hm); col.food = Math.max(0, col.food - d); col.sufficiency = clamp(col.sufficiency - rint(1, 4), 0, 100); log("A brutal season batters the colony — stores and works damaged.", "bad"); }
-    else if (e === "disease") { if (skillFor("Medic") + rint(0, 40) >= 52) log("A sickness sweeps through, but the medics contain it.", "warn"); else { col.colonists = Math.max(0, col.colonists - 1); log("Disease takes a colonist before it's contained.", "bad"); } }
+    else if (e === "disease") { if (skillAwake("Medic") + rint(0, 40) >= 52) log("A sickness sweeps through, but the medics contain it.", "warn"); else { col.colonists = Math.max(0, col.colonists - 1); log("Disease takes a colonist before it's contained.", "bad"); } }
     else if (e === "harvest") { var f = rint(12, 24); col.food += f; log("An unexpected bounty: +" + f + " food.", "good"); }
     else if (e === "breakthrough") { var s = rint(5, 12); col.sufficiency = clamp(col.sufficiency + s, 0, 100); log("An engineering breakthrough — self-sufficiency +" + s + ".", "good"); }
     else if (e === "birth") { if (col.colonists < 30) { col.colonists++; log("A birth in the colony — a generation that will call this world home.", "good"); } }
@@ -1186,7 +1217,7 @@
     var e = sampleWeighted(opts);
     if (e === "overtaken") { r.integrity += rint(-2, 4); log("A newer, faster ship overtakes you bound the other way — they wave, and are gone in a heartbeat. Bittersweet.", "warn"); }
     else if (e === "derelict") { r.fuel += rint(2, 7); log("You pass a tomb-ship and take what fuel it no longer needs.", "info"); }
-    else if (e === "pursuer") { r.integrity -= rint(4, 9); var c = pick(alive().filter(function (x) { return !x.child; })); if (c) c.health = clamp(c.health - rint(8, 18), 0, 100); log("The thing that followed you is still out there. It strikes from the dark.", "bad"); sfx("bad"); }
+    else if (e === "pursuer") { r.integrity -= rint(4, 9); var c = pick(awake().filter(function (x) { return !x.child; })); if (c) c.health = clamp(c.health - rint(8, 18), 0, 100); log("The thing that followed you is still out there. It strikes from the dark.", "bad"); sfx("bad"); }
     else if (e === "fold") { r.integrity += rint(8, 16); log("Alien charts let you fold the way home short — months, maybe years, saved.", "good"); sfx("win"); }
     else log("Long empty days. The crew counts them.", "info");
   }
@@ -1278,7 +1309,7 @@
     if (!game.power.allocation.sensors) diff += 12;   // sensors help navigation/analysis
     diff -= Math.round((game.potential - 50) * 0.15);  // momentum: a run that's going well compounds
     diff -= aiAssist();                                // ATLAS helps while stable, hinders while failing
-    var roll = skillFor(role) + rint(0, 40);
+    var roll = skillAwake(role) + rint(0, 40);
     var ok = roll >= diff;
     sfx(ok ? "good" : "bad");
     return applyOutcome(ok ? success : failure) || (ok ? "Success." : "It goes wrong.");
@@ -1597,7 +1628,7 @@
     closeModal();
     if (choice === "fight") {
       influence({ aggress: +12, cooperate: -8, caution: -4, potential: -4 });
-      var sev = sampleWeighted({ repelled: 2, hurt: 5, mauled: 4, destroyed: Math.max(0.3, 2 - skillFor("Pilot") / 40) });
+      var sev = sampleWeighted({ repelled: 2, hurt: 5, mauled: 4, destroyed: Math.max(0.3, 2 - skillAwake("Pilot") / 40) });
       if (sev === "repelled") {
         game.alien.tech = chance(0.5); game.alien.friendly = false;
         if (game.alien.tech) influence({ knowledge: +10 });
@@ -1617,7 +1648,7 @@
     } else if (choice === "flight") {
       influence({ aggress: +2, caution: +4, persist: +2, cooperate: -2, potential: -1 });
       game.supplies.fuel = Math.max(0, game.supplies.fuel - rint(6, 12));
-      if (odds(40 + skillFor("Pilot") * 0.4)) {
+      if (odds(40 + skillAwake("Pilot") * 0.4)) {
         game.alien.pursuit = false; game.alien.friendly = null;
         log("You burn hard into the dark and lose them. The crew breathes again — and wonders forever.", "warn");
       } else {
@@ -1669,7 +1700,7 @@
     if (op.cost) applyOutcome({ res: op.cost.res, hull: op.cost.hull, morale: op.cost.morale });
     if (op.inf) influence(op.inf);
     // Build the danger probability, then SAMPLE a severity. Skill/sensors/hull/posture bend it.
-    var pilot = skillFor("Pilot");
+    var pilot = skillAwake("Pilot");
     var danger = op.risk;
     danger += (100 - game.ship.hull) / 240;                 // a wounded ship is in more peril
     danger -= (op.role === "Pilot" ? pilot : pilot * 0.4) / 320;
@@ -1865,7 +1896,7 @@
   }
 
   function doRestRepair(wp) {
-    var eng = skillFor("Engineer");
+    var eng = skillAwake("Engineer");
     var repair = Math.round(10 + eng / 5);
     var partsUsed = Math.min(game.ship.parts, Math.ceil((100 - game.ship.hull) / 14));
     game.ship.parts -= partsUsed;
