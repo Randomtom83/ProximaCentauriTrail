@@ -1916,7 +1916,7 @@
     openModal({
       title: "❄ Hibernation Pods",
       art: "",
-      body: "<div class='small dim'>Sleepers use almost no air or food, but can't act in events. Keep at least one pilot-capable crew awake.</div>" + rows,
+      body: "<div class='small dim'>Sleepers use almost no air or food, but can't act in events. Keep a pilot awake to fly — and a <b class='paper'>Medic awake to treat sickness</b>, or ailments will fester untended.</div>" + rows,
       choices: [{ label: "Close", onClick: function () { sfx("confirm"); closeModal(); save(); renderTravel(); } }],
       onBind: function (root) {
         root.querySelectorAll("[data-hib]").forEach(function (b) {
@@ -2345,7 +2345,7 @@
         "<p><b class='paper'>Each turn</b> you Continue along the trail. Your crew burns <b>oxygen</b> and <b>food</b>; the drive burns <b>fuel</b>.</p>" +
         "<p><b class='paper'>Power</b> is the hub. The reactor's output depends on hull integrity. If demand beats output you <b>brown out</b> and must shed load — turning off scrubbers drains air, turning off the drive stops you.</p>" +
         "<p><b class='paper'>Crew</b> have skills, morale, and bonds. Low morale leads to breakdowns; a death hurts the morale of bonded crewmates. Lose a specialist and you lose their edge in events.</p>" +
-        "<p><b class='paper'>Hibernate</b> crew to save air and food (vital for the Interstellar Void) — but sleepers can't help in a crisis.</p>" +
+        "<p><b class='paper'>Hibernate</b> crew to save air and food (vital for the Interstellar Void) — but sleepers can't help in a crisis, and a sleeping Medic can't treat the sick. Keep a small awake bridge crew (a pilot to fly, an engineer to mend, a medic to heal).</p>" +
         "<p><b class='paper'>Mine</b> asteroids for supplies, <b>trade</b> at stations, and pick your <b>thrust</b> and <b>rations</b> to manage the squeeze.</p>" +
         "<p class='dim small'>Death is permanent. The run autosaves so you can resume — but you can't undo a loss.</p>",
       choices: [{ label: "Got it", onClick: function () { sfx("confirm"); closeModal(); } }]
@@ -2366,7 +2366,7 @@
   }
 
   /* ---- Role + difficulty select ---- */
-  var sel = { role: "Commander", diff: "Pioneer", names: NAMES.slice(0, 5) };
+  var sel = { role: "Commander", diff: "Settler", names: NAMES.slice(0, 5) };
   function renderRole() {
     setAlert(false);
     var app = $("#app");
@@ -2763,7 +2763,7 @@
 
   function handle(a, arg) {
     switch (a) {
-      case "new": sfx("select"); game = null; sel = { role: "Commander", diff: "Pioneer", names: rerollNames() }; game = { screen: "role" }; renderRoleScreen(); break;
+      case "new": sfx("select"); game = null; sel = { role: "Commander", diff: "Settler", names: rerollNames() }; game = { screen: "role" }; renderRoleScreen(); break;
       case "resume":
         var sv = loadSave();
         if (sv) {
