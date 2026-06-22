@@ -12,7 +12,7 @@
   /* ---------------------------------------------------------
      0. Small helpers
      --------------------------------------------------------- */
-  var SAVE_KEY = "proxima-trail-save-v4";
+  var SAVE_KEY = "proxima-trail-save-v5";
   var META_KEY = "proxima-trail-meta-v1";
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -284,11 +284,13 @@
   /* ---------------------------------------------------------
      5. Crew helpers
      --------------------------------------------------------- */
-  function awake() { return game.crew.filter(function (c) { return c.status !== "Dead" && c.status !== "Hibernating"; }); }
-  function alive() { return game.crew.filter(function (c) { return c.status !== "Dead"; }); }
-  function sleepers() { return game.crew.filter(function (c) { return c.status === "Hibernating"; }); }
-  function ailing() { return game.crew.filter(function (c) { return c.status !== "Dead" && c.ailment; }); }
-  function byName(n) { for (var i = 0; i < game.crew.length; i++) if (game.crew[i].name === n) return game.crew[i]; return null; }
+  // These default to the ship's crew (game.crew) but accept any crew array, so the colony and
+  // the homebound ship can each be driven independently once the party splits at Proxima.
+  function awake(cr) { return (cr || game.crew).filter(function (c) { return c.status !== "Dead" && c.status !== "Hibernating"; }); }
+  function alive(cr) { return (cr || game.crew).filter(function (c) { return c.status !== "Dead"; }); }
+  function sleepers(cr) { return (cr || game.crew).filter(function (c) { return c.status === "Hibernating"; }); }
+  function ailing(cr) { return (cr || game.crew).filter(function (c) { return c.status !== "Dead" && c.ailment; }); }
+  function byName(n, cr) { cr = cr || game.crew; for (var i = 0; i < cr.length; i++) if (cr[i].name === n) return cr[i]; return null; }
 
   // Effective skill for a role-based check. Dead specialist => big penalty.
   // Hibernating specialist => unavailable (penalty).
@@ -315,10 +317,11 @@
   // Strict awake-only skill for SILENT checks (no menu in front of the player): a sleeper or a
   // dead specialist contributes NOTHING — if no qualified hand is awake, the job is done badly by
   // whoever's left. Prevents "the Xenobiologist salvages a derelict while passed out in her pod."
-  function skillAwake(role) {
+  function skillAwake(role, cr) {
+    cr = cr || game.crew;
     var best = null;
-    for (var i = 0; i < game.crew.length; i++) {
-      var c = game.crew[i];
+    for (var i = 0; i < cr.length; i++) {
+      var c = cr[i];
       if (c.role !== role || c.status === "Dead" || c.status === "Hibernating") continue;
       var s = c.skill;
       if (c.status === "Sick" || c.status === "Injured") s -= 15;
@@ -332,32 +335,32 @@
 
   // Is there a crew member of this role who can actually do the work — alive AND awake?
   // (A dead or hibernating specialist must not be offered as if they could act.)
-  function hasAwakeSpecialist(role) {
-    return game.crew.some(function (c) { return c.role === role && c.status !== "Dead" && c.status !== "Hibernating"; });
+  function hasAwakeSpecialist(role, cr) {
+    return (cr || game.crew).some(function (c) { return c.role === role && c.status !== "Dead" && c.status !== "Hibernating"; });
   }
 
-  function adjustMoraleAll(delta, awakeOnly) {
-    var list = awakeOnly ? awake() : alive();
+  function adjustMoraleAll(delta, awakeOnly, cr) {
+    var list = awakeOnly ? awake(cr) : alive(cr);
     for (var i = 0; i < list.length; i++) list[i].morale = clamp(list[i].morale + delta, 0, 100);
   }
-  function adjustHealthAll(delta, awakeOnly) {
-    var list = awakeOnly ? awake() : alive();
+  function adjustHealthAll(delta, awakeOnly, cr) {
+    var list = awakeOnly ? awake(cr) : alive(cr);
     for (var i = 0; i < list.length; i++) {
       list[i].health = clamp(list[i].health + delta, 0, 100);
-      if (list[i].health <= 0) killCrew(list[i], "succumbed");
+      if (list[i].health <= 0) killCrew(list[i], "succumbed", false, cr);
     }
   }
 
-  function killCrew(c, reasonVerb, taken) {
+  function killCrew(c, reasonVerb, taken, cr) {
     if (c.status === "Dead") return;
     c.status = "Dead";
     c.taken = !!taken;          // abducted by the unknown vs simply dead — distinct in the roster
     c.health = 0;
     log(c.name + " (" + c.role + ") " + (reasonVerb || "died") + ".", "bad");
     sfx("death");
-    // Bonds: partners grieve.
+    // Bonds: partners grieve (within their own crew front).
     for (var i = 0; i < c.bonds.length; i++) {
-      var p = byName(c.bonds[i]);
+      var p = byName(c.bonds[i], cr);
       if (p && p.status !== "Dead") {
         // Grief scales with difficulty — on gentler tiers a death is less likely to cascade
         // the whole crew into a morale collapse.
@@ -367,9 +370,9 @@
     }
   }
 
-  function afflict(ailmentName) {
-    var pool = awake().filter(function (c) { return !c.ailment; });
-    if (!pool.length) pool = awake();
+  function afflict(ailmentName, cr) {
+    var pool = awake(cr).filter(function (c) { return !c.ailment; });
+    if (!pool.length) pool = awake(cr);
     if (!pool.length) return null;
     var c = pick(pool);
     c.ailment = ailmentName || pick(AILMENTS);
@@ -1173,7 +1176,7 @@
   // One colony year: standing sectors produce, your focus leans the effort, people consume,
   // scarcity bites, then a weighted event may strike. (The event finishes the turn so its
   // choice resolves cleanly.)
-  function colonyAction(focus) {
+  function colonyAction(focus, auto) {
     var col = game.colony, hm = habMult(), p = colPower(), powF = p.factor;
     col.year++;
     var xeno = skillAwake("Xenobiologist"), eng = skillAwake("Engineer"), cmd = skillAwake("Commander");
@@ -1201,11 +1204,23 @@
     // Growth in good times
     if (fed && col.meters.morale > 55 && col.pop < 40 && chance(0.16)) { col.pop++; log("A child is born to the colony — a generation that will call this world home.", "good"); }
 
-    sfx("tick");
-    if (chance(0.55)) rollColonyEvent();    // event resolves and then finishes the turn
-    else colonyAfterTurn();
+    if (!auto) sfx("tick");
+    if (chance(0.55)) rollColonyEvent(auto);    // event resolves and then finishes the turn
+    else colonyAfterTurn(auto);
   }
-  function colonyAfterTurn() { save(); if (!endColonyCheck()) renderColony(); }
+  // Finish a colony year. auto = the colony advancing unattended while you mind the ship home.
+  function colonyAfterTurn(auto) {
+    save();
+    endColonyCheck();                          // may set colonyDone + compose (ends game only if both fronts done)
+    if (game.ended) return;
+    if (auto) return;                          // off-front: caller renders
+    // Player drove the colony this turn — nudge the homebound ship along the shared clock.
+    if (game.voyage && game.voyage.active && !game.voyageDone) { voyageTurn(true); save(); }
+    if (game.ended) return;
+    // If the colony just secured/failed but the ship is still out there, follow the ship.
+    if (game.colonyDone && game.voyage && game.voyage.active) game.screen = "voyage";
+    renderApp();
+  }
 
   function applyColonyFocus(focus, sk) {
     var col = game.colony, s = col.supplies, m = col.meters;
@@ -1228,6 +1243,13 @@
     } else if (focus === "diplomacy" && col.relations != null) {
       var d = Math.round(6 + Math.max(sk.cmd, sk.xeno) / 12); col.relations = clamp(col.relations + d, 0, 100);
       influence({ cooperate: +2 }); log("Year " + col.year + ": you parley with the natives — relations +" + d + ".", "good");
+    } else if (focus === "readyship") {
+      if (s.materials >= 5) {
+        s.materials -= 5;
+        var prog = Math.round(14 + sk.eng / 8); col.shipReady = Math.min(100, col.shipReady + prog);
+        log("Year " + col.year + ": crews strip and refit the ark for the long crossing home — readiness " + col.shipReady + "%.", col.shipReady >= 100 ? "good" : "info");
+        if (col.shipReady >= 100) log("The ark is spaceworthy again. When you choose, it can carry the news home.", "good");
+      } else log("Year " + col.year + ": not enough materials to refit the ship — industry must catch up.", "warn");
     }
   }
 
@@ -1313,21 +1335,27 @@
       choices: [{ label: "Accept with thanks", outcome: { food: +12, materials: +4, relations: +3, text: "Two peoples, learning each other's kindnesses.", type: "good" } }] }
   ];
 
-  function rollColonyEvent() {
+  function rollColonyEvent(auto) {
+    // reinforcement from home is special (one-time)
+    if (!game.colony.reinforced && chance(game.earth && game.earth.status === "silent" ? 0.06 : 0.16)) { colonyReinforce(auto); return; }
     var pool = COLONY_EVENTS.filter(function (e) { return !e.cond || e.cond(); });
     // a few events use w2 as their live weight once their condition is met
     var total = pool.reduce(function (s, e) { return s + (e.cond ? (e.w2 || e.w) : e.w); }, 0);
     var r = Math.random() * total, acc = 0, ev = pool[0];
     for (var i = 0; i < pool.length; i++) { acc += (pool[i].cond ? (pool[i].w2 || pool[i].w) : pool[i].w); if (r <= acc) { ev = pool[i]; break; } }
-    // reinforcement from home is special (one-time)
-    if (!game.colony.reinforced && chance(game.earth && game.earth.status === "silent" ? 0.06 : 0.16)) { colonyReinforce(); return; }
+    if (auto) {
+      // unattended colony: take the safe/non-role option, else the first
+      var ch = ev.choices.find(function (c) { return !c.role; }) || ev.choices[0];
+      if (ch.role) resolveColonyCheck(ch.role, ch.diff, ch.success, ch.failure); else colonyOutcome(ch.outcome);
+      colonyAfterTurn(true); return;
+    }
     presentColonyEvent(ev);
   }
-  function colonyReinforce() {
+  function colonyReinforce(auto) {
     var col = game.colony; col.reinforced = true;
     var nn = rint(2, 5); col.pop += nn; col.meters.sufficiency = clamp(col.meters.sufficiency + rint(8, 14), 0, 100); col.supplies.materials += rint(6, 12);
-    log("A ship from home makes planetfall — " + nn + " more colonists and fresh supplies. You are not alone after all.", "good"); sfx("win");
-    colonyAfterTurn();
+    log("A ship from home makes planetfall — " + nn + " more colonists and fresh supplies. You are not alone after all.", "good"); if (!auto) sfx("win");
+    colonyAfterTurn(auto);
   }
   function presentColonyEvent(ev) {
     var choices = ev.choices.map(function (ch) {
@@ -1340,7 +1368,7 @@
           closeModal();
           if (ch.role) resolveColonyCheck(ch.role, ch.diff, ch.success, ch.failure);
           else { colonyOutcome(ch.outcome); sfx("select"); }
-          colonyAfterTurn();
+          colonyAfterTurn(false);
         }
       };
     });
@@ -1367,63 +1395,302 @@
     if (o.text) log(o.text, o.type || "info");
   }
 
+  // The colony's fate is recorded (not the whole game's) — a ship may still be flying home.
+  function finishColony(won, tier, cause) {
+    if (game.colonyDone) return true;
+    game.colonyDone = { won: won, tier: tier, cause: cause };
+    log(cause, won ? "good" : "bad");
+    tryCompose();
+    return true;
+  }
   function endColonyCheck() {
+    if (game.colonyDone) return true;
     var col = game.colony, m = col.meters;
     if (m.sufficiency >= 100) {
-      if (col.petition) endGame(true, "You build a life beside the natives — two peoples on one shore. The colony is self-sustaining and growing.", "GUESTS OF PROXIMA");
-      else endGame(true, "The colony stands on its own at last — fed, watered, powered, and growing under an alien sun. Humanity has a second cradle." + (game.earth && game.earth.status === "silent" ? " It may be the only one left." : ""), "HAVEN");
-      return true;
+      if (col.petition) return finishColony(true, "GUESTS OF PROXIMA", "You build a life beside the natives — two peoples on one shore. The colony is self-sustaining and growing.");
+      return finishColony(true, "HAVEN", "The colony stands on its own at last — fed, watered, powered, and growing under an alien sun. Humanity has a second cradle." + (game.earth && game.earth.status === "silent" ? " It may be the only one left." : ""));
     }
-    if (col.pop <= 0) { endGame(false, "The last colonist lies down in alien soil. The settlement goes back to wilderness.", "WITHERED"); return true; }
-    if (col.relations != null && col.relations <= 0) { endGame(false, "The natives have suffered you long enough. The colony is overrun and scattered.", "TURNED AWAY"); return true; }
-    if (m.morale <= 0) { endGame(false, "The colony fractures into despair and faction, and does not survive the schism.", "WITHERED"); return true; }
+    if (col.pop <= 0) return finishColony(false, "WITHERED", "The last colonist lies down in alien soil. The settlement goes back to wilderness.");
+    if (col.relations != null && col.relations <= 0) return finishColony(false, "TURNED AWAY", "The natives have suffered you long enough. The colony is overrun and scattered.");
+    if (m.morale <= 0) return finishColony(false, "WITHERED", "The colony fractures into despair and faction, and does not survive the schism.");
     return false;
   }
 
+  /* ---------------------------------------------------------
+     8c. ACT II — THE MESSAGE HOME (launch when you choose, split the crew)
+     and THE VOYAGE BACK (a full turn loop), running IN PARALLEL with the
+     colony on a shared clock. Either front can succeed or fail; the finale
+     weighs both.
+     --------------------------------------------------------- */
+
+  // A cheap, early hedge: a light-speed message races home. Whether it is heard depends on
+  // whether Earth is still listening across the years — but it costs you almost nothing to send.
+  function colonyBeacon() {
+    var col = game.colony;
+    if (col.beacon) return;
+    col.beacon = true;
+    log("◆ You aim the great dish at a pale star and send everything — the maps, the dead, the plea. The message races home at the speed of light. Whether anyone is left to hear it, you cannot know. ◆", "sys");
+    sfx("confirm");
+    influence({ persist: +3, cooperate: +2 });
+    colonyAfterTurn();   // sending the beacon takes a year
+  }
+
+  // Crew split: choose who stays to hold the colony and who rides the ark home.
+  function colonyLaunch() {
+    var col = game.colony;
+    if (col.shipReady < 100) { log("The ship isn't ready for the crossing yet — keep at the refit.", "warn"); sfx("empty"); return; }
+    var living = alive();
+    var picks = {};
+    living.forEach(function (c) { picks[c.name] = false; });   // default: stay
+    function draw() {
+      var rows = living.map(function (c) {
+        return "<div class='crew-row'><span class='nm'>" + c.name + "</span><span class='rl small'>" + c.role + "</span>" +
+          "<span><button class='btn small " + (picks[c.name] ? "" : "go") + "' data-split='stay' data-name='" + c.name + "'>STAY</button>" +
+          "<button class='btn small " + (picks[c.name] ? "go" : "") + "' data-split='go' data-name='" + c.name + "'>RETURN</button></span></div>";
+      }).join("");
+      var nGo = living.filter(function (c) { return picks[c.name]; }).length;
+      openModal({
+        title: "🚀 Crew the ark for home",
+        body: "<div class='small dim'>Choose who flies the news back to Earth and who stays to hold the colony. The ship needs at least one hand; the colony needs its keepers. The voyage will provision from colony stores.</div>" + rows +
+          "<div class='small' style='margin-top:6px'>Returning: <b class='paper'>" + nGo + "</b> · Staying: <b class='paper'>" + (living.length - nGo) + "</b></div>",
+        choices: [
+          { label: nGo >= 1 ? "Launch for Earth" : "Assign at least one to RETURN", disabled: nGo < 1,
+            onClick: function () { closeModal(); doLaunch(living.filter(function (c) { return picks[c.name]; })); } },
+          { label: "Not yet", onClick: function () { sfx("cancel"); closeModal(); renderColony(); } }
+        ],
+        onBind: function (root) {
+          root.querySelectorAll("[data-split]").forEach(function (b) {
+            b.addEventListener("click", function () { picks[b.getAttribute("data-name")] = b.getAttribute("data-split") === "go"; sfx("blip"); closeModal(); draw(); });
+          });
+        }
+      });
+    }
+    draw();
+  }
+
+  function doLaunch(returnees) {
+    var col = game.colony;
+    // Move the returnees out of the colony crew into the ship's crew.
+    var goNames = {}; returnees.forEach(function (c) { goNames[c.name] = 1; });
+    game.crew = game.crew.filter(function (c) { return !goNames[c.name]; });   // colony keeps the rest
+    // Provision the voyage from colony stores (and the ship's own tanks).
+    var prov = { fuel: 44, oxygen: 40 + Math.min(40, Math.round(col.supplies.water * 0.4)),
+                 food: Math.min(Math.round(col.supplies.food * 0.45), 90), medicine: Math.min(col.supplies.meds, 3) };
+    col.supplies.food = Math.max(0, col.supplies.food - prov.food);
+    col.supplies.water = Math.max(0, col.supplies.water - Math.round(prov.oxygen * 0.3));
+    col.supplies.meds = Math.max(0, col.supplies.meds - prov.medicine);
+    col.pop = Math.max(0, col.pop - returnees.length);     // those people leave the colony's count
+    startVoyage(returnees, prov, true);
+    log("The ark lifts off Proxima on a pillar of fire, " + returnees.length + " aboard, carrying word of a new world home. Below, the colony watches it go.", "sys");
+    sfx("launch");
+    game.screen = "voyage";
+    renderApp();
+  }
+
+  // Arrival RETURN (turn straight around, no colony) — the whole crew flies home.
   function beginReturn() {
     closeModal();
-    game.ret = { legs: 0, maxLegs: 6, integrity: 48, fuel: Math.round(game.supplies.fuel), oxygen: Math.round(game.supplies.oxygen), food: Math.round(game.supplies.food), crew: alive().length };
-    game.screen = "return";
+    var prov = { fuel: Math.round(game.supplies.fuel), oxygen: Math.round(game.supplies.oxygen), food: Math.round(game.supplies.food), medicine: game.supplies.medicine };
+    var crew = alive().slice();
+    game.crew = [];   // everyone is now on the voyage
+    startVoyage(crew, prov, false);
     game.log.push({ msg: "═══ ACT II — THE LONG WAY HOME ═══", type: "sys", day: game.day });
     log("You turn the ship around and point it back the way you came — the longest, loneliest road there is.", "sys");
+    game.screen = "voyage";
+    renderApp();
+  }
+
+  function startVoyage(crew, prov, fromColony) {
+    crew.forEach(function (c) { if (c.status === "Hibernating") c.status = c.ailment ? "Sick" : "Healthy"; });
+    game.voyage = {
+      active: true, arrived: false, fromColony: !!fromColony, crew: crew,
+      supplies: { fuel: prov.fuel, oxygen: prov.oxygen, food: prov.food, medicine: prov.medicine || 2 },
+      ship: { hull: Math.max(40, Math.round(game.ship.hull)), parts: Math.max(2, game.ship.parts), reactorBase: REACTOR_BASE },
+      thrust: "cruise", rations: "full",
+      distance: 0, total: TOTAL_DIST, turn: 0, _starve: 0, _anoxia: 0
+    };
     save();
-    renderReturn();
   }
-  function returnAction(type) {
-    var r = game.ret; r.legs++;
-    if (type === "push") { r.fuel -= rint(4, 8); r.integrity += rint(3, 8); log("Leg " + r.legs + ": you burn hard for home — ground covered, fuel spent.", "info"); }
-    else if (type === "steady") { r.food -= rint(2, 5); r.oxygen -= rint(2, 5); r.integrity += rint(1, 4); log("Leg " + r.legs + ": steady as she goes.", "info"); }
-    else if (type === "scavenge") { if (sampleWeighted({ find: 5, danger: 3 }) === "find") { r.fuel += rint(5, 11); r.food += rint(5, 11); r.integrity += 2; log("You strip a derelict for fuel and stores.", "good"); } else { r.integrity -= rint(2, 6); log("The scavenge goes badly — the ship takes damage.", "bad"); } }
-    returnEvent();
-    if (r.fuel < 0 || r.oxygen < 0 || r.food < 0) { r.integrity -= 8; r.fuel = Math.max(0, r.fuel); r.oxygen = Math.max(0, r.oxygen); r.food = Math.max(0, r.food); log("Supplies run short on the long road home.", "bad"); }
-    sfx("tick");
-    save();
-    if (r.legs >= r.maxLegs) { endReturn(); return; }
-    renderReturn();
+
+  function voyPower() {
+    var v = game.voyage, out = Math.floor(v.ship.reactorBase * v.ship.hull / 100);
+    var demand = POWER_DRAW.lifeSupport + THRUST[v.thrust].power + POWER_DRAW.sensors;
+    return { output: out, demand: demand, brownout: demand > out };
   }
-  function returnEvent() {
-    var r = game.ret;
-    if (!chance(0.55)) return;
-    var opts = { quiet: 3, overtaken: 2, derelict: 2 };
-    if (game.alien && game.alien.pursuit) opts.pursuer = 3;
-    if ((game.dest.knowledge >= 35 || (game.alien && game.alien.tech))) opts.fold = 1.5;
-    var e = sampleWeighted(opts);
-    if (e === "overtaken") { r.integrity += rint(-2, 4); log("A newer, faster ship overtakes you bound the other way — they wave, and are gone in a heartbeat. Bittersweet.", "warn"); }
-    else if (e === "derelict") { r.fuel += rint(2, 7); log("You pass a tomb-ship and take what fuel it no longer needs.", "info"); }
-    else if (e === "pursuer") { r.integrity -= rint(4, 9); var c = pick(awake().filter(function (x) { return !x.child; })); if (c) c.health = clamp(c.health - rint(8, 18), 0, 100); log("The thing that followed you is still out there. It strikes from the dark.", "bad"); sfx("bad"); }
-    else if (e === "fold") { r.integrity += rint(8, 16); log("Alien charts let you fold the way home short — months, maybe years, saved.", "good"); sfx("win"); }
-    else log("Long empty days. The crew counts them.", "info");
+
+  // One homeward turn (auto = the off-front advancing unattended while you mind the colony).
+  function voyageTurn(auto) {
+    var v = game.voyage; if (!v || !v.active || v.arrived) return;
+    v.turn++;
+    var th = THRUST[v.thrust], rat = RATIONS[v.rations], pace = th.speed / THRUST.cruise.speed;
+    var p = voyPower();
+    if (v.supplies.fuel > 0) { v.distance = Math.min(v.total, v.distance + th.speed); v.supplies.fuel = Math.max(0, v.supplies.fuel - th.fuel); }
+    else log("Homeward: no fuel — the ship coasts on momentum and prayer.", "bad");
+    var aw = Math.max(1, awake(v.crew).length);
+    var recover = (p.brownout ? SCRUBBER_RECOVERY * 0.5 : SCRUBBER_RECOVERY) * pace;
+    v.supplies.oxygen = round1(v.supplies.oxygen + recover - aw * pace);
+    if (v.supplies.oxygen <= 0) { v.supplies.oxygen = 0; v._anoxia = (v._anoxia || 0) + 1; adjustHealthAll(-Math.min(40, 12 + v._anoxia * 8), true, v.crew); adjustMoraleAll(-6, true, v.crew); log("Homeward: the air is gone. The crew gasps in the dark.", "bad"); } else v._anoxia = 0;
+    v.supplies.food = round1(v.supplies.food - aw * rat.mult * pace);
+    if (v.supplies.food <= 0) { v.supplies.food = 0; v._starve = (v._starve || 0) + 1; adjustHealthAll(-Math.min(26, 6 + v._starve * 5), true, v.crew); adjustMoraleAll(-5, true, v.crew); log("Homeward: stores are empty. Hunger gnaws.", "bad"); } else { v._starve = 0; adjustHealthAll(rat.health, true, v.crew); adjustMoraleAll(rat.morale, true, v.crew); }
+    // ailments tick
+    ailing(v.crew).forEach(function (c) { c.health = clamp(c.health - (chance(0.5) ? rint(4, 10) : rint(0, 3)) * DIFFICULTY[game.difficulty].harsh, 0, 100); if (c.health <= 0) killCrew(c, "lost their fight with " + c.ailment, false, v.crew); });
+    // auto-medbay
+    if (v.supplies.medicine > 0) { var sick = ailing(v.crew); if (sick.length && skillAwake("Medic", v.crew) + rint(0, 40) >= 70) { v.supplies.medicine--; sick[0].ailment = null; if (sick[0].status === "Sick") sick[0].status = "Healthy"; sick[0].health = clamp(sick[0].health + 10, 0, 100); } }
+    v.ship.hull = clamp(v.ship.hull - rint(0, 1) - Math.round((pace - 1) * 2), 0, 100);
+    earthSignal();   // Earth keeps fading behind/ahead of you
+    // arrival?
+    if (v.distance >= v.total) { voyageArrive(); return; }
+    if (alive(v.crew).length === 0) { finishVoyage(false, "LOST WITH ALL HANDS", "Somewhere on the long road home, the last of them stops answering. The ship coasts on, a tomb with good news no one will ever read."); return; }
+    // event
+    if (chance(0.5)) rollVoyageEvent(auto);
   }
-  function endReturn() {
-    var r = game.ret, earthGone = game.earth && game.earth.status === "silent";
+
+  /* Homeward events — weighted, most with real skill-check choices. */
+  var VOYAGE_EVENTS = [
+    { id: "debris", w: 8, title: "Debris Field", text: "Old wreckage tumbles across the homeward lane — some of it moving fast.",
+      choices: [
+        { label: "Thread it", role: "Pilot", diff: 58, success: { text: "Deft flying — you slip the field clean.", type: "good" }, failure: { hull: -16, text: "A shard punches the hull before you clear it.", type: "bad" } },
+        { label: "Shields up, bull through", outcome: { hull: -9, text: "You take the hits behind the screens and push on.", type: "warn" } }
+      ] },
+    { id: "derelict", w: 6, title: "Drifting Hulk", text: "A dead ship hangs in your path — fuel and parts for the taking, if it's truly dead.",
+      choices: [
+        { label: "Board and strip it", role: "Engineer", diff: 56, success: { fuel: +12, parts: +1, text: "A clean salvage — fuel and a spare to spare.", type: "good" }, failure: { health: -16, text: "Something gives way as you board; a crewmate is hurt.", type: "bad", target: "one" } },
+        { label: "Siphon from outside (safe)", outcome: { fuel: +5, text: "You skim a little fuel and move on.", type: "info" } }
+      ] },
+    { id: "fold", w: 4, cond: function () { return game.dest.knowledge >= 35 || (game.alien && game.alien.tech); }, title: "A Fold in the Dark",
+      text: "The strangers' charts show a seam in space ahead — a way to fold the long road short.",
+      choices: [
+        { label: "Thread the fold", role: "Pilot", diff: 60, success: { distance: +70, text: "Space bends, and home leaps closer. Years saved in a heartbeat.", type: "good" }, failure: { hull: -14, text: "The fold spits you out hard and off-line, but ahead.", type: "warn", distance: +20 } }
+      ] },
+    { id: "pursuer", w: 7, cond: function () { return game.alien && game.alien.pursuit; }, title: "Still Following",
+      text: "The thing that trailed you out is on your wake again, patient and wrong.",
+      choices: [
+        { label: "Lose it in a burn", role: "Pilot", diff: 64, success: { fuel: -8, inf: { potential: +2 }, text: "You shake it at last. The sensors go blessedly empty.", type: "good" }, failure: { hull: -18, health: -14, target: "one", text: "It holds the gap and strikes from the dark.", type: "bad" } }
+      ] },
+    { id: "sick", w: 5, title: "Sickness in the Hold", text: "Cold-sleep fevers and old wounds flare on the long crossing.",
+      choices: [
+        { label: "Treat them", role: "Medic", diff: 54, success: { medicine: -1, heal: true, text: "Caught and contained.", type: "good" }, failure: { ailment: true, text: "It takes hold before you can stop it.", type: "bad" } }
+      ] },
+    { id: "calm", w: 6, title: "Quiet Crossing", text: "Long empty days. The crew counts them, and tells old stories of a green world behind.",
+      choices: [{ label: "Let them rest", outcome: { morale: +6, text: "Spirits hold. Home is a long way, but they believe in it.", type: "good" } }] },
+    { id: "cache", w: 5, title: "Relief Cache", text: "A tumbling container on the old lane — a relief drop from the voyage out.",
+      choices: [{ label: "Scoop it up", outcome: { food: +12, fuel: +5, text: "Food and fuel — a good day on a hard road.", type: "good" } }] }
+  ];
+  function rollVoyageEvent(auto) {
+    var v = game.voyage;
+    var pool = VOYAGE_EVENTS.filter(function (e) { return !e.cond || e.cond(); });
+    var total = pool.reduce(function (s, e) { return s + e.w; }, 0);
+    var r = Math.random() * total, acc = 0, ev = pool[0];
+    for (var i = 0; i < pool.length; i++) { acc += pool[i].w; if (r <= acc) { ev = pool[i]; break; } }
+    if (auto) {
+      // unattended: take the safe/non-role option if present, else the first
+      var ch = ev.choices.find(function (c) { return !c.role; }) || ev.choices[0];
+      if (ch.role) resolveVoyageCheck(ch.role, ch.diff, ch.success, ch.failure); else voyageOutcome(ch.outcome);
+    } else presentVoyageEvent(ev);
+  }
+  function presentVoyageEvent(ev) {
+    var v = game.voyage;
+    var choices = ev.choices.map(function (ch) {
+      var noOne = ch.role && !hasAwakeSpecialist(ch.role, v.crew);
+      var anyOther = ev.choices.some(function (c2) { return !c2.role || hasAwakeSpecialist(c2.role, v.crew); });
+      return {
+        label: ch.label + (ch.role ? "  [" + ch.role + (noOne ? " — none aboard" : "") + "]" : ""),
+        disabled: noOne && anyOther,
+        onClick: function () { closeModal(); if (ch.role) resolveVoyageCheck(ch.role, ch.diff, ch.success, ch.failure); else { voyageOutcome(ch.outcome); sfx("select"); } voyageAfterTurn(false); }
+      };
+    });
+    openModal({ title: "⚠ " + ev.title, body: ev.text, choices: choices });
+  }
+  function resolveVoyageCheck(role, baseDiff, success, failure) {
+    var v = game.voyage, diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
+    var ok = skillAwake(role, v.crew) + rint(0, 40) >= diff;
+    sfx(ok ? "good" : "bad");
+    voyageOutcome(ok ? success : failure);
+  }
+  function voyageOutcome(o) {
+    if (!o) return;
+    var v = game.voyage, s = v.supplies;
+    ["fuel", "oxygen", "food", "medicine"].forEach(function (k) { if (o[k]) s[k] = Math.max(0, round1(s[k] + o[k])); });
+    if (o.parts) v.ship.parts = Math.max(0, v.ship.parts + o.parts);
+    if (o.hull) v.ship.hull = clamp(v.ship.hull + o.hull, 0, 100);
+    if (o.distance) v.distance = Math.min(v.total, v.distance + o.distance);
+    if (o.morale) adjustMoraleAll(o.morale, true, v.crew);
+    if (o.health) { if (o.target === "one") { var one = pick(awake(v.crew)); if (one) { one.health = clamp(one.health + o.health, 0, 100); if (one.health <= 0) killCrew(one, "was lost on the road home", false, v.crew); } } else adjustHealthAll(o.health, true, v.crew); }
+    if (o.ailment) afflict(o.ailment === true ? null : o.ailment, v.crew);
+    if (o.heal) { var sick = ailing(v.crew); if (sick.length) { sick[0].ailment = null; if (sick[0].status === "Sick") sick[0].status = "Healthy"; } }
+    if (o.inf) influence(o.inf);
+    if (o.text) log("Homeward: " + o.text, o.type || "info");
+  }
+
+  function voyageArrive() {
+    var v = game.voyage; v.arrived = true; v.active = false;
+    var earthGone = game.earth && game.earth.status === "silent";
+    var crewN = alive(v.crew).length, hull = v.ship.hull;
     var won = false, tier, cause;
+    if (crewN === 0) { finishVoyage(false, "LOST WITH ALL HANDS", "The ship reaches home space on momentum alone. There is no one left aboard to send the signal."); return; }
     if (earthGone) {
-      if (r.integrity >= 60) { tier = "TOO LATE"; cause = "You cross back to where Earth was, whole but too late. The cradle is silent — domes dark, the seas still. You carried hope to an empty house."; }
-      else { tier = "LOST WITH ALL HANDS"; cause = "You turn toward a home that stopped answering years ago. Somewhere in the long dark, so do you."; }
-    } else if (r.integrity >= 70) { won = true; tier = "MESSENGER"; cause = "Decades later you reach home space with the only good news in a generation. A dying Earth dares, again, to pack its bags."; }
-    else if (r.integrity >= 45) { won = true; tier = "THE LONG WAY HOME"; cause = "Battered but alive, you limp into home space and pass on what you found. It will have to be enough — and somehow, it is."; }
-    else if (r.integrity >= 25) { tier = "TOO LATE"; cause = "You make it back, barely, to find the cities dark and quiet. Hope carried across the void to a house already emptying."; }
-    else { tier = "LOST WITH ALL HANDS"; cause = "The road home is longer and far less kind than the road out. Somewhere in the dark, the ship simply stops."; }
+      tier = "TOO LATE"; cause = "You cross back to where Earth was — and find it silent. Domes dark, the seas gone still. You carried hope across the void to a house already empty.";
+    } else if (hull >= 55 && crewN >= 1) { won = true; tier = "MESSENGER"; cause = "You reach home space with the only good news in a generation — a second world, and the way to it. A dying Earth dares, again, to pack its bags."; }
+    else { won = true; tier = "THE LONG WAY HOME"; cause = "Battered but breathing, you limp into home space and pass on what you found. It will have to be enough — and somehow, it is."; }
+    finishVoyage(won, tier, cause);
+  }
+  function finishVoyage(won, tier, cause) {
+    game.voyageDone = { won: won, tier: tier, cause: cause };
+    game.voyage.active = false;
+    log(cause, won ? "good" : "bad");
+    tryCompose();
+  }
+  // Finish a homeward turn. auto = the ship advancing unattended while you mind the colony.
+  function voyageAfterTurn(auto) {
+    save();
+    if (game.ended || auto) return;
+    // Player drove the ship this turn — nudge the colony along the shared clock.
+    if (game.colony && !game.colonyDone) colonyAutoStep();
+    if (game.ended) return;
+    // If the ship just arrived/was lost but the colony fights on, follow the colony.
+    if (game.voyageDone && game.colony && !game.colonyDone) game.screen = "colony";
+    renderApp();
+  }
+  // Player-driven homeward turn (the "Continue" on the voyage screen).
+  function voyageStep() {
+    voyageTurn(false);
+    if (modalOpen()) return;      // an event modal will resume the turn via its onClick
+    voyageAfterTurn(false);
+  }
+
+  // === Parallel clock: advancing one front nudges the other along unattended. ===
+  function colonyAutoStep() {
+    if (!game.colony || game.colonyDone) return;
+    // sensible unattended focus: feed if low, else push self-sufficiency
+    var col = game.colony, focus = (col.supplies.food < col.pop * 3) ? "farm" : "research";
+    colonyAction(focus, true);
+  }
+  function voyageAutoStep() {
+    if (!game.voyage || !game.voyage.active || game.voyageDone) return;
+    voyageTurn(true);
+    if (!game.ended && !game.voyageDone) save();
+  }
+
+  function tryCompose() {
+    // If the ship never launched, the colony's fate alone ends the game (Phase C1 behavior).
+    if (!game.voyage) { if (game.colonyDone) composeEnding(); return; }
+    // Parallel: wait for BOTH fronts to resolve.
+    if (game.colony && !game.colonyDone) return;   // colony still going
+    if (game.voyage.active && !game.voyageDone) return;  // ship still flying
+    composeEnding();
+  }
+  function composeEnding() {
+    if (game.ended) return;
+    var c = game.colonyDone, v = game.voyageDone;
+    var cWon = c && c.won, vWon = v && v.won;
+    var tier, cause, won;
+    if (c && v) {
+      if (cWon && vWon) { won = true; tier = "TWO WORLDS"; cause = "A colony takes root under an alien sun — and the ship reaches home with the news. Two cradles now. Humanity is no longer all in one place, and never will be again. " + c.cause + " " + v.cause; }
+      else if (cWon && !vWon) { won = true; tier = "A WORLD, AT LEAST"; cause = "The colony stands and grows — but the ship that carried the news never made it home. Earth may never know. The future, at least, has a foothold. " + c.cause; }
+      else if (!cWon && vWon) { won = true; tier = "THE MESSENGER"; cause = "The colony fell — but the ship reached home carrying the maps, the warnings, and the survivors. Someone else will try again, knowing more. " + v.cause; }
+      else { won = false; tier = "EXTINCT"; cause = "The colony withered and the ship was swallowed by the dark. The long gamble is over, and it is lost. " + c.cause; }
+    } else if (c) { won = cWon; tier = c.tier; cause = c.cause; }
+    else { won = vWon; tier = v.tier; cause = v.cause; }
     endGame(won, cause, tier);
   }
 
@@ -2517,7 +2784,7 @@
       case "store": renderStore(); break;
       case "travel": renderTravel(); break;
       case "colony": renderColony(); break;
-      case "return": renderReturn(); break;
+      case "voyage": renderVoyage(); break;
       case "end": renderEnd(); break;
       default: renderTitle();
     }
@@ -2790,10 +3057,11 @@
     flushQueues();
   }
 
-  function crewStrip() {
+  function crewStrip(crewArr) {
+    var roster = crewArr || game.crew;
     // Only the LIVING are on the roster — the fallen/taken are remembered below it, so the
     // crew list actually shrinks when you lose someone.
-    var living = game.crew.filter(function (c) { return c.status !== "Dead"; });
+    var living = roster.filter(function (c) { return c.status !== "Dead"; });
     var rows = living.map(function (c) {
       function mb(v, kind) {
         var pct = clamp(v, 0, 100);
@@ -2813,8 +3081,8 @@
         "<span class='st small s-" + c.status + "'>" + c.status + "</span>" +
         "</div>";
     }).join("");
-    var lost = game.crew.filter(function (c) { return c.status === "Dead" && !c.taken; }).map(function (c) { return c.name; });
-    var taken = game.crew.filter(function (c) { return c.status === "Dead" && c.taken; }).map(function (c) { return c.name; });
+    var lost = roster.filter(function (c) { return c.status === "Dead" && !c.taken; }).map(function (c) { return c.name; });
+    var taken = roster.filter(function (c) { return c.status === "Dead" && c.taken; }).map(function (c) { return c.name; });
     var memorial = "";
     if (lost.length) memorial += "<div class='small red crew-memorial'>✖ Lost: " + lost.join(", ") + "</div>";
     if (taken.length) memorial += "<div class='small amber crew-memorial'>◌ Taken by the unknown: " + taken.join(", ") + "</div>";
@@ -2873,6 +3141,21 @@
       });
     });
   }
+  // Homeward thrust/rations (set the voyage's own settings; no year cost).
+  function openVoyageThrust() {
+    var v = game.voyage;
+    openModal({ title: "⚙ Drive Thrust (homeward)", body: "<p class='small dim'>More thrust covers ground faster but burns more fuel and power.</p>" +
+        Object.keys(THRUST).map(function (k) { var t = THRUST[k]; return "<div class='store-row'><span><b>" + t.label + "</b></span><span class='small dim'>" + t.speed + " dist</span><span class='small dim'>" + t.fuel + " fuel · " + t.power + " pwr</span><span><button class='btn small " + (v.thrust === k ? "go" : "") + "' data-vset='thrust' data-arg='" + k + "'>" + (v.thrust === k ? "ACTIVE" : "Select") + "</button></span></div>"; }).join(""),
+      choices: [{ label: "Done", onClick: function () { sfx("confirm"); closeModal(); renderVoyage(); } }],
+      onBind: function (root) { root.querySelectorAll("[data-vset]").forEach(function (b) { b.addEventListener("click", function () { v[b.getAttribute("data-vset")] = b.getAttribute("data-arg"); sfx("select"); closeModal(); openVoyageThrust(); }); }); } });
+  }
+  function openVoyageRations() {
+    var v = game.voyage;
+    openModal({ title: "🍽 Ration Level (homeward)", body: "<p class='small dim'>Cutting rations saves food but wears down health and morale.</p>" +
+        Object.keys(RATIONS).map(function (k) { var r = RATIONS[k]; return "<div class='store-row'><span><b>" + r.label + "</b></span><span class='small dim'>×" + r.mult + " food</span><span class='small dim'>hp " + (r.health >= 0 ? "+" : "") + r.health + " · mor " + (r.morale >= 0 ? "+" : "") + r.morale + "</span><span><button class='btn small " + (v.rations === k ? "go" : "") + "' data-vset='rations' data-arg='" + k + "'>" + (v.rations === k ? "ACTIVE" : "Select") + "</button></span></div>"; }).join(""),
+      choices: [{ label: "Done", onClick: function () { sfx("confirm"); closeModal(); renderVoyage(); } }],
+      onBind: function (root) { root.querySelectorAll("[data-vset]").forEach(function (b) { b.addEventListener("click", function () { v[b.getAttribute("data-vset")] = b.getAttribute("data-arg"); sfx("select"); closeModal(); openVoyageRations(); }); }); } });
+  }
 
   /* ---- Act II: Colony ---- */
   function renderColony() {
@@ -2908,30 +3191,54 @@
       "<button class='btn small' data-action='colony' data-arg='tend'>❤ Tend</button>" +
       (col.relations != null ? "<button class='btn small' data-action='colony' data-arg='diplomacy'>🤝 Diplomacy</button>" : "") +
       "<button class='btn small' data-action='colonyAllocate'>⚡ Power</button>" +
-      "</div><div class='small dim'>Each action advances a year. Power is free to re-allocate.</div>";
-    app.innerHTML = hud + acts + "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
+      "</div>";
+    // The message home: refit the ark, send a beacon, and launch when you choose.
+    var ship = "";
+    if (!game.voyage) {
+      ship = "<div class='menu row' style='margin-top:6px'>" +
+        "<button class='btn small' data-action='colony' data-arg='readyship'>🛠 Ready the ark (" + col.shipReady + "%)</button>" +
+        (col.shipReady >= 100 ? "<button class='btn go' data-action='colony' data-arg='launch'>🚀 Launch for Earth</button>" : "") +
+        (!col.beacon ? "<button class='btn small' data-action='colony' data-arg='beacon'>📡 Send a beacon home</button>" : "<span class='small dim'>📡 beacon sent</span>") +
+        "</div>";
+    } else if (game.voyage.active) {
+      ship = "<div class='menu row' style='margin-top:6px'><button class='btn small' data-action='focus' data-arg='voyage'>⇄ Mind the ship home</button>" +
+        "<span class='small dim'>The ark is " + Math.round(game.voyage.distance / game.voyage.total * 100) + "% of the way home.</span></div>";
+    }
+    app.innerHTML = hud + acts + ship + "<div class='small dim'>Each action advances a year. Power is free to re-allocate.</div>" +
+      "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
     renderLog();
   }
 
   /* ---- Act II: the long way home ---- */
-  function renderReturn() {
-    setAlert(false);
-    var r = game.ret, app = $("#app");
-    var pct = clamp(Math.round(r.legs / r.maxLegs * 100), 0, 100);
-    function stat(label, val) { return "<div class='stat'><span class='label'>" + label + "</span><span class='val'>" + val + "</span></div>"; }
+  // The voyage home — a real turn loop on the homebound ark (its own crew & stores).
+  function renderVoyage() {
+    var v = game.voyage; if (!v) { renderTitle(); return; }
+    var s = v.supplies, p = voyPower();
+    setAlert(v.ship.hull < 25 || s.oxygen < 10 || s.fuel <= 0 || p.brownout);
+    var app = $("#app");
+    var pct = clamp(Math.round(v.distance / v.total * 100), 0, 100);
+    function bar(val, max, kind) { var pp = clamp(Math.round(val / max * 100), 0, 100); return "<div class='bar " + (kind || (pp < 20 ? "crit" : pp < 45 ? "warn" : "ok")) + "'><span style='width:" + pp + "%'></span></div>"; }
+    function stat(label, val, max, kind) { return "<div><div class='stat'><span class='label'>" + label + "</span><span class='val'>" + val + "</span></div>" + (max ? bar(val, max, kind) : "") + "</div>"; }
+    var earthTxt = game.earth && game.earth.status === "silent" ? "<span class='red'>silent</span>" : (game.earth && game.earth.status === "faint" ? "<span class='amber'>faint</span>" : "<span class='cyan'>live</span>");
+    var toggle = (game.colony && !game.colonyDone) ? "<button class='btn small' data-action='focus' data-arg='colony'>⇄ Tend the colony</button>" : "";
     var hud =
-      "<div class='panel'><div class='panel-title'>The Long Way Home · Leg " + r.legs + " / " + r.maxLegs + "</div>" +
+      "<div class='panel'><div class='panel-title'>The Long Way Home · Year " + (Math.round(game.shipYears) + v.turn) + "</div>" +
         "<div class='track'><span class='ship' style='left:" + pct + "%'>◄</span><span class='dest' style='left:2px;right:auto'>EARTH ⊕</span></div>" +
-        "<div class='stat'><span class='label'>Voyage integrity</span><span class='val " + (r.integrity > 60 ? "cyan" : r.integrity > 35 ? "amber" : "red") + "'>" + Math.round(r.integrity) + "</span></div>" +
-        "<div class='small dim'>Signal from Earth: " + (game.earth && game.earth.status === "silent" ? "<span class='red'>silent</span>" : "faint") + "</div>" +
+        "<div class='small dim' style='margin-top:6px'>" + Math.round(v.distance) + " / " + v.total + " home · Signal from Earth: " + earthTxt + "</div>" +
       "</div>" +
-      "<div class='panel'><div class='panel-title'>Stores</div><div class='hud-grid'>" +
-        stat("Fuel", r.fuel) + stat("Oxygen", r.oxygen) + stat("Food", r.food) + stat("Crew", r.crew) +
-      "</div></div>";
+      "<div class='cols'>" +
+        "<div class='col panel'><div class='panel-title'>Ship</div><div class='hud-grid'>" +
+          stat("Fuel", Math.round(s.fuel), 100) + stat("Oxygen", Math.round(s.oxygen), 100) + stat("Food", Math.round(s.food), 100) +
+          stat("Medicine", s.medicine, 12) + stat("Hull", v.ship.hull, 100) +
+          "<div class='stat'><span class='label'>Reactor</span><span class='val " + (p.brownout ? "red" : "cyan") + "'>" + p.demand + " / " + p.output + (p.brownout ? " ⚠" : "") + "</span></div>" +
+        "</div><div class='small dim'>Thrust: <b class='paper'>" + THRUST[v.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[v.rations].label + "</b></div></div>" +
+        "<div class='col panel'><div class='panel-title'>Crew aboard (" + alive(v.crew).length + ")</div>" + crewStrip(v.crew) + "</div>" +
+      "</div>";
     var acts = "<div class='menu row'>" +
-      "<button class='btn go' data-action='return' data-arg='push'>▶ Push hard</button>" +
-      "<button class='btn small' data-action='return' data-arg='steady'>⏸ Steady</button>" +
-      "<button class='btn small' data-action='return' data-arg='scavenge'>⛏ Scavenge</button>" +
+      "<button class='btn go' data-action='voyage' data-arg='continue'>▶ Continue</button>" +
+      "<button class='btn small' data-action='voyage' data-arg='thrust'>⚙ Thrust</button>" +
+      "<button class='btn small' data-action='voyage' data-arg='rations'>🍽 Rations</button>" +
+      toggle +
       "</div>";
     app.innerHTML = hud + acts + "<div class='panel-title' style='margin-top:10px'>Ship's Log</div><div class='log' id='log'></div>";
     renderLog();
@@ -3005,7 +3312,7 @@
         if (sv) {
           game = sv; game.ended = false; sfx("confirm");
           // Restore the saved screen (travel / colony / return); fall back to travel.
-          if (["travel", "colony", "return"].indexOf(game.screen) < 0) game.screen = "travel";
+          if (["travel", "colony", "voyage"].indexOf(game.screen) < 0) game.screen = "travel";
           renderApp();
         }
         break;
@@ -3043,9 +3350,19 @@
       case "rest": doRestRepair(); break;
       case "mine": openMining(); break;
       case "ai": openAI(); break;
-      case "colony": colonyAction(arg); break;
+      case "colony":
+        if (arg === "beacon") colonyBeacon();
+        else if (arg === "launch") colonyLaunch();
+        else colonyAction(arg);
+        break;
       case "colonyAllocate": colonyAllocate(); break;
-      case "return": returnAction(arg); break;
+      case "voyage":
+        if (arg === "continue") voyageStep();
+        else if (arg === "thrust") openVoyageThrust();
+        else if (arg === "rations") openVoyageRations();
+        break;
+      case "focus":   // switch which front you're actively running (parallel Act II)
+        game.screen = arg; sfx("blip"); renderApp(); break;
       case "wakeself": wakeSelf("you force yourself awake"); save(); renderTravel(); break;
       case "abandon":
         openModal({ title: "Abandon run?", body: "<p>This ends the current voyage. It will be logged as a loss. There is no undo.</p>",
