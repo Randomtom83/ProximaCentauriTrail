@@ -141,7 +141,7 @@
   var SCRUBBER_RECOVERY = 4.0;   // O2 recovered per turn when life support powered
   var O2_PER_SLEEPER = 0.1;
   var REACTOR_BASE = 20;
-  var HOLD_MAX = 240;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit)
+  var HOLD_MAX = 300;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit; medicine exempt)
   var MAX_CREW = 8;             // ship can't carry an unlimited crowd
   // Generational voyage: biological aging per turn (awake vs cold sleep), coming-of-age, old age.
   var AGE_PER_TURN = 0.40;      // awake crew age ~0.4 years/turn — the void is decades long
@@ -337,6 +337,20 @@
   // (A dead or hibernating specialist must not be offered as if they could act.)
   function hasAwakeSpecialist(role, cr) {
     return (cr || game.crew).some(function (c) { return c.role === role && c.status !== "Dead" && c.status !== "Hibernating"; });
+  }
+  // A living, awake Commander "holds the crew together": keeps morale off the floor and breaks ties.
+  function hasAwakeCommander(cr) { return hasAwakeSpecialist("Commander", cr); }
+  var COMMANDER_FLOOR = 6;        // awake crew morale won't fall below this while a Commander leads
+  var TIE_BAND = 4;               // a check that fails by this margin is a "tie" the Commander wins
+  // While a Commander leads, lift any awake crewmate who has sunk below the morale floor back up to it.
+  function applyCommanderFloor(cr) {
+    if (!hasAwakeCommander(cr)) return;
+    awake(cr).forEach(function (c) { if (c.morale < COMMANDER_FLOOR) c.morale = COMMANDER_FLOOR; });
+  }
+  // A living, awake Pilot shaves lost time/ground: cut a lost-distance or lost-days amount by skill.
+  function pilotMitigate(amount, cr) {
+    if (amount <= 0 || !hasAwakeSpecialist("Pilot", cr)) return amount;
+    return Math.max(0, Math.round(amount * (1 - Math.min(60, skillAwake("Pilot", cr)) / 150)));
   }
 
   function adjustMoraleAll(delta, awakeOnly, cr) {
@@ -588,10 +602,10 @@
       game.supplies.fuel = Math.max(0, game.supplies.fuel - rint(2, 5));
       log("The fold flickers shut as you commit; you skim its edge and pull away, nothing gained but nerve spent.", "info");
     } else if (sev === "lost") {
-      var back = rint(20, 50); game.distance = Math.max(0, game.distance - back);
+      var back = pilotMitigate(rint(20, 50)); game.distance = Math.max(0, game.distance - back);
       while (game.waypointIndex > 1 && game.distance < CUM[game.waypointIndex - 1]) game.waypointIndex--;
       game.supplies.fuel = Math.max(0, game.supplies.fuel - rint(8, 16));
-      game.day += rint(8, 20);
+      game.day += pilotMitigate(rint(8, 20));
       influence({ potential: -4 });
       log("You come out in unfamiliar sky — flung " + back + " units off course. You spend a long time, and dear fuel, just working out where you are.", "bad");
       sfx("bad");
@@ -796,7 +810,9 @@
       var sick = ailing();
       if (sick.length) {
         var patient = sick[0];
-        game.supplies.medicine--;
+        // A skilled, awake Medic sometimes stretches a dose — treats without spending medicine.
+        if (!(hasAwakeSpecialist("Medic") && chance(skillAwake("Medic") / 220))) game.supplies.medicine--;
+        else log("The medic stretches a dose — treatment without spending medicine.", "good");
         var roll = skillAwake("Medic") + rint(0, 40);
         if (roll >= 70) {
           patient.ailment = null;
@@ -830,6 +846,7 @@
 
     // Morale-driven breakdown / Crack
     checkBreakdowns();
+    applyCommanderFloor();          // a living, awake Commander keeps morale off the floor
 
     // The years pass: crew age, children grow, elders die, new ones are born.
     ageCrew();
@@ -838,7 +855,10 @@
     aiTurn();
 
     // Hull slow wear, plus engine stress from running hot — high thrust grinds the ship down.
-    game.ship.hull = clamp(game.ship.hull - rint(0, 1) - Math.round((pace - 1) * 2.2), 0, 100);
+    // A living, awake Engineer keeps the patches holding longer (slower decay).
+    var wear = rint(0, 1) + Math.round((pace - 1) * 2.2);
+    if (wear > 0 && hasAwakeSpecialist("Engineer") && chance(skillAwake("Engineer") / 140)) wear -= 1;
+    game.ship.hull = clamp(game.ship.hull - wear, 0, 100);
 
     // A small reward for simply not giving up — persistence trends the odds up.
     influence({ persist: +1 });
@@ -1403,7 +1423,8 @@
   }
   function resolveColonyCheck(role, baseDiff, success, failure) {
     var diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
-    var ok = skillAwake(role) + rint(0, 40) >= diff;
+    var roll = skillAwake(role) + rint(0, 40), ok = roll >= diff;
+    if (!ok && hasAwakeCommander() && (diff - roll) <= TIE_BAND) { ok = true; log("The Commander breaks the tie — the call holds.", "good"); }
     sfx(ok ? "good" : "bad");
     colonyOutcome(ok ? success : failure);
   }
@@ -1456,7 +1477,10 @@
     var col = game.colony;
     if (col.beacon) return;
     col.beacon = true;
-    log("◆ You aim the great dish at a pale star and send everything — the maps, the dead, the plea. The message races home at the speed of light. Whether anyone is left to hear it, you cannot know. ◆", "sys");
+    // The message only lands if Earth is still listening when it arrives (light-speed, years stale).
+    col.beaconHeard = !(game.earth && game.earth.status === "silent");
+    log("◆ You aim the great dish at a pale star and send everything — the maps, the dead, the plea. The message races home at the speed of light. " +
+        (col.beaconHeard ? "Earth is still listening; in time, they will know what you found." : "But Earth has gone silent — there may be no one left to hear it.") + " ◆", col.beaconHeard ? "good" : "warn");
     sfx("confirm");
     influence({ persist: +3, cooperate: +2 });
     colonyAfterTurn();   // sending the beacon takes a year
@@ -1567,9 +1591,13 @@
     if (v.supplies.food <= 0) { v.supplies.food = 0; v._starve = (v._starve || 0) + 1; adjustHealthAll(-Math.min(26, 6 + v._starve * 5), true, v.crew); adjustMoraleAll(-5, true, v.crew); log("Homeward: stores are empty. Hunger gnaws.", "bad"); } else { v._starve = 0; adjustHealthAll(rat.health, true, v.crew); adjustMoraleAll(rat.morale, true, v.crew); }
     // ailments tick
     ailing(v.crew).forEach(function (c) { c.health = clamp(c.health - (chance(0.5) ? rint(4, 10) : rint(0, 3)) * DIFFICULTY[game.difficulty].harsh, 0, 100); if (c.health <= 0) killCrew(c, "lost their fight with " + c.ailment, false, v.crew); });
-    // auto-medbay
-    if (v.supplies.medicine > 0) { var sick = ailing(v.crew); if (sick.length && skillAwake("Medic", v.crew) + rint(0, 40) >= 70) { v.supplies.medicine--; sick[0].ailment = null; if (sick[0].status === "Sick") sick[0].status = "Healthy"; sick[0].health = clamp(sick[0].health + 10, 0, 100); } }
-    v.ship.hull = clamp(v.ship.hull - rint(0, 1) - Math.round((pace - 1) * 2), 0, 100);
+    // auto-medbay — a skilled, awake Medic sometimes stretches a dose (treats free)
+    if (v.supplies.medicine > 0) { var sick = ailing(v.crew); if (sick.length && skillAwake("Medic", v.crew) + rint(0, 40) >= 70) { if (!(hasAwakeSpecialist("Medic", v.crew) && chance(skillAwake("Medic", v.crew) / 220))) v.supplies.medicine--; sick[0].ailment = null; if (sick[0].status === "Sick") sick[0].status = "Healthy"; sick[0].health = clamp(sick[0].health + 10, 0, 100); } }
+    applyCommanderFloor(v.crew);    // a Commander aboard keeps the homeward crew off the floor
+    // Engineer keeps the patches holding (slower hull decay)
+    var vwear = rint(0, 1) + Math.round((pace - 1) * 2);
+    if (vwear > 0 && hasAwakeSpecialist("Engineer", v.crew) && chance(skillAwake("Engineer", v.crew) / 140)) vwear -= 1;
+    v.ship.hull = clamp(v.ship.hull - vwear, 0, 100);
     earthSignal();   // Earth keeps fading behind/ahead of you
     // arrival?
     if (v.distance >= v.total) { voyageArrive(); return; }
@@ -1636,7 +1664,8 @@
   }
   function resolveVoyageCheck(role, baseDiff, success, failure) {
     var v = game.voyage, diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
-    var ok = skillAwake(role, v.crew) + rint(0, 40) >= diff;
+    var roll = skillAwake(role, v.crew) + rint(0, 40), ok = roll >= diff;
+    if (!ok && hasAwakeCommander(v.crew) && (diff - roll) <= TIE_BAND) { ok = true; log("Homeward: the Commander breaks the tie — the call holds.", "good"); }
     sfx(ok ? "good" : "bad");
     voyageOutcome(ok ? success : failure);
   }
@@ -1716,13 +1745,19 @@
     if (game.ended) return;
     var c = game.colonyDone, v = game.voyageDone;
     var cWon = c && c.won, vWon = v && v.won;
+    var beaconHeard = game.colony && game.colony.beaconHeard;   // a beacon that reached a living Earth
     var tier, cause, won;
     if (c && v) {
       if (cWon && vWon) { won = true; tier = "TWO WORLDS"; cause = "A colony takes root under an alien sun — and the ship reaches home with the news. Two cradles now. Humanity is no longer all in one place, and never will be again. " + c.cause + " " + v.cause; }
-      else if (cWon && !vWon) { won = true; tier = "A WORLD, AT LEAST"; cause = "The colony stands and grows — but the ship that carried the news never made it home. Earth may never know. The future, at least, has a foothold. " + c.cause; }
+      else if (cWon && !vWon) { won = true; tier = beaconHeard ? "A WORLD, AND WORD" : "A WORLD, AT LEAST"; cause = "The colony stands and grows — but the ship that carried the news never made it home. " + (beaconHeard ? "Yet your beacon reached a living Earth years ago; they know what you found, and where. " : "Earth may never know. The future, at least, has a foothold. ") + c.cause; }
       else if (!cWon && vWon) { won = true; tier = "THE MESSENGER"; cause = "The colony fell — but the ship reached home carrying the maps, the warnings, and the survivors. Someone else will try again, knowing more. " + v.cause; }
+      else if (beaconHeard) { won = true; tier = "THE WORD GOT THROUGH"; cause = "The colony withered and the ship was lost in the dark — but your beacon had already reached a living Earth, carrying the maps and the warnings. You did not survive. What you learned did. The next ones will know more. " + c.cause; }
       else { won = false; tier = "EXTINCT"; cause = "The colony withered and the ship was swallowed by the dark. The long gamble is over, and it is lost. " + c.cause; }
-    } else if (c) { won = cWon; tier = c.tier; cause = c.cause; }
+    } else if (c) {
+      // Colony-only ending (no ship launched): a heard beacon turns a fallen colony into a partial win.
+      if (!cWon && beaconHeard) { won = true; tier = "THE WORD GOT THROUGH"; cause = "The colony did not last — but the beacon you sent reached a living Earth with everything you learned. You are gone; the knowledge is not. " + c.cause; }
+      else { won = cWon; tier = c.tier; cause = c.cause + (cWon && beaconHeard ? " Your beacon reached home, too — Earth knows there is a place out here that holds." : ""); }
+    }
     else { won = vWon; tier = v.tier; cause = v.cause; }
     endGame(won, cause, tier);
   }
@@ -1804,6 +1839,7 @@
     diff -= aiAssist();                                // ATLAS helps while stable, hinders while failing
     var roll = skillAwake(role) + rint(0, 40);
     var ok = roll >= diff;
+    if (!ok && hasAwakeCommander() && (diff - roll) <= TIE_BAND) { ok = true; log("The Commander breaks the tie — the call holds.", "good"); }
     sfx(ok ? "good" : "bad");
     return applyOutcome(ok ? success : failure) || (ok ? "Success." : "It goes wrong.");
   }
@@ -1885,7 +1921,7 @@
       text: "One of their smaller craft slows beside you, lights cycling in patient sequence. It seems to be offering... an exchange.",
       choices: [
         { label: "Trade with them (Xenobiologist)", role: "Xenobiologist", diff: 58,
-          success: { res: { fuel: +14, medicine: +2, oxygen: +10 }, credits: -80, morale: +6, text: "You learn the rhythm of their bartering. They leave you richer in everything that matters out here.", type: "good" },
+          success: { res: { fuel: +14, medicine: +2, oxygen: +10 }, credits: -80, morale: +6, text: "You learn the rhythm of their bartering — a fistful of credits for fuel, air and medicine. Out here, that's a bargain worth making.", type: "good" },
           failure: { res: { oxygen: -6 }, morale: -4, text: "You misread the exchange. They withdraw, and something aboard sparks and dies.", type: "bad" } },
         { label: "Offer salvage for their tech", auto: true,
           outcome: { parts: -2, res: { fuel: +8, charges: +3 }, text: "A clumsy but honest swap: your scrap for their strange fuel.", type: "info" } },
@@ -1911,6 +1947,9 @@
     { id: "signal", w: 5, mood: "discover", req: "preContact", zones: ["outer", "void"], title: "Impossible Signal", art: "/\\/\\ ? /\\/\\",
       text: "A repeating pattern threads through the static — too regular for noise, too strange for any human code. No one will say out loud what they're thinking.",
       choices: [
+        { label: "Decode the pattern", role: "Xenobiologist", diff: 60,
+          success: { morale: +4, inf: { knowledge: +6, explore: +4, potential: +2 }, text: "Your xenobiologist teases structure out of the noise — not a translation, but the shape of a mind behind it. Whatever is out here, it is trying to be understood.", type: "good" },
+          failure: { morale: -4, inf: { caution: +2 }, text: "The pattern resists every key you try. It only gets stranger the longer you stare.", type: "warn" } },
         { label: "Log it and watch the dark", auto: true,
           outcome: { morale: -3, text: "You file it under 'instrument error.' Nobody believes that, including you.", type: "warn" } }
       ] },
@@ -2246,8 +2285,8 @@
       applyOutcome({ hull: -rint(30, 45), res: { fuel: -rint(8, 16), oxygen: -rint(6, 12) } });
       influence({ potential: -5 });
       if (op.lostRisk || chance(0.5)) {
-        var back = rint(8, 20); game.distance = Math.max(0, game.distance - back);
-        log("You come out of " + n + " crippled AND lost — flung " + back + " back off course.", "bad");
+        var back = pilotMitigate(rint(8, 20)); game.distance = Math.max(0, game.distance - back);
+        log(back > 0 ? "You come out of " + n + " crippled AND lost — flung " + back + " back off course." : "You come out of " + n + " crippled, but the pilot holds your line — no ground lost.", "bad");
       } else log("You barely survive " + n + ". The ship is gutted.", "bad");
     } else { // catastrophic
       endGame(false, hz.deathText || ("The ship is torn apart in " + n + ". The voyage ends here, in silence."));
@@ -2347,7 +2386,7 @@
     if (hasRole("Engineer")) jobs.push({ id: "repair", label: "Repair contract", role: "Engineer", diff: 55, pay: payBase, bonus: "parts" });
     if (hasRole("Medic")) jobs.push({ id: "med", label: "Clinic shift", role: "Medic", diff: 52, pay: Math.round(payBase * 0.9), bonus: "medicine" });
     if (hasRole("Xenobiologist")) jobs.push({ id: "survey", label: "Survey & research", role: "Xenobiologist", diff: 58, pay: Math.round(payBase * 0.8), bonus: "knowledge" });
-    if (hasRole("Pilot") || hasRole("Xenobiologist")) jobs.push({ id: "smuggle", label: "Run contraband (risky, pays double)", role: hasRole("Pilot") ? "Pilot" : "Xenobiologist", diff: 60, pay: Math.round(payBase * 2), smuggle: true });
+    if (hasRole("Pilot") || hasRole("Xenobiologist")) jobs.push({ id: "smuggle", label: "Run contraband (pays double — or a fine if you're caught)", role: hasRole("Pilot") ? "Pilot" : "Xenobiologist", diff: 60, pay: Math.round(payBase * 2), smuggle: true });
     jobs.push({ id: "haul", label: "Dock labor (anyone, modest, sure pay)", role: null, diff: 0, pay: Math.round(payBase * 0.5) });
     return jobs.slice(0, 3);
   }
@@ -2396,7 +2435,8 @@
   function doRestRepair(wp) {
     var eng = skillAwake("Engineer");
     var repair = Math.round(10 + eng / 5);
-    var partsUsed = Math.min(game.ship.parts, Math.ceil((100 - game.ship.hull) / 14));
+    // A skilled Engineer stretches each spare part further — repairs cost fewer parts.
+    var partsUsed = Math.min(game.ship.parts, Math.ceil((100 - game.ship.hull) / (14 + eng / 8)));
     game.ship.parts -= partsUsed;
     game.ship.hull = clamp(game.ship.hull + repair + partsUsed * 6, 0, 100);
     // Rest costs time + a little O2/food, but heals and lifts morale.
@@ -2478,7 +2518,7 @@
       title: "⚠ COMMANDER TO COLD SLEEP?",
       art: "",
       body: "<p class='red'>If YOU enter a pod, no one commands the ship.</p>" +
-        "<p>The ship flies itself on <b class='paper'>autopilot</b>: you make no decisions, events resolve without your hand (usually badly), and danger mounts every turn — until you wake. Choose how far you'll trust the machine.</p>",
+        "<p>The ship flies itself on <b class='paper'>autopilot</b>: you make no decisions, events resolve without your hand (usually badly), and danger mounts every turn. It will run on its own and shake you awake automatically if the ship hits a crisis (failing hull, air, or crew) — or at the moment you choose below.</p>",
       choices: [
         { label: "Sleep until the next waypoint", onClick: function () { enterAutopilot({ type: "waypoint", value: game.waypointIndex }); } },
         { label: "Sleep — wake only on emergency", onClick: function () { enterAutopilot({ type: "emergency" }); } },
