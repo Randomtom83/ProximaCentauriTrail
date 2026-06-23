@@ -91,7 +91,7 @@
    Project data. Tasks and log entries live here, edited each
    sprint as the build progresses. Statuses: "todo"|"doing"|"done".
    ============================================================ */
-var LAST_UPDATED = "2026-06-20";
+var LAST_UPDATED = "2026-06-23";
 
 var SPRINTS = [
   { id:"s0", name:"Sprint 0 — Scaffold", tasks:[
@@ -216,11 +216,33 @@ var SPRINTS = [
   ]},
   { id:"s14", name:"Sprint 14 — Phase 6: interactive Act II", tasks:[
     ["Arrival is the midpoint — colonize/return now PLAYABLE, not sampled","done"],
-    ["Colony loop: build / farm / explore / tend / diplomacy over years","done"],
+    ["Colony loop and return-voyage loop over years (later deepened, see S15/S17)","done"],
     ["Colony events (storms, disease, raids, gifts, births, reinforcements)","done"],
-    ["Win at self-sufficiency 100; lose to starvation, unrest, or natives","done"],
     ["Return voyage loop: push / steady / scavenge, hazards, Earth-aware endings","done"],
     ["New screens + routing; harnesses drive Act II; balance held (57/50/23)","done"]
+  ]},
+  { id:"s15", name:"Sprint 15 — Act II deepened (parallel fronts)", tasks:[
+    ["Phase R: starvation/anoxia teeth; asleep crew never act (skillAwake)","done"],
+    ["Phase C1: colony as a real per-year simulation with skill-check events","done"],
+    ["Phase C2: player-timed launch home + crew split (STAY/RETURN) + beacon","done"],
+    ["Phase C3: full voyage-home turn loop (game.voyage), Earth-aware endings","done"],
+    ["Phase C4: parallel fronts on a shared clock; composeEnding weighs both","done"],
+    ["Save key v5; balance re-validated; voyage home made winnable","done"]
+  ]},
+  { id:"s16", name:"Sprint 16 — Prompts made true (role bonuses + beacon)", tasks:[
+    ["Commander: awake morale floor + near-miss tie-break in all checks","done"],
+    ["Engineer cheaper/slower-wear repairs; Medic stretches a dose","done"],
+    ["Pilot claws back lost time; Xenobiologist decodes the Signal event","done"],
+    ["Beacon matters: a heard beacon → partial win THE WORD GOT THROUGH","done"],
+    ["Honest-text nits; HOLD_MAX 240 → 300; sweep gradient re-checked","done"]
+  ]},
+  { id:"s17", name:"Sprint 17 — Colony redesign: emergent self-sufficiency", tasks:[
+    ["Automatic economy: infra × tech × habitability produces; people eat","done"],
+    ["Self-sufficiency DERIVED from surplus; win at 100 held ≥ 3 years","done"],
+    ["One lever: Build (capacity+habitats) / Research (tech) / Survey / Tend","done"],
+    ["Fortify feeds a WIRED Defense (lowers raids); dead meters removed","done"],
+    ["Removed sector toggles, Power screen, duplicate Farm; brownout → crowding","done"],
+    ["Fixed Commander-floor leak; save key v6; sweep gradient held (47/43/17)","done"]
   ]}
 ];
 

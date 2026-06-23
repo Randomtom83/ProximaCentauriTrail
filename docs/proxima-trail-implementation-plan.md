@@ -200,3 +200,46 @@ second act:
   clean, suites green.
 
 **All six phases are complete.** Remaining work is playtest-driven tuning and polish.
+
+## Addendum — Act II deepened (the colony, the message home, the voyage back)
+The back half was thin next to the journey out, so it was rebuilt with the same care, in phases:
+- **Phase R — rigor:** starvation/suffocation gained teeth (escalating famine/anoxia counters that ramp
+  the per-turn hit and can end the run), and asleep crew never act (`skillAwake` = best *awake, living*
+  specialist; auto-medbay, contact, autopilot hazards, and every colony/voyage check route through it;
+  the homeward "pursuer" hits only awake crew).
+- **Phase C1 — colony as a real simulation:** a per-year colony loop with skill-check events and
+  sampled-severity hazards.
+- **Phase C2 — leaving on your terms:** prep + a player-timed launch home that splits the crew (STAY vs
+  RETURN), provisioned from colony stores, plus a cheap light-speed beacon hedge.
+- **Phase C3 — the voyage home:** a full second turn loop (`game.voyage`) mirroring the outbound trail,
+  with its own crew/stores/power, weighted events, sampled hazards, and Earth-state-aware endings.
+- **Phase C4 — parallel fronts:** colony and homebound ship advance on a shared clock with a focus
+  toggle; the unfocused front runs semi-autonomously; `composeEnding` weighs both (TWO WORLDS … EXTINCT).
+- Save key bumped to v5. Balance re-validated; the voyage home made winnable (full provisioning +
+  shorter return leg); difficulty-scaled rigor so brief shortfalls survive but neglect kills.
+
+## Addendum — prompt-vs-outcome audit (every promise made true)
+A full audit cross-checked each player-facing prompt against its real effect. A cluster promised
+mechanics the code never implemented; rather than reword, the mechanics were built so the prompts come
+true. **Commander:** awake-crew morale floor + a tie-break (a near-miss check flips to success once).
+**Engineer:** repairs cost fewer parts and the hull wears slower. **Medic:** a skilled medic sometimes
+treats without spending a dose. **Pilot:** lost ground/time at wormholes and crippling hazards is partly
+clawed back. **Xenobiologist:** the Impossible Signal event gained a decode skill check. **Beacon:** now
+records whether Earth was still live; a heard beacon turns a double-front failure into the partial win
+"THE WORD GOT THROUGH." Plus honest-text nits and `HOLD_MAX` 240 → 300 (start-of-run breathing room;
+medicine is hold-exempt). Win-rate sweep re-run; gradient held.
+
+## Addendum — colony redesign: self-sufficiency is emergent
+The colony had two overlapping control systems (sector toggles AND a yearly focus producing the same
+resources), a win meter disconnected from the economy, an abstract "Build," two dead HUD meters
+(Defense, Knowledge), and an unexplained opening brownout. Rebuilt around **one lever and an emergent
+goal**: an automatic economy (built infrastructure × tech × habitability produces food/water/materials
+each year; the people eat) where **self-sufficiency is derived** — a genuine surplus with a buffer makes
+it climb and banks a stable year; a deficit erodes it; you take root only at 100 held ≥ 3 straight years.
+The single yearly investment is Build (→ infrastructure + population cap, real habitats), Research
+(→ tech, multiplies every yield, replacing the dead Knowledge meter), Survey, Tend, Fortify (now feeds a
+**wired** Defense that lowers raid difficulty), or Diplomacy. Sector toggles, the Power/allocate screen,
+and the duplicate Farm action are gone; overcrowding replaces the brownout; habitability from the
+journey sets opening difficulty and en-route knowledge seeds starting tech. Fixed a Commander-floor leak
+(aging/AI ran after the floor). Save key bumped to v6. Sweep gradient held (Settler 47 / Pioneer 43 /
+Voyager 17 top win-rate; naive 0 everywhere; zero JS errors).
