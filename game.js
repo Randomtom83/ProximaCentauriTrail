@@ -676,7 +676,8 @@
     var s = game.supplies, c = game.cargo;
     // Floor so fractional O₂/food never make the integer total over-report the cap.
     return Math.floor(s.fuel + s.oxygen + s.food + s.charges + game.ship.parts +
-                      c.ore + c.ice + c.rareMetals + c.volatiles);   // medicine is light/exempt
+                      c.ore + c.ice + c.rareMetals + c.volatiles +
+                      (game._courier ? game._courier.hold : 0));   // a courier crate takes hold; medicine is light/exempt
   }
   function cargoSpace() { return Math.max(0, game.ship.holdMax - cargoUsed()); }
 
@@ -1835,10 +1836,16 @@
         : pick(awake());
       if (victim) killCrew(victim, o.killVerb || "died");
     }
-    if (o.recruit) addCrewMember(o.recruit === true ? null : o.recruit);
+    var recruitFull = false;
+    if (o.recruit) { if (!addCrewMember(o.recruit === true ? null : o.recruit)) recruitFull = true; }
     if (o.clearPursuit && game.alien) game.alien.pursuit = false;
     if (o.inf) influence(o.inf);              // bend the hidden odds (probabilistic engine)
-    if (o.text) log(o.text, o.type || "info");
+    if (o.text) {
+      // Don't promise a crewmate the ship can't carry: at full crew, say so plainly instead of
+      // logging "they join the crew" when no one was actually added.
+      if (recruitFull) log("There's no berth left — the ship is already at full crew (" + MAX_CREW + "). You share what supplies you can, but they can't come aboard.", "warn");
+      else log(o.text, o.type || "info");
+    }
     return o.text || "";
   }
 
@@ -2310,12 +2317,24 @@
   var stationQueue = [];
   function queueStation(wp) { stationQueue.push(wp); }
   function presentStation(wp) {
+    var here = wpIndexOf(wp);
     // Contraband 'heat' catches up at the next port — but only checked once per visit.
     if (game._stationFresh && game._heat > 0 && chance(0.5)) {
       var fine = rint(60, 170);
       game.credits = Math.max(0, game.credits - fine);
       game._heat = 0;
       log("Station security flags your manifest — a " + fine + " cr fine for that contraband.", "bad");
+    }
+    // Deliver a courier crate the moment you reach its destination port (or any later one).
+    if (game._stationFresh && game._courier && here >= game._courier.destIdx) {
+      var cr = game._courier; game._courier = null;
+      if (cr.hot && chance(0.45)) {
+        var f = rint(70, 180); game.credits = Math.max(0, game.credits - f); influence({ caution: +2, potential: -2 });
+        log("The courier crate trips a customs scan on arrival — it was hotter than you let yourself believe. Seized, and a " + f + " cr fine. No delivery fee.", "bad"); sfx("bad");
+      } else {
+        game.credits += cr.pay; influence({ persist: +2, cooperate: +2 });
+        log("You hand off the sealed crate, intact and on time. The consignee pays in full: +" + cr.pay + " cr, and your hold is your own again.", "good"); sfx("win");
+      }
     }
     game._stationFresh = false;
     openModal({
@@ -2359,7 +2378,8 @@
       title: "⇄ Trade — " + wp.name,
       art: "",
       body: "<div class='small dim'>Credits: <span id='trade-cr' class='paper'>" + game.credits + "</span> · Hold " + cargoUsed() + "/" + game.ship.holdMax + "</div>" + rows +
-        (commRows ? "<div class='panel-title' style='margin-top:8px'>Cargo to sell</div>" + commRows : ""),
+        "<div class='panel-title' style='margin-top:8px'>Cargo to sell</div>" +
+        (commRows || "<div class='small dim'>Nothing in the hold to sell yet — mine asteroids or take a hauling/courier job, then sell the ore here.</div>"),
       choices: [{ label: "Done", onClick: function () { sfx("confirm"); closeModal(); save(); presentStation(wp); } }],
       onBind: function (root) {
         root.querySelectorAll("[data-trade]").forEach(function (b) {
@@ -2389,28 +2409,87 @@
   }
 
   // Skill-gated outpost jobs — the relief valve for a broke crew.
+  // Next station-kind waypoint strictly after idx (for courier deliveries) — or 0 if none.
+  function nextStationIdx(idx) {
+    for (var i = idx + 1; i < WAYPOINTS.length; i++) if (WAYPOINTS[i].kind === "station") return i;
+    return 0;
+  }
+  // The job pool — a varied, flavored set. Each template: gating (role/zone), pay multiplier, a
+  // reward bag, and success/failure narration. genJobs filters by who's awake and where you are,
+  // then samples a varying handful so two visits never read the same.
   function genJobs(wpIndex) {
     var df = wpIndex / (WAYPOINTS.length - 1);
     var payBase = Math.round(110 + df * 240);
-    function hasRole(r) { return game.crew.some(function (c) { return c.role === r && c.status !== "Dead" && c.status !== "Hibernating"; }); }
-    var jobs = [];
-    if (hasRole("Engineer")) jobs.push({ id: "repair", label: "Repair contract", role: "Engineer", diff: 55, pay: payBase, bonus: "parts" });
-    if (hasRole("Medic")) jobs.push({ id: "med", label: "Clinic shift", role: "Medic", diff: 52, pay: Math.round(payBase * 0.9), bonus: "medicine" });
-    if (hasRole("Xenobiologist")) jobs.push({ id: "survey", label: "Survey & research", role: "Xenobiologist", diff: 58, pay: Math.round(payBase * 0.8), bonus: "knowledge" });
-    if (hasRole("Pilot") || hasRole("Xenobiologist")) jobs.push({ id: "smuggle", label: "Run contraband (pays double — or a fine if you're caught)", role: hasRole("Pilot") ? "Pilot" : "Xenobiologist", diff: 60, pay: Math.round(payBase * 2), smuggle: true });
-    jobs.push({ id: "haul", label: "Dock labor (anyone, modest, sure pay)", role: null, diff: 0, pay: Math.round(payBase * 0.5) });
-    return jobs.slice(0, 3);
+    var inner = wpIndex <= 3, outer = wpIndex >= 5;
+    function awakeRole(r) { return game.crew.some(function (c) { return c.role === r && c.status !== "Dead" && c.status !== "Hibernating"; }); }
+    function p(mult) { return Math.round(payBase * mult); }
+    var pool = [];
+    if (awakeRole("Engineer")) pool.push(
+      { id: "repair", w: 5, role: "Engineer", diff: 55, pay: p(1.0), reward: { parts: 1 },
+        label: "Overhaul the dock's reactor rigs",
+        ok: ["Their reactor sings again — pay, and a spare part pressed into your hand.", "Clean work. The dockmaster rounds up and throws in a part."],
+        fail: ["The fix only half-takes; they dock your fee.", "A coupling fights you for a day — partial pay."] },
+      { id: "salvage", w: 4, role: "Engineer", diff: 63, pay: p(1.5), reward: { parts: 1, cargo: { type: "rareMetals", amt: 2 } }, risk: "hull",
+        label: "Strip a condemned hulk in the breaker yard",
+        ok: ["You gut the wreck clean — parts, a little rare alloy, and good money.", "A rich strip; the yard boss waves you back any time."],
+        fail: ["A bulkhead lets go — you limp out with a scraped hull and half pay.", "The hulk wasn't as dead as billed. You take a knock for your trouble."] });
+    if (awakeRole("Medic")) pool.push(
+      { id: "clinic", w: 5, role: "Medic", diff: 52, pay: p(0.9), reward: { medicine: 1 },
+        label: "Stand a shift in the station infirmary",
+        ok: ["A long shift, but you leave with credits and a restocked kit.", "You patch up half the docks; they pay you in coin and medicine."],
+        fail: ["A case goes wrong on your watch; they hold back most of the fee.", "Short-staffed and overrun — little to show for it."] },
+      { id: "outbreak", w: outer ? 4 : 1, role: "Medic", diff: 60, pay: p(1.3), reward: { medicine: 2, morale: +3 },
+        label: "Contain an outbreak in the outer berths",
+        ok: ["You break the chain of infection — they're grateful, and generous.", "The fever burns out under your hand. Word of it lifts your own crew."],
+        fail: ["It outruns you; you save who you can and take partial pay.", "Too little, too late in too few hours."] });
+    if (awakeRole("Xenobiologist")) pool.push(
+      { id: "survey", w: 5, role: "Xenobiologist", diff: 58, pay: p(0.85), reward: { knowledge: 6 },
+        label: "Catalogue specimens for the station's archive",
+        ok: ["Your notes fill their archive — credits, and you learn the road ahead a little better.", "A good haul of data. The curator pays and asks for more."],
+        fail: ["Your samples spoil before cataloguing; partial fee.", "The archive disputes your findings and trims the pay."] },
+      { id: "xenodig", w: outer ? 4 : 1, role: "Xenobiologist", diff: 62, pay: p(1.2), reward: { knowledge: 8, cargo: { type: "volatiles", amt: 2 } },
+        label: "Lead a dig into the outpost's strange ices",
+        ok: ["You read the ice like a book — knowledge, volatiles to sell, and a fat fee.", "The dig pays in coin and in things no one else has seen."],
+        fail: ["The seam collapses; you salvage a little data and less money.", "The ice keeps its secrets this time."] });
+    if (awakeRole("Pilot")) pool.push(
+      { id: "charter", w: 4, role: "Pilot", diff: 56, pay: p(1.2), reward: { morale: +4 },
+        label: "Fly a short charter for a paying passenger",
+        ok: ["A smooth run for a grateful fare — good credits and a story for the crew.", "Easy flying, easy money. The crew rides high on it."],
+        fail: ["You scrape a buoy on approach; the fare halves your tip.", "Rough air, rougher landing. Partial pay."] });
+    if (awakeRole("Pilot") || awakeRole("Xenobiologist")) pool.push(
+      { id: "smuggle", w: 4, role: awakeRole("Pilot") ? "Pilot" : "Xenobiologist", diff: 60, pay: p(2.0), smuggle: true,
+        label: "Run contraband (pays double — or a fine if you're caught)" });
+    // Courier: carry sealed cargo to a LATER port for a bigger payout. Uses hold; sometimes hot.
+    var destIdx = nextStationIdx(wpIndex);
+    if (!game._courier && destIdx && cargoSpace() >= 8) pool.push(
+      { id: "courier", w: 5, role: null, diff: 0, pay: p(2.4),
+        courier: { destIdx: destIdx, hold: 8, hot: chance(0.4) },
+        label: "Courier sealed cargo to " + WAYPOINTS[destIdx].name + " (pays on delivery)" });
+    // Always-available fallbacks
+    pool.push(
+      { id: "haul", w: 3, role: null, diff: 0, pay: p(0.5), label: "Dock labor — modest, but sure pay" },
+      { id: "prospect", w: (inner ? 1 : 3), role: null, diff: 0, pay: p(0.6), reward: { cargo: { type: "ore", amt: 3 } },
+        label: "Sort tailings at the ore tip (ore + a little coin)" });
+    // weighted distinct sample of up to 3
+    var picks = [], avail = pool.slice();
+    while (picks.length < 3 && avail.length) {
+      var tot = avail.reduce(function (s, j) { return s + j.w; }, 0), r = Math.random() * tot, a = 0, k = 0;
+      for (; k < avail.length; k++) { a += avail[k].w; if (r <= a) break; }
+      picks.push(avail.splice(Math.min(k, avail.length - 1), 1)[0]);
+    }
+    return picks;
   }
   function openJobs(wp) {
     var idx = wpIndexOf(wp), jobs = genJobs(idx);
     var rows = jobs.map(function (j, i) {
-      return "<div class='store-row'><span>" + j.label + (j.role ? " <span class='dim'>[" + j.role + "]</span>" : "") + "</span>" +
-        "<span class='qty'>~" + j.pay + " cr</span><span></span>" +
+      var tag = j.role ? " <span class='dim'>[" + j.role + "]</span>" : (j.courier ? " <span class='dim'>[deferred]</span>" : " <span class='dim'>[anyone]</span>");
+      return "<div class='store-row'><span>" + j.label + tag + "</span>" +
+        "<span class='qty'>" + (j.courier ? j.pay + " cr on arrival" : "~" + j.pay + " cr") + "</span><span></span>" +
         "<span><button class='btn small' data-job='" + i + "'>Take</button></span></div>";
     }).join("");
     openModal({
       title: "⚒ Work — " + wp.name,
-      body: "<div class='small dim'>Jobs depend on who's awake and able. Work costs a few days. Credits: <span class='paper'>" + game.credits + "</span></div>" + rows,
+      body: "<div class='small dim'>What's on offer depends on who's awake and where you are. Work costs a few days. Credits: <span class='paper'>" + game.credits + "</span></div>" + rows,
       choices: [{ label: "Back", onClick: function () { sfx("cancel"); closeModal(); presentStation(wp); } }],
       onBind: function (root) {
         root.querySelectorAll("[data-job]").forEach(function (b) {
@@ -2419,24 +2498,40 @@
       }
     });
   }
+  function applyJobReward(rw) {
+    if (!rw) return;
+    if (rw.parts && cargoSpace() > 0) game.ship.parts += rw.parts;
+    if (rw.medicine) game.supplies.medicine += rw.medicine;
+    if (rw.knowledge) influence({ knowledge: rw.knowledge, explore: +2 });
+    if (rw.morale) adjustMoraleAll(rw.morale, true);
+    if (rw.cargo && cargoSpace() > 0) game.cargo[rw.cargo.type] += Math.min(rw.cargo.amt, cargoSpace());
+  }
   function resolveJob(j, wp) {
     closeModal();
     game.day += rint(2, 4);
-    var ok = j.role ? (skillFor(j.role) + rint(0, 40) >= j.diff) : true;
+    // Courier: accept the crate now; payout lands when you reach the destination port.
+    if (j.courier) {
+      game._courier = { destIdx: j.courier.destIdx, pay: j.pay, hold: j.courier.hold, hot: j.courier.hot };
+      influence({ persist: +1, cooperate: +1 });
+      log("You take on a sealed courier crate for " + WAYPOINTS[j.courier.destIdx].name + " — " + j.pay + " cr waiting on delivery. It fills " + j.courier.hold + " of your hold" + (j.courier.hot ? ". Something about it makes you not want to ask what's inside." : "."), "info");
+      sfx("confirm"); save(); checkEnd();
+      if (!game.ended) { if (wp) presentStation(wp); else renderTravel(); }
+      return;
+    }
+    var ok = j.role ? (skillAwake(j.role) + rint(0, 40) >= j.diff) : true;
     if (j.smuggle) {
       if (ok) { game.credits += j.pay; game._heat = (game._heat || 0) + 1; influence({ aggress: +3, caution: -3 }); log("Contraband run pays off: +" + j.pay + " cr. But you're carrying heat now.", "good"); sfx("buy"); }
       else { var loss = rint(40, 120); game.credits = Math.max(0, game.credits - loss); influence({ potential: -3 }); log("The contraband run goes bad — busted for " + loss + " cr and a black mark.", "bad"); sfx("bad"); }
     } else if (ok) {
       game.credits += j.pay;
-      if (j.bonus === "parts" && cargoSpace() > 0) game.ship.parts += 1;
-      if (j.bonus === "medicine") game.supplies.medicine += 1;
-      if (j.bonus === "knowledge") influence({ knowledge: +6, explore: +2 });
+      applyJobReward(j.reward);
       influence({ persist: +1, cooperate: +1 });
-      log("Honest work done: +" + j.pay + " cr" + (j.bonus && j.bonus !== "knowledge" ? " and a little " + j.bonus : "") + ".", "good"); sfx("buy");
+      log((j.ok ? pick(j.ok) : "Honest work done.") + " +" + j.pay + " cr.", "good"); sfx("buy");
     } else {
       var partial = Math.round(j.pay * 0.4);
       game.credits += partial;
-      log("The job goes poorly — only " + partial + " cr to show for the days lost.", "warn"); sfx("select");
+      if (j.risk === "hull") { var h = rint(4, 12); game.ship.hull = clamp(game.ship.hull - h, 0, 100); }
+      log((j.fail ? pick(j.fail) : "The job goes poorly.") + " Only +" + partial + " cr for the days lost.", "warn"); sfx("select");
     }
     save();
     checkEnd();
@@ -3094,6 +3189,12 @@
 
     var disp = dispositionText();
     var holdPct = clamp(Math.round(cargoUsed() / ship.holdMax * 100), 0, 100);
+    // Show what's actually in the hold, so mined ore is visible (and obviously sellable at a port).
+    var carried = Object.keys(COMMODITIES).filter(function (ck) { return (game.cargo[ck] || 0) > 0; });
+    var cargoLine = carried.length
+      ? "<div class='small' style='margin-top:4px'>Cargo: " + carried.map(function (ck) { return COMMODITIES[ck].icon + " " + COMMODITIES[ck].name + " ×" + game.cargo[ck]; }).join(" · ") + " <span class='dim'>— sell at a station</span></div>"
+      : "";
+    if (game._courier) cargoLine += "<div class='small' style='margin-top:2px'>📦 <span class='paper'>Courier crate</span> for " + WAYPOINTS[game._courier.destIdx].name + " <span class='dim'>— " + game._courier.pay + " cr on delivery</span></div>";
     var apBanner = game.autopilot
       ? "<div class='panel' style='border-color:var(--red)'><span class='red'>⚠ AUTOPILOT — you are in cold sleep. The ship is choosing for you.</span></div>"
       : "";
@@ -3116,7 +3217,7 @@
           stat("Medicine", s.medicine, 12) + stat("Parts", ship.parts, 12) + stat("Charges", s.charges, 16) +
           "<div class='stat'><span class='label'>Credits</span><span class='val paper'>" + game.credits + "</span></div>" +
           stat("Hull", ship.hull, 100) +
-        "</div>" + powerLine + "</div>" +
+        "</div>" + powerLine + cargoLine + "</div>" +
         "<div class='col panel'><div class='panel-title'>Crew (" + alive().length + ")</div>" + crewStrip() + "</div>" +
       "</div>";
 
