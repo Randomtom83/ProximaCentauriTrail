@@ -1603,6 +1603,12 @@
     ailing(v.crew).forEach(function (c) { c.health = clamp(c.health - (chance(0.5) ? rint(4, 10) : rint(0, 3)) * DIFFICULTY[game.difficulty].harsh, 0, 100); if (c.health <= 0) killCrew(c, "lost their fight with " + c.ailment, false, v.crew); });
     // auto-medbay — a skilled, awake Medic sometimes stretches a dose (treats free)
     if (v.supplies.medicine > 0) { var sick = ailing(v.crew); if (sick.length && skillAwake("Medic", v.crew) + rint(0, 40) >= 70) { if (!(hasAwakeSpecialist("Medic", v.crew) && chance(skillAwake("Medic", v.crew) / 220))) v.supplies.medicine--; sick[0].ailment = null; if (sick[0].status === "Sick") sick[0].status = "Healthy"; sick[0].health = clamp(sick[0].health + 10, 0, 100); } }
+    // Sleepers ride the long dark cheaply (they barely eat or breathe — that's the point of podding
+    // crew on the homeward haul) but drift in morale and can wake ill.
+    sleepers(v.crew).forEach(function (sl) {
+      sl.morale = clamp(sl.morale - 1, 0, 100);
+      if (chance(0.05 * DIFFICULTY[game.difficulty].harsh) && !sl.ailment) { sl.ailment = "hibernation sickness"; log("Homeward: " + sl.name + " is developing hibernation sickness in the pod.", "warn"); }
+    });
     // Engineer keeps the patches holding (slower hull decay)
     var vwear = rint(0, 1) + Math.round((pace - 1) * 2);
     if (vwear > 0 && hasAwakeSpecialist("Engineer", v.crew) && chance(skillAwake("Engineer", v.crew) / 140)) vwear -= 1;
@@ -1645,7 +1651,33 @@
     { id: "calm", w: 6, title: "Quiet Crossing", text: "Long empty days. The crew counts them, and tells old stories of a green world behind.",
       choices: [{ label: "Let them rest", outcome: { morale: +6, text: "Spirits hold. Home is a long way, but they believe in it.", type: "good" } }] },
     { id: "cache", w: 5, title: "Relief Cache", text: "A tumbling container on the old lane — a relief drop from the voyage out.",
-      choices: [{ label: "Scoop it up", outcome: { food: +12, fuel: +5, text: "Food and fuel — a good day on a hard road.", type: "good" } }] }
+      choices: [{ label: "Scoop it up", outcome: { food: +12, fuel: +5, text: "Food and fuel — a good day on a hard road.", type: "good" } }] },
+    { id: "vflare", w: 6, title: "Stellar Flare", text: "A distant sun coughs a sheet of radiation across the homeward lane. It's coming, and there's no going around it.",
+      choices: [
+        { label: "Angle the hull and ride it out", role: "Pilot", diff: 60, success: { text: "You turn the ship edge-on; the storm washes past and you hold your line.", type: "good" }, failure: { hull: -14, ailment: true, text: "It catches you broadside — scorched plating and radiation sickness aboard.", type: "bad" } },
+        { label: "Power everything down and coast through", outcome: { fuel: -4, morale: -2, text: "Dark and silent, you let it pass. Nerves fray, but the ship comes through.", type: "warn" } }
+      ] },
+    { id: "lost", w: 5, title: "Lost in the Deep", text: "The stars don't match the old charts. Somewhere back there, you drifted off the line.",
+      choices: [
+        { label: "Re-localize from first principles", role: "Xenobiologist", diff: 58, success: { inf: { knowledge: +3 }, text: "You fix your position against the deep-field galaxies and correct course. Barely a day lost.", type: "good" }, failure: { distance: -28, text: "The fix comes slowly, and the ship wanders far off the lane before you catch it.", type: "bad" } },
+        { label: "Burn back toward the known lane", outcome: { fuel: -10, distance: -8, text: "You spend fuel muscling back onto the trail you know.", type: "warn" } }
+      ] },
+    { id: "word", w: 5, cond: function () { return game.earth && game.earth.status !== "silent"; }, title: "A Word From Home",
+      text: "Across the years, a faint transmission catches up with you — voices from a world still turning.",
+      choices: [{ label: "Gather the crew to listen", outcome: { morale: +9, inf: { persist: +3 }, text: "Old songs, a headcount, a promise that someone is waiting. The crew flies a little taller for days.", type: "good" } }] },
+    { id: "longdark", w: 5, title: "The Long Dark", text: "Empty months pile up. One of the crew stops eating with the others and stares at the wall where a window used to matter.",
+      choices: [
+        { label: "Sit with them (Commander)", role: "Commander", diff: 50, success: { morale: +7, text: "You talk them back from the edge. The crew closes ranks around their own.", type: "good" }, failure: { morale: -4, text: "Words aren't enough tonight. The silence wins this round.", type: "warn" } },
+        { label: "Let them be", outcome: { morale: -3, text: "You give them room. The dark gives nothing back.", type: "warn" } }
+      ] },
+    { id: "micromet", w: 6, title: "Micrometeoroid Swarm", text: "A glittering veil ahead — beautiful, and moving fast enough to core the ship.",
+      choices: [
+        { label: "Thread the gaps", role: "Pilot", diff: 56, success: { text: "You pick a path through the sparkle untouched.", type: "good" }, failure: { hull: -12, text: "A dozen pinprick punctures; you patch what you can.", type: "bad" } },
+        { label: "Hold position and wait for a gap (costs time)", outcome: { food: -6, oxygen: -6, text: "You drift and wait. It costs stores, but the hull stays whole.", type: "warn" } }
+      ] },
+    { id: "newlife", w: 3, cond: function () { return awake(game.voyage.crew).filter(function (c) { return !c.child && c.age < 50; }).length >= 2 && alive(game.voyage.crew).length < MAX_CREW; }, title: "New Life on the Long Road",
+      text: "On a crossing measured in decades, life insists on itself: a child is coming, born to the dark between stars.",
+      choices: [{ label: "Welcome them", outcome: { recruit: true, morale: +8, food: -4, inf: { persist: +3 }, text: "A first cry rings down the corridors. The ship is a little fuller, and a great deal warmer. They will not remember Earth or Proxima — only this ship, and home ahead.", type: "good" } }] }
   ];
   function rollVoyageEvent(auto) {
     var v = game.voyage;
@@ -1690,8 +1722,18 @@
     if (o.health) { if (o.target === "one") { var one = pick(awake(v.crew)); if (one) { one.health = clamp(one.health + o.health, 0, 100); if (one.health <= 0) killCrew(one, "was lost on the road home", false, v.crew); } } else adjustHealthAll(o.health, true, v.crew); }
     if (o.ailment) afflict(o.ailment === true ? null : o.ailment, v.crew);
     if (o.heal) { var sick = ailing(v.crew); if (sick.length) { sick[0].ailment = null; if (sick[0].status === "Sick") sick[0].status = "Healthy"; } }
+    var recruitFull = false;
+    if (o.recruit) {
+      if (alive(v.crew).length >= MAX_CREW) recruitFull = true;
+      else {
+        var used = {}; v.crew.forEach(function (c) { used[c.name] = 1; });
+        var pool = KID_NAMES.filter(function (n) { return !used[n.trim()]; });
+        var nm = (pool.length ? pick(pool) : "Child-" + rint(10, 99)).trim();
+        v.crew.push({ name: nm, role: "Child", health: 100, morale: 80, status: "Healthy", skill: 0, ailment: null, bonds: [], age: 0, child: true });
+      }
+    }
     if (o.inf) influence(o.inf);
-    if (o.text) log("Homeward: " + o.text, o.type || "info");
+    if (o.text) log("Homeward: " + (recruitFull ? "there's no berth left aboard for another soul — the crew is already at its limit." : o.text), recruitFull ? "warn" : (o.type || "info"));
   }
 
   function voyageArrive() {
@@ -1727,6 +1769,82 @@
   function voyageStep() {
     voyageTurn(false);
     if (modalOpen()) return;      // an event modal will resume the turn via its onClick
+    voyageAfterTurn(false);
+  }
+
+  // Homeward hibernation — the key lever on a long crossing with finite air and food: pod crew to
+  // stretch the stores (sleepers barely consume), at the cost of hands for events and pod-sickness.
+  function voyageHibernate() {
+    var v = game.voyage;
+    var rows = v.crew.map(function (c) {
+      if (c.status === "Dead") return "<div class='crew-row'><span>✖</span><span class='nm s-Dead'>" + c.name + "</span><span class='rl'>" + c.role + "</span><span>—</span><span></span></div>";
+      var btn = c.status === "Hibernating"
+        ? "<button class='btn small' data-vhib='wake' data-name='" + c.name + "'>Wake</button>"
+        : "<button class='btn small' data-vhib='sleep' data-name='" + c.name + "'>Hibernate</button>";
+      return "<div class='crew-row'><span>" + (c.status === "Hibernating" ? "❄" : "•") + "</span>" +
+        "<span class='nm'>" + c.name + "</span><span class='rl'>" + c.role + "</span>" +
+        "<span class='st s-" + c.status + "'>" + c.status + "</span><span>" + btn + "</span></div>";
+    }).join("");
+    openModal({
+      title: "❄ Cold Sleep (homeward)",
+      body: "<div class='small dim'>Sleepers use almost no air or food — the way to make finite stores last the long crossing — but can't act, and wake groggy. Keep someone awake to fly, and a Medic awake to treat sickness.</div>" + rows,
+      choices: [{ label: "Close", onClick: function () { sfx("confirm"); closeModal(); save(); renderVoyage(); } }],
+      onBind: function (root) {
+        root.querySelectorAll("[data-vhib]").forEach(function (b) {
+          b.addEventListener("click", function () {
+            var c = byName(b.getAttribute("data-name"), v.crew); if (!c) return;
+            if (b.getAttribute("data-vhib") === "sleep") {
+              if (awake(v.crew).length <= 1) { log("Someone has to stay awake to fly the ship home.", "warn"); sfx("empty"); return; }
+              c.status = "Hibernating"; log("Homeward: " + c.name + " enters cold sleep.", "info");
+            } else {
+              c.status = c.ailment ? "Sick" : "Healthy";
+              if (chance(0.25)) { c.ailment = "hibernation sickness"; c.status = "Sick"; log("Homeward: " + c.name + " wakes groggy and ill.", "warn"); }
+              else log("Homeward: " + c.name + " wakes from cold sleep.", "good");
+            }
+            sfx("select"); closeModal(); voyageHibernate();
+          });
+        });
+      }
+    });
+  }
+
+  // Rest & repair on the homeward ship — trade time (and a part or two) for hull and morale.
+  function voyageRest() {
+    var v = game.voyage;
+    var eng = skillAwake("Engineer", v.crew);
+    var repair = Math.round(10 + eng / 5);
+    var partsUsed = Math.min(v.ship.parts, Math.ceil((100 - v.ship.hull) / (14 + eng / 8)));
+    v.ship.parts -= partsUsed;
+    v.ship.hull = clamp(v.ship.hull + repair + partsUsed * 6, 0, 100);
+    v.supplies.oxygen = round1(Math.max(0, v.supplies.oxygen - 2));
+    v.supplies.food = round1(Math.max(0, v.supplies.food - 3));
+    adjustMoraleAll(+5, true, v.crew);
+    log("Homeward: you stand down for a spell — patch the hull (+" + (repair + partsUsed * 6) + (partsUsed ? ", " + partsUsed + " parts" : "") + ") and let the crew breathe. Spirits lift.", "good");
+    sfx("confirm");
+    voyageAfterTurn(false);
+  }
+
+  // Scavenge the old trail — actively hunt the wreckage and caches you passed on the way out.
+  function voyageScavenge() {
+    var v = game.voyage;
+    var skill = Math.max(skillAwake("Engineer", v.crew), skillAwake("Pilot", v.crew));
+    var r = sampleWeighted({ haul: 4 + skill / 20, little: 4, nothing: 3, trouble: 2.5 });
+    if (r === "haul") {
+      var f = rint(8, 16), fu = rint(0, 1) ? 1 : 0;
+      v.supplies.fuel = round1(v.supplies.fuel + f); v.supplies.food = round1(v.supplies.food + rint(4, 10)); if (fu) v.ship.parts += 1;
+      influence({ explore: +2, persist: +1 });
+      log("Homeward: a fat find on the old lane — " + f + " fuel, some food" + (fu ? ", and a usable spare" : "") + ".", "good"); sfx("buy");
+    } else if (r === "little") {
+      var f2 = rint(3, 7); v.supplies.fuel = round1(v.supplies.fuel + f2);
+      log("Homeward: you skim a little fuel (+" + f2 + ") from a tumbling wreck.", "info");
+    } else if (r === "nothing") {
+      log("Homeward: hours of searching the dark turn up nothing but old debris.", "info");
+    } else {
+      var hurt = pick(awake(v.crew));
+      if (hurt) { hurt.health = clamp(hurt.health - rint(8, 18), 0, 100); if (hurt.health <= 0) killCrew(hurt, "died boarding a wreck on the way home", false, v.crew); }
+      v.ship.hull = clamp(v.ship.hull - rint(4, 10), 0, 100); influence({ caution: +2 });
+      log("Homeward: a salvage goes wrong — a hull knock and a hurt crewmate for your trouble.", "bad"); sfx("bad");
+    }
     voyageAfterTurn(false);
   }
 
@@ -3440,6 +3558,9 @@
       "<button class='btn go' data-action='voyage' data-arg='continue'>▶ Continue</button>" +
       "<button class='btn small' data-action='voyage' data-arg='thrust'>⚙ Thrust</button>" +
       "<button class='btn small' data-action='voyage' data-arg='rations'>🍽 Rations</button>" +
+      "<button class='btn small' data-action='voyage' data-arg='pods'>❄ Pods</button>" +
+      "<button class='btn small' data-action='voyage' data-arg='rest'>🔧 Rest &amp; repair</button>" +
+      "<button class='btn small' data-action='voyage' data-arg='scavenge'>🔍 Scavenge</button>" +
       toggle +
       "</div>";
     app.innerHTML = hud + acts + "<div class='panel-title' style='margin-top:10px'>Ship's Log</div><div class='log' id='log'></div>";
@@ -3561,6 +3682,9 @@
         if (arg === "continue") voyageStep();
         else if (arg === "thrust") openVoyageThrust();
         else if (arg === "rations") openVoyageRations();
+        else if (arg === "pods") voyageHibernate();
+        else if (arg === "rest") voyageRest();
+        else if (arg === "scavenge") voyageScavenge();
         break;
       case "focus":   // switch which front you're actively running (parallel Act II)
         game.screen = arg; sfx("blip"); renderApp(); break;
