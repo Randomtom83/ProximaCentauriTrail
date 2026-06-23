@@ -903,6 +903,28 @@
     else if (w && w.type === "waypoint" && game.waypointIndex > w.value) wakeSelf("waypoint reached");
   }
 
+  // Fast-forward autopilot: run turns unattended until a wake condition fires (emergency, the
+  // chosen waypoint, arrival) or the run ends — so "wake only on emergency" doesn't mean clicking
+  // through every single turn while you sleep.
+  function autopilotRun() {
+    if (!game.autopilot || game.ended || modalOpen() || transiting) return;
+    var guard = 0;
+    while (game.autopilot && !game.ended && guard++ < 300) {
+      if (game.supplies.fuel <= 0 && game.power.allocation.drive)
+        log("No fuel. The drive is dead — you drift, bleeding air and food.", "bad");
+      var p = computePower();
+      if (p.brownout) {                       // no one awake to shed load; the air pays for it
+        var deficit = p.demand - p.output;
+        game.supplies.oxygen = Math.max(0, round1(game.supplies.oxygen - deficit * 1.5));
+        adjustHealthAll(-3, true);
+        log("Autopilot runs under brownout — the air goes thin and stale.", "bad");
+      }
+      resolveTurn();                          // advances one turn (renders + flushes queues; may wake/end)
+      if (modalOpen() || transiting) break;   // a decision/vignette interrupted the unattended run
+    }
+    if (!game.ended) renderApp();
+  }
+
   function autoResolveHazard(key) {
     var hz = HAZARDS[key]; if (!hz) return;
     log("A hazard while you sleep — the autopilot takes " + (hz.noun || "it") + " the hard way.", "warn");
@@ -3047,9 +3069,11 @@
         "<div class='col panel'><div class='panel-title'>Crew (" + alive().length + ")</div>" + crewStrip() + "</div>" +
       "</div>";
 
+    var apLabel = (game.autopilotWake && game.autopilotWake.type === "waypoint") ? "▶▶ Run to next waypoint" : "▶▶ Run until emergency";
     var actions = game.autopilot
       ? "<div class='menu row'>" +
-          "<button class='btn go' data-action='continue'>▶ Run on autopilot</button>" +
+          "<button class='btn go' data-action='autorun'>" + apLabel + "</button>" +
+          "<button class='btn small' data-action='continue'>▶ One turn</button>" +
           "<button class='btn small danger' data-action='wakeself'>☼ Emergency wake</button>" +
         "</div>"
       : "<div class='menu row'>" +
@@ -3379,6 +3403,7 @@
         break;
       case "focus":   // switch which front you're actively running (parallel Act II)
         game.screen = arg; sfx("blip"); renderApp(); break;
+      case "autorun": autopilotRun(); break;
       case "wakeself": wakeSelf("you force yourself awake"); save(); renderTravel(); break;
       case "abandon":
         openModal({ title: "Abandon run?", body: "<p>This ends the current voyage. It will be logged as a loss. There is no undo.</p>",
