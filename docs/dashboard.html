@@ -251,10 +251,19 @@ var SPRINTS = [
     ["Surface carried ore in the HUD; always-visible 'Cargo to sell' section","done"],
     ["Voyage home: Cold Sleep / Rest & repair / Scavenge levers added","done"],
     ["Voyage event pool nearly doubled (flare, lost, word home, birth, …)","done"]
+  ]},
+  { id:"s19", name:"Sprint 19 — Command succession", tasks:[
+    ["Track 'you' by name (game.youName), not role","done"],
+    ["On player-character death, forced COMMAND PASSES choice of a survivor","done"],
+    ["Carry on through the successor; 'you' marker follows; autopilot drops","done"],
+    ["Works on ship / colony / homebound ark; only the front you're on","done"],
+    ["Newborn guard; scoring keeps original class (no multiplier gaming)","done"]
   ]}
 ];
 
 var LOG = [
+  { date:"2026-06-23", tag:"feature", title:"Command succession — play on as a survivor when you die",
+    body:"When the player-character died mid-run the game just continued with 'you' marked on a corpse (control was never gated on the PC being alive). Now the player is tracked by name (game.youName, not role), and the moment your character dies while crew remain, a forced 'COMMAND PASSES' choice offers each living crewmate — pick one and the run carries on through their eyes, the 'you' (*) marker moving to them. Works on the outbound ship, the colony, and the homebound ark; only fires on the front your character is actually on (so a parallel front you've left is unaffected); newborns are skipped as candidates unless they're truly all that's left; and podding-yourself-then-dying cleanly drops autopilot. Scoring still uses your original chosen class, so succession can't be used to game the multiplier." },
   { date:"2026-06-23", tag:"feature", title:"Homebound voyage given real depth + jobs/cargo fixes",
     body:"Three player-reported issues plus the lackluster ride home. (1) Recruits 'didn't always show up': addCrewMember silently no-ops at MAX_CREW (8) but the code still charged the cost and logged 'they join the crew' — now it says plainly there's no berth instead of lying (ship and homebound voyage). (2) Bland jobs: the 5 fixed templates became a larger flavored pool sampled to vary per visit, with role/zone gating, varied rewards (parts/medicine/fuel/cargo/knowledge/morale, not just credits), real failure stakes (hull risk on salvage), and distinct narration — plus the long-planned COURIER job (carry a sealed crate to a later port for a deferred payout; occupies hold; sometimes 'hot' = seized + fined on arrival). (3) Sellable ore was invisible: the travel HUD now lists carried commodities (and any courier crate), and the trade screen always shows a 'Cargo to sell' section with a hint when empty. (4) The voyage home was 3 buttons and 7 events; it now has the same strategic levers as the outbound leg — Cold Sleep/Pods (the key lever for stretching finite air & food across a decades-long haul), Rest & repair, and Scavenge — and the event pool nearly doubled (stellar flare, lost in the deep, a word from home, the long dark, micrometeoroids, a child born on the road), with a graceful birth that respects the crew cap." },
   { date:"2026-06-23", tag:"feature", title:"Colony redesign: self-sufficiency is now emergent",

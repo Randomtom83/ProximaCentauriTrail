@@ -204,6 +204,7 @@
     return {
       screen: "store",
       role: roleKey,
+      youName: names[ROLE_ORDER.indexOf(roleKey)],   // which crewmate "you" are; succession can move it
       difficulty: diffKey,
       credits: credits,
       day: 1,
@@ -621,10 +622,44 @@
     if (!game.ended) renderTravel();
   }
 
-  // The player's own character = the crew member with the chosen role.
+  // The player's own character. Tracked by name (so command can pass to a survivor on death),
+  // falling back to the chosen-role crewmate for older saves and lazily recording it.
   function playerChar() {
-    for (var i = 0; i < game.crew.length; i++) if (game.crew[i].role === game.role) return game.crew[i];
+    if (game.youName) { var y = byName(game.youName); if (y) return y; }
+    for (var i = 0; i < game.crew.length; i++) if (game.crew[i].role === game.role) { game.youName = game.crew[i].name; return game.crew[i]; }
     return null;
+  }
+  // "You" within a given front's crew (the ship out, the colony, or the ark home), if present there.
+  function youIn(cr) { return game.youName ? byName(game.youName, cr) : null; }
+  // When the player-character dies but the crew lives on, command passes — let the player choose who
+  // they become and carry the run forward through their eyes.
+  function maybeSuccession(cr, after) {
+    var you = youIn(cr);
+    if (!you || you.status !== "Dead") return false;   // you aren't here, or you're alive → nothing to do
+    var living = alive(cr);
+    if (living.length === 0) return false;             // no one left → the run ends elsewhere
+    var cand = living.filter(function (c) { return !c.child; });   // a newborn can't take the helm…
+    presentSuccession(you, cand.length ? cand : living, after);    // …unless they're truly all that's left
+    return true;
+  }
+  function presentSuccession(lost, living, after) {
+    if (game.autopilot) { game.autopilot = false; game.autopilotWake = null; }   // the podded "you" is gone
+    // Successors are the modal's choices (no dismiss option) — a forced, narrative passing of command.
+    var choices = living.map(function (c) {
+      return {
+        label: "Take command as " + c.name + " (" + c.role + (c.child ? ", a child" : ", " + c.age + "y") + ")",
+        onClick: function () {
+          game.youName = c.name;
+          log("Command passes to " + c.name + " (" + c.role + "). The run goes on through their eyes.", "warn");
+          sfx("select"); closeModal(); save(); if (after) after();
+        }
+      };
+    });
+    openModal({
+      title: "⚑ COMMAND PASSES",
+      body: "<p>" + lost.name + " (" + lost.role + ") is gone. The voyage does not stop for grief — someone has to take the helm. <b class='paper'>Whose eyes do you see through now?</b></p>",
+      choices: choices
+    });
   }
   function wakeSelf(reason) {
     if (!game.autopilot) return;
@@ -3275,6 +3310,7 @@
 
   function renderTravel() {
     game.screen = "travel";
+    if (maybeSuccession(game.crew, renderTravel)) return;   // your character fell — command passes first
     updateTopbar();
     var app = $("#app");
     var s = game.supplies, ship = game.ship;
@@ -3385,7 +3421,7 @@
       return "<div class='crew-row'>" +
         "<span class='s-" + c.status + "'>" + (c.status === "Hibernating" ? "❄" : c.child ? "◦" : "•") + "</span>" +
         "<span><span class='nm s-" + c.status + "'>" + c.name + "</span> <span class='rl small'>" + c.role +
-          (c.role === game.role ? "*" : "") + "</span>" + ageStr + tag + "</span>" +
+          (c.name === game.youName ? "*" : "") + "</span>" + ageStr + tag + "</span>" +
         "<span>" + mb(c.health) + "<span class='small dim'>hp</span></span>" +
         "<span>" + mb(c.morale, "power") + "<span class='small dim'>mor</span></span>" +
         "<span class='st small s-" + c.status + "'>" + c.status + "</span>" +
@@ -3469,6 +3505,7 @@
 
   /* ---- Act II: Colony ---- */
   function renderColony() {
+    if (maybeSuccession(game.crew, renderColony)) return;   // if you fall on the ground, leadership passes
     setAlert(game.colony.meters.morale < 20 || game.colony.supplies.food <= 0 || (game.colony.relations != null && game.colony.relations < 20));
     var col = game.colony, m = col.meters, s = col.supplies, app = $("#app");
     var r = colonyRates();
@@ -3533,6 +3570,7 @@
   // The voyage home — a real turn loop on the homebound ark (its own crew & stores).
   function renderVoyage() {
     var v = game.voyage; if (!v) { renderTitle(); return; }
+    if (maybeSuccession(v.crew, renderVoyage)) return;   // if you die on the road home, command passes
     var s = v.supplies, p = voyPower();
     setAlert(v.ship.hull < 25 || s.oxygen < 10 || s.fuel <= 0 || p.brownout);
     var app = $("#app");
