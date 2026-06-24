@@ -91,7 +91,7 @@
    Project data. Tasks and log entries live here, edited each
    sprint as the build progresses. Statuses: "todo"|"doing"|"done".
    ============================================================ */
-var LAST_UPDATED = "2026-06-23";
+var LAST_UPDATED = "2026-06-24";
 
 var SPRINTS = [
   { id:"s0", name:"Sprint 0 — Scaffold", tasks:[
@@ -258,10 +258,30 @@ var SPRINTS = [
     ["Carry on through the successor; 'you' marker follows; autopilot drops","done"],
     ["Works on ship / colony / homebound ark; only the front you're on","done"],
     ["Newborn guard; scoring keeps original class (no multiplier gaming)","done"]
+  ]},
+  { id:"p2m0", name:"Milestone P2-M0 — Consequence ledger + meter contract", tasks:[
+    ["Author docs/consequence-ledger.md (~30 action rows + meter contracts)","done"],
+    ["Define hidden meters: ecoHarm / nativeTrust / contamination / structuralDebt / trauma","done"],
+    ["Each meter: writers, readers, thresholds, ≥1 named payoff event","done"],
+    ["Close audit gaps: contamination + trauma payoffs; nativeTrust can RISE; +missing-action rows","done"],
+    ["Orphan check: every hidden meter has ≥1 writer AND ≥1 reader (no orphans)","done"],
+    ["Lock 5 Act II decisions (logged below)","done"]
   ]}
 ];
 
 var LOG = [
+  { date:"2026-06-24", tag:"build", title:"P2-M0 — Act II Consequence Ledger locked (design, no game code)",
+    body:"Act II (Arrival/Colony + Voyage Home) is being rebuilt clean-sheet as two games seeded by Phase 1. Per the orchestrator review, the Consequence Ledger is locked FIRST as a design doc (docs/consequence-ledger.md) so every later milestone wires consequences against one consistent contract — avoiding the prior failure where back-half prompts promised mechanics the code never implemented. Defines the survival spine + visible hope/Earth-clock, and five HIDDEN long-tail meters (ecoHarm, nativeTrust, contamination, structuralDebt, trauma), each with writers, readers, thresholds, and a NAMED dramatic payoff event (The Ground Remembers, The Reckoning at the Treeline, The Fever Season, The Long Crack, The One Who Couldn't). ~30 action rows map each choice to its immediate visible effect AND a hidden long-tail (delayed event + ending beat) — mixed-horizon consequences. Audit gaps closed: contamination and trauma now have concrete payoffs; nativeTrust can RISE via trade/diplomacy (not one-way doom); added missing-action rows (research-shortcut, hibernate-colonists, absorb-settlers, spend-the-ship-as-shelter). Orphan check passes: every hidden meter has ≥1 writer AND ≥1 reader. Next: P2-M1 (arrival-seed reader + colony skeleton)." },
+  { date:"2026-06-24", tag:"decision", title:"Going home is optional and resource-gated",
+    body:"Chosen: the return voyage is never guaranteed and never the default — you can only launch with an earned ship + materials + provisions (at minimum, enough to reach the first waystation). If you never gather enough, you never go, and a thriving 'settled' colony stands as a complete ending in its own right. Rejected: home as a guaranteed/expected outcome. Reinforces the standalone colony victory and makes leaving a real, costly choice." },
+  { date:"2026-06-24", tag:"decision", title:"Act II fronts run in PARALLEL (live colony)",
+    body:"Chosen: when you launch home and split the crew, the colony you left keeps running as a second INTERACTIVE front on a shared clock with a focus toggle — not a sampled epilogue. Rejected: sequential (the colony freezes into a snapshot once the ship leaves). Because this is the highest-complexity/highest-fade piece, it is built LAST (milestone M-INT1b), only after the colony and the ship each work solo; the headless/auto-resolve prerequisite is threaded into P2-M1 and P3-M2 up front so it isn't a retrofit." },
+  { date:"2026-06-24", tag:"decision", title:"Generations on the way home: real-but-minimal",
+    body:"Chosen: reuse the existing ageCrew/pregnancy systems for one concrete payoff — a child born in transit matures mid-crossing and takes a crew station, changing who actually arrives at Earth. Rejected: flavor-only text with no mechanical effect. Keeps the generational theme real without a large new subsystem." },
+  { date:"2026-06-24", tag:"decision", title:"Consequence Ledger locked before any Act II code",
+    body:"Chosen: produce the ledger as a design doc first (P2-M0), then wire each consequence in the milestone that creates its feature. Rejected: build the ledger incrementally during implementation (the documented prior failure mode, which left meters and payoffs half-wired). Every hidden meter must have a live writer AND reader before its milestone is 'done', enforced again at the M-INT2 audit." },
+  { date:"2026-06-24", tag:"decision", title:"SAVE_KEY bumped v6 → v7 for Act II",
+    body:"Chosen: bump the save key on the Act II state-schema change, which cleanly ignores (wipes) an in-progress v6 run. Rejected: migrate old saves. Acceptable under the game's permadeath/single-slot model and consistent with prior version bumps." },
   { date:"2026-06-23", tag:"feature", title:"Command succession — play on as a survivor when you die",
     body:"When the player-character died mid-run the game just continued with 'you' marked on a corpse (control was never gated on the PC being alive). Now the player is tracked by name (game.youName, not role), and the moment your character dies while crew remain, a forced 'COMMAND PASSES' choice offers each living crewmate — pick one and the run carries on through their eyes, the 'you' (*) marker moving to them. Works on the outbound ship, the colony, and the homebound ark; only fires on the front your character is actually on (so a parallel front you've left is unaffected); newborns are skipped as candidates unless they're truly all that's left; and podding-yourself-then-dying cleanly drops autopilot. Scoring still uses your original chosen class, so succession can't be used to game the multiplier." },
   { date:"2026-06-23", tag:"feature", title:"Homebound voyage given real depth + jobs/cargo fixes",
