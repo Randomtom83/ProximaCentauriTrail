@@ -36,6 +36,28 @@ rows, and **no hidden meter ships without ≥1 writer AND ≥1 reader** (the M-I
 - **`structuralDebt`** 0..100 — corners cut in construction + materials robbed from the ship.
 - **`trauma`** 0..100 — the crew's psychological wear (slower and stickier than `hope`/morale).
 
+### Surface vs deep: `relations` vs `nativeTrust` (only when `dest.inhabited === "natives"`)
+- **`relations`** (visible, 0..100) — the natives' **surface stance right now**: drives immediate trade
+  availability/prices and whether the next encounter reads friendly or tense. Fast-moving; reacts to your
+  last few actions.
+- **`nativeTrust`** (hidden, 0..100) — their **deep, slow read** of you over time: stickier; gates the
+  big forks (alliance / petition / the decisive Reckoning). The reputation that remembers.
+- **Relationship:** `nativeTrust` sets the ceiling/floor that `relations` gravitates toward. A single
+  fair trade nudges `relations` up today; only a *pattern* moves `nativeTrust`. Aggression can crater
+  `relations` immediately, but `nativeTrust` carries the grudge into the endings.
+
+### Global rules (apply to every hidden meter)
+- **Difficulty scaling (P2-M0.1):** all hidden-meter **thresholds, payoff-event odds, and passive-decay
+  rates scale with the existing `DIFFICULTY.harsh` dial**, exactly as Phase 1 scales drains/hazards.
+  Settler — thresholds sit higher (meters bite later), payoffs fire less often, passive decay faster;
+  Voyager — the inverse. **Exact multipliers are deferred to the M-INT2 win-rate sweep**; milestones wire
+  the *hook* (a tier-scaled threshold/odds/decay helper), not the numbers.
+- **Recovery model (P2-M0.1 — "bodies and minds heal; the world and structures don't"):** see the
+  per-meter **Recovery** lines in §2. Passive recovery is **gated** (only ticks when the front is *safe*
+  — no active famine/anoxia/outbreak/raid — AND `hope` ≥ floor; crisis turns pause healing) and **slow**
+  (much slower than the writers — you're nursing, not erasing). It keeps a long colony from becoming an
+  unwinnable doom-ratchet while leaving world/structure damage sticky.
+
 ---
 
 ## 2. Meter contracts (writers · readers · thresholds · named payoff)
@@ -49,6 +71,8 @@ Every meter below has **at least one writer and one reader** — no orphans.
   −`nativeTrust` over time; ending beats.
 - **Thresholds:** <25 negligible · 25–60 occasional blight/strange weather · >60 recurring backlash +
   biosphere-collapse risk.
+- **Recovery (P2-M0.1):** **none passive.** The world stays scarred — only restoration research /
+  renewable choices reduce it.
 - **Named payoff event — "The Ground Remembers"** (fires past ~60): a coordinated backlash
   (spores/blight/migration) — heavy food + health hit; colors a **Scorched** ending beat.
 
@@ -70,6 +94,8 @@ Every meter below has **at least one writer and one reader** — no orphans.
 - **Readers:** a sickness-wave event whose severity scales with it; failed-harvest (crop-disease) chance;
   raises per-turn ailment frequency.
 - **Thresholds:** <25 clean · 25–60 simmering (sporadic illness) · >60 outbreak-prone.
+- **Recovery (P2-M0.1):** **passive** while the front is *safe* and `hope` ≥ floor — bodies recover
+  (slow); faster via the infirmary / sanitation projects.
 - **Named payoff event — "The Fever Season"** (fires past ~60): a colony-wide illness wave — multiple
   colonists sicken, deaths scale with `health`/Medic; colors a **plague-scarred** beat. *(Audit fix:
   this is the concrete payoff `contamination` was missing.)*
@@ -80,6 +106,8 @@ Every meter below has **at least one writer and one reader** — no orphans.
 - **Readers:** **return-ship refit cost & time scale UP with it** (ties directly to `shipReadiness` — so
   "strip now" visibly taxes "leave later"); a late structural-collapse hazard; habitat-loss event.
 - **Thresholds:** <25 sound · 25–60 strained · >60 failing (collapse risk; refit nearly impossible).
+- **Recovery (P2-M0.1):** **none passive.** Structures don't self-heal — only reinforce/repair projects
+  (materials + time) reduce it.
 - **Named payoff event — "The Long Crack"** (fires past threshold): a major structure fails — habitat/
   power loss + casualties — and visibly inflates the refit cost the moment you try to leave.
 
@@ -89,6 +117,8 @@ Every meter below has **at least one writer and one reader** — no orphans.
 - **Readers:** morale-breakdown frequency scales with it; lowers skill-check reliability; the homeward
   "long dark" event hits harder.
 - **Thresholds:** <25 steady · 25–60 frayed · >60 broken.
+- **Recovery (P2-M0.1):** **passive** during long safe stretches with good `hope` — minds settle
+  (slow); faster via the **Tend** action.
 - **Named payoff event — "The One Who Couldn't"** (fires past threshold): a named crewmate breaks
   permanently (locks a role / leaves / self-destructs) — a lasting loss; colors a **haunted survivors**
   beat. *(Audit fix: this is the concrete payoff `trauma` was missing.)*
@@ -144,6 +174,13 @@ fire · Ending beat it colors.** Each implementation milestone wires the rows it
 | 28 | Push hard pace home (burn fuel) | faster arrival (`elapsedYears`−, better Earth odds) | fuel scarcity → stranded risk | homeward fuel-crisis | raced the dark |
 | 29 | Coast slow to conserve fuel | fuel safe | more years → worse Earth odds, more events | Earth goes silent en route | too late |
 | 30 | Take the fold-shortcut (knowledge/alien tech) | big distance skip (`elapsedYears`−) | lost/re-localize, hull damage risk | getting-lost | leap of faith |
+
+> **Ship-strip unification (P2-M0.1 — rows 1 & 24 are ONE graduated axis, not two toggles).** Stripping
+> the landed ship is a single escalating mechanic. Partial stripping (row 1) adds `structuralDebt`
+> incrementally and lowers `shipReadiness`; committing the **whole hull** as shelter (row 24) is the far
+> end of that same axis and crosses a **point of no return** (no return ship without a full rebuild).
+> Wire as one escalating choice with a threshold so `structuralDebt` is **never double-counted** across
+> the two rows.
 
 ---
 

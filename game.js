@@ -12,7 +12,7 @@
   /* ---------------------------------------------------------
      0. Small helpers
      --------------------------------------------------------- */
-  var SAVE_KEY = "proxima-trail-save-v6";
+  var SAVE_KEY = "proxima-trail-save-v7";
   var META_KEY = "proxima-trail-meta-v1";
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -1202,23 +1202,43 @@
     var h = game.colony.habit;
     return h === "verdant" ? 1.3 : h === "marginal" ? 0.85 : h === "barren" ? 0.6 : 0.45;
   }
-  // Single source of truth for the colony economy — used by both the turn loop
-  // and the HUD so what you see is exactly what the next year produces.
-  function colonyRates() {
-    var col = game.colony, hm = habMult();
-    var tech = col.tech || 0, infra = col.infra, pop = col.pop;
-    var support = Math.round(infra * 2.4);                 // colonists the built works can power & house
-    var crowdF = pop > support ? support / Math.max(1, pop) : 1;   // outgrow your habitats → everything throttles
-    var techMult = 1 + tech / 100;                         // research makes every yield more efficient
-    var foodProd  = Math.round(infra * 0.95 * hm * techMult * crowdF);
-    var waterProd = Math.round(infra * 0.80 * techMult * crowdF);
-    var matProd   = Math.round(infra * 0.50 * techMult * crowdF);
-    var foodUse   = Math.round(pop * 1.3);
-    var waterUse  = Math.round(pop * 1.0);
-    var ratio = Math.min(foodProd / Math.max(1, foodUse), waterProd / Math.max(1, waterUse));
-    return { support: support, crowdF: crowdF, techMult: techMult,
-      foodProd: foodProd, waterProd: waterProd, matProd: matProd,
-      foodUse: foodUse, waterUse: waterUse, ratio: ratio };
+  // === P2-M1 colony skeleton: survival spine + labor/power allocation ===
+  // Difficulty hook (Consequence Ledger amendment P2-M0.1): every hidden-meter threshold, payoff-odds,
+  // and passive-decay rate scales through these. Numbers are placeholders tuned later in the M-INT2 sweep.
+  function colHarsh() { return DIFFICULTY[game.difficulty].harsh; }
+  function tierThreshold(base) { return Math.round(base * (1.5 - 0.5 * colHarsh())); }   // higher (later) on Settler
+  function tierOdds(base) { return base * (0.6 + 0.5 * colHarsh()); }                     // rarer on Settler
+  function tierDecay(base) { return base * (1.5 - 0.5 * colHarsh()); }                    // faster recovery on Settler
+
+  var COL_SYS = ["air", "water", "food", "warmth", "health"];   // the survival spine
+  var SURV_LABEL = { air: "Air", water: "Water", food: "Food", warmth: "Warmth", health: "Medical care" };
+  var COL_DRAW = 3;          // power each running survival system needs
+
+  // Heads = living named crew + abstract settlers (mouths); hands = those who can actually work.
+  function colHeads() { return alive(game.crew).length + (game.colony.pop || 0); }
+  function colHands() { return awake(game.crew).length + (game.colony.pop || 0); }
+  // Habitability sets how hard the world drains you (verdant easy → lethal brutal).
+  function colHabDrain() { var h = game.colony.habit; return h === "verdant" ? 0.7 : h === "marginal" ? 1.0 : h === "barren" ? 1.4 : 1.9; }
+  // Reactor + built infrastructure make power; each manned, powered system feeds its survival axis.
+  // Too many systems for the available power OR hands ⇒ brownout: everything runs at a reduced factor.
+  function colPower() {
+    var col = game.colony, al = col.alloc;
+    var on = COL_SYS.filter(function (k) { return al[k]; });
+    var output = 10 + col.infra;
+    var demand = on.length * COL_DRAW;
+    var hands = colHands();
+    var brownout = demand > output || on.length > hands;
+    var factor = brownout ? Math.max(0.2, Math.min(output / Math.max(1, demand), hands / Math.max(1, on.length))) : 1;
+    return { on: on, output: output, demand: demand, hands: hands, brownout: brownout, factor: factor };
+  }
+  // Passive recovery of the soft hidden meters (P2-M0.1): only when the colony is safe and hope is above
+  // its floor; slow; ecoHarm & structuralDebt never decay passively. No-ops until later milestones write
+  // these meters, but wired now so P2-M2…M5 hook in rather than retrofit.
+  function colonyDecay() {
+    var col = game.colony;
+    if (!col._safe || col.meters.hope < 12) return;
+    col.contamination = clamp((col.contamination || 0) - tierDecay(1), 0, 100);
+    col.trauma = clamp((col.trauma || 0) - tierDecay(1), 0, 100);
   }
 
   function beginColony(petition) {
@@ -1228,67 +1248,95 @@
     var surv = alive(), n = surv.length;
     var avgMor = n ? Math.round(surv.reduce(function (s, c) { return s + c.morale; }, 0) / n) : 50;
     var natives = game.dest.inhabited === "natives";
+    // Clean-sheet colony state — ALL meters declared up front (most written by later milestones).
     game.colony = {
-      year: 0, habit: game.dest.habitResult, petition: !!petition,
-      relations: natives ? 35 : null,
-      pop: n,                                   // colonists: labor + mouths (the named crew are among them)
-      popCap: n + 6,                            // habitat capacity — Build raises it; growth halts at the cap
+      stage: "survival", year: 0,
+      elapsedYears: Math.round(game.shipYears || 0),     // total years since the exodus (Earth clock)
+      habit: game.dest.habitResult, petition: !!petition,
+      // population: named crew live in game.crew; pop is the abstract settler count (grows later)
+      pop: 0, popCap: n + 6,
+      // visible survival spine + hope
+      surv: { air: 70, water: 70, food: 70, warmth: 70, health: 80 },
+      meters: { hope: avgMor },
+      alloc: { air: true, water: true, food: true, warmth: true, health: true },
+      // resources + built capacity
       supplies: { food: 64, water: 42, materials: 22, meds: 4 },
-      infra: 6,                                 // built capacity → drives the automatic economy
-      tech: Math.round(game.dest.knowledge || 0),  // what you learned on the way out makes you efficient here
-      defense: natives ? 14 : 0,                // blunts native raids (Fortify raises it)
-      meters: { sufficiency: 16, morale: avgMor },
-      stableYears: 0,                           // consecutive years running a genuine surplus → take root
-      reinforced: false, shipReady: 0, beacon: false, _famine: 0, _thirst: 0
+      infra: 6, tech: Math.round(game.dest.knowledge || 0),
+      // natives: surface stance (visible) vs deep reputation (hidden) — see ledger §1/§3
+      relations: natives ? 35 : null, defense: natives ? 14 : 0,
+      // hidden long-tail meters (declared now; written by P2-M2…M5)
+      ecoHarm: 0, nativeTrust: natives ? 40 : null, contamination: 0, structuralDebt: 0, trauma: 0,
+      // the homeward bridge (rebuilt P3-M1) — declared so composeEnding reads real fields
+      shipReadiness: 0, beacon: false, beaconHeard: false,
+      // bookkeeping
+      _esc: { air: 0, water: 0, food: 0, warmth: 0, health: 0 }, _safe: true, _collapse: 0
     };
     game.screen = "colony";
-    game.log.push({ msg: "═══ ACT II — THE COLONY ═══", type: "sys", day: game.day });
-    log("You commit to the ground beneath Proxima's red light. " + n + " souls begin a colony on a " +
-        (game.colony.habit === "verdant" ? "green, breathing" : game.colony.habit === "marginal" ? "hard, marginal" : "harsh, grudging") + " world.", "sys");
-    if (game.colony.relations != null) log("The natives watch from the treeline. Everything now depends on how you treat them.", "warn");
-    save();
-    renderColony();
+    game.log.push({ msg: "═══ PHASE 2 — ARRIVAL & COLONY ═══", type: "sys", day: game.day });
+    landfallBriefing();
   }
 
-  // One colony year: the automatic economy produces and the people consume (so
-  // self-sufficiency rises or falls on whether the colony actually sustains itself),
-  // your chosen investment shapes next year, scarcity bites, then a weighted event
-  // may strike. (The event finishes the turn so its choice resolves cleanly.)
-  function colonyAction(focus, auto) {
-    var col = game.colony, m = col.meters;
-    col.year++;
-    var r = colonyRates();
-    if (r.crowdF < 1) log("Year " + col.year + ": " + col.pop + " mouths outgrow works built for " + r.support + " — everything runs short until you build more.", "warn");
+  // Plain-language readout of how the Phase-1 voyage shaped this run (the legible seed).
+  function landfallBriefing() {
+    var col = game.colony;
+    var roles = alive().map(function (c) { return c.role; });
+    var uniq = roles.filter(function (r, i) { return roles.indexOf(r) === i; });
+    var hull = Math.round(game.ship.hull);
+    var habTxt = col.habit === "verdant" ? "green and breathing — kind to lungs and crops"
+      : col.habit === "marginal" ? "hard and marginal — survivable, barely"
+      : col.habit === "barren" ? "barren and grudging — it will fight you for every breath"
+      : "all but lethal — the air itself is against you";
+    var hereTxt = game.dest.inhabited === "natives" ? "You are not alone: something lives here, watching from the treeline."
+      : game.dest.inhabited === "settlers" ? "A human expedition reached here before you — you are not the first."
+      : "No mind stirs on this world but your own.";
+    if (game.dest.overtaken) hereTxt += " A faster ship overtook you on the way.";
+    var earthTxt = game.earth && game.earth.status === "silent" ? "Earth has gone silent behind you."
+      : game.earth && game.earth.status === "faint" ? "Earth's signal is faint and fading."
+      : "Earth still calls, faint across the years.";
+    var body =
+      "<p>The lander settles. " + alive().length + " souls step onto Proxima b.</p>" +
+      "<div class='small'><b class='paper'>The world:</b> " + habTxt + ".</div>" +
+      "<div class='small'><b class='paper'>Who survived the crossing:</b> " + (uniq.join(", ") || "no specialists — only survivors") + ".</div>" +
+      "<div class='small'><b class='paper'>The lander:</b> hull " + hull + "% — " + (hull >= 60 ? "sound enough to refit for a return, in time" : hull >= 30 ? "battered; any return ship will cost dearly" : "a wreck; leaving again may be impossible") + ".</div>" +
+      "<div class='small'><b class='paper'>This place:</b> " + hereTxt + "</div>" +
+      "<div class='small'><b class='paper'>Home:</b> " + earthTxt + "</div>" +
+      "<div class='small dim' style='margin-top:6px'>Keep the colony alive: feed the survival systems with power and hands. There is never quite enough of either.</div>";
+    openModal({ title: "⌖ LANDFALL — Proxima Centauri b", body: body,
+      choices: [{ label: "Begin", onClick: function () { sfx("confirm"); closeModal(); save(); renderColony(); } }] });
+  }
 
-    // Automatic economy: built capacity feeds the colony; the people eat.
-    col.supplies.food += r.foodProd; col.supplies.water += r.waterProd; col.supplies.materials += r.matProd;
-    col.supplies.food -= r.foodUse;  col.supplies.water -= r.waterUse;
-    colonyScarcity();                                   // clamps to 0; famine/thirst escalation + pop loss
+  // One colony season: each manned, powered survival system feeds its axis; the world drains every
+  // axis by the mouths it must keep; an empty axis escalates (Phase-R style) into health & hope damage
+  // and, for food/water, into settler deaths. No player actions or events yet — P2-M2…M5 add those.
+  // auto = the colony advancing unattended (the parallel-front hook).
+  function colonyTurn(auto) {
+    var col = game.colony;
+    col.year++; col.elapsedYears = Math.round(game.shipYears || 0) + col.year;
+    var p = colPower(), heads = colHeads(), drain = colHabDrain();
+    if (p.brownout) log("Year " + col.year + ": power and hands can't run every system — works falter (" + Math.round(p.factor * 100) + "%).", "warn");
 
-    // Self-sufficiency is EMERGENT: a real surplus (with a stores buffer) makes it climb and
-    // counts as a stable year; breaking even barely creeps; a deficit erodes it.
-    var buffer = col.supplies.food > col.pop * 3 && col.supplies.water > col.pop * 3;
-    if (r.ratio >= 1.15 && buffer && m.morale > 20) {
-      m.sufficiency = clamp(m.sufficiency + Math.round(4 + (r.ratio - 1) * 9 + (col.tech || 0) / 45), 0, 100);
-      col.stableYears = (col.stableYears || 0) + 1;
-    } else if (r.ratio >= 1.0) {
-      m.sufficiency = clamp(m.sufficiency + 1, 0, 100); col.stableYears = 0;
-    } else {
-      m.sufficiency = clamp(m.sufficiency - Math.round(3 + (1 - r.ratio) * 12), 0, 100); col.stableYears = 0;
-    }
+    var inCrisis = false;
+    COL_SYS.forEach(function (k) {
+      var prod = p.on.indexOf(k) >= 0 ? Math.round(8 * p.factor) : 0;
+      var use = Math.round(heads * drain);
+      col.surv[k] = clamp(col.surv[k] + prod - use, 0, 100);
+      if (col.surv[k] <= 0) {
+        col._esc[k] = (col._esc[k] || 0) + 1; inCrisis = true;
+        var hit = Math.round(Math.min(26, 8 + (col._esc[k] - 1) * 6) * (0.6 + 0.5 * colHarsh()));
+        adjustHealthAll(-hit, true);
+        col.meters.hope = clamp(col.meters.hope - (3 + col._esc[k] * 2), 0, 100);
+        log(SURV_LABEL[k] + (col._esc[k] === 1 ? " has run out — the colony is in crisis." : " still gone (" + col._esc[k] + ") — people are dying."), "bad");
+        if (k === "food" || k === "water") col.pop = Math.max(0, col.pop - Math.ceil(col._esc[k] / 2));
+        if (col._esc[k] >= 5) col._collapse = 1;     // sustained total failure of a life-support axis
+      } else col._esc[k] = 0;
+    });
 
-    // Your investment this year — where the colony leans its effort (shapes next year)
-    applyColonyFocus(focus);
-
-    // Morale drift: fed lifts spirits; want and crowding drag them down
-    var fed = col.supplies.food > col.pop && col.supplies.water > col.pop;
-    col.meters.morale = clamp(col.meters.morale + (fed ? 1 : -3) - (r.crowdF < 1 ? 2 : 0), 0, 100);
-    // Growth in good times — but only up to the habitats you've built
-    if (fed && col.meters.morale > 55 && col.pop < (col.popCap || col.pop) && chance(0.18)) { col.pop++; log("A child is born to the colony — a generation that will call this world home.", "good"); }
+    col._safe = !inCrisis;                 // gates passive recovery of the soft hidden meters
+    colonyDecay();
+    if (col._safe && col.meters.hope < 100) col.meters.hope = clamp(col.meters.hope + 1, 0, 100);
 
     if (!auto) sfx("tick");
-    if (chance(0.55)) rollColonyEvent(auto);    // event resolves and then finishes the turn
-    else colonyAfterTurn(auto);
+    colonyAfterTurn(auto);
   }
   // Finish a colony year. auto = the colony advancing unattended while you mind the ship home.
   function colonyAfterTurn(auto) {
@@ -1304,186 +1352,31 @@
     renderApp();
   }
 
-  function buildCost() { return 5 + Math.floor(game.colony.infra / 4); }   // ramps as the colony grows
-  function applyColonyFocus(focus) {
-    var col = game.colony, s = col.supplies, m = col.meters;
-    var xeno = skillAwake("Xenobiologist"), eng = skillAwake("Engineer"), cmd = skillAwake("Commander");
-    if (focus === "build") {
-      var cost = buildCost();
-      if (s.materials >= cost) { s.materials -= cost; col.infra += 1; col.popCap += 3; m.morale = clamp(m.morale + 2, 0, 100);
-        log("Year " + col.year + ": crews raise new habitats and works — capacity for " + Math.round(col.infra * 2.4) + " now, and the colony produces more.", "good"); }
-      else log("Year " + col.year + ": not enough materials to build (" + cost + " needed) — you need ore and time first.", "warn");
-    } else if (focus === "research") {
-      var t = Math.round(4 + (eng + xeno) / 30); col.tech = clamp((col.tech || 0) + t, 0, 100);
-      influence({ knowledge: +2 });
-      log("Year " + col.year + ": the labs crack a better way — every farm, still and forge runs more efficiently (tech +" + t + ").", "good");
-    } else if (focus === "survey") {
-      var r = sampleWeighted({ find: 5, quiet: 4, danger: 2.5 });
-      if (r === "find") { var mat = rint(5, 12); s.materials += mat; col.tech = clamp((col.tech || 0) + 3, 0, 100); influence({ knowledge: +3, explore: +2 }); log("Year " + col.year + ": the survey strikes lucky — +" + mat + " materials and ground worth knowing.", "good"); }
-      else if (r === "quiet") { col.tech = clamp((col.tech || 0) + 1, 0, 100); log("Year " + col.year + ": a long survey — little to show but a better map.", "info"); }
-      else { col.pop = Math.max(0, col.pop - 1); m.morale = clamp(m.morale - 6, 0, 100); influence({ caution: +2 }); log("Year " + col.year + ": the survey goes wrong — a colonist is lost to the wild.", "bad"); }
-    } else if (focus === "tend") {
-      m.morale = clamp(m.morale + 9, 0, 100); log("Year " + col.year + ": you tend the people — spirits lift.", "good");
-    } else if (focus === "fortify" && col.relations != null) {
-      var d = Math.round(7 + cmd / 14); col.defense = clamp((col.defense || 0) + d, 0, 100);
-      log("Year " + col.year + ": you raise berms and watch-rotations — the perimeter holds harder (defense +" + d + ").", "good");
-    } else if (focus === "diplomacy" && col.relations != null) {
-      var dp = Math.round(6 + Math.max(cmd, xeno) / 12); col.relations = clamp(col.relations + dp, 0, 100);
-      influence({ cooperate: +2 }); log("Year " + col.year + ": you parley with the natives — relations +" + dp + ".", "good");
-    } else if (focus === "readyship") {
-      if (s.materials >= 5) {
-        s.materials -= 5;
-        var prog = Math.round(14 + eng / 8); col.shipReady = Math.min(100, col.shipReady + prog);
-        log("Year " + col.year + ": crews strip and refit the ark for the long crossing home — readiness " + col.shipReady + "%.", col.shipReady >= 100 ? "good" : "info");
-        if (col.shipReady >= 100) log("The ark is spaceworthy again. When you choose, it can carry the news home.", "good");
-      } else log("Year " + col.year + ": not enough materials to refit the ship — you need ore first.", "warn");
+  // Shed-load triage across the survival systems (reuse the ship's brownout pattern). Power and hands
+  // can't run all five at once — choose which axes to feed.
+  function openColonyAllocate() {
+    var col = game.colony, al = col.alloc;
+    function rows() {
+      return COL_SYS.map(function (k) {
+        return "<div class='store-row'><span>" + SURV_LABEL[k] + "</span><span class='qty'>" + COL_DRAW + " pwr · 1 hand</span><span></span>" +
+          "<span><button class='btn small " + (al[k] ? "go" : "") + "' data-csys='" + k + "'>" + (al[k] ? "ON" : "OFF") + "</button></span></div>";
+      }).join("");
     }
-  }
-
-  function colonyScarcity() {
-    var col = game.colony, m = col.meters;
-    if (col.supplies.food <= 0) {
-      col.supplies.food = 0; col._famine = (col._famine || 0) + 1;
-      var dpop = Math.min(col.pop, Math.ceil(col._famine / 2));
-      col.pop = Math.max(0, col.pop - dpop);
-      m.morale = clamp(m.morale - (4 + col._famine * 2), 0, 100);
-      log(col._famine === 1 ? "The stores run dry — the colony goes hungry." : "Famine deepens (" + col._famine + ") — the colony buries its dead.", "bad");
-    } else col._famine = 0;
-    if (col.supplies.water <= 0) {
-      col.supplies.water = 0; col._thirst = (col._thirst || 0) + 1;
-      m.morale = clamp(m.morale - (5 + col._thirst * 2), 0, 100);
-      if (col._thirst >= 2) col.pop = Math.max(0, col.pop - 1);
-      log("Water runs short — thirst and sickness spread.", "bad");
-    } else col._thirst = 0;
-  }
-
-  /* Colony events — weighted, MOST with real skill-check choices (the depth upgrade). */
-  var COLONY_EVENTS = [
-    { id: "blight", w: 7, title: "Crop Blight", text: "A grey rot creeps through the fields. Left alone it will gut the harvest.",
-      choices: [
-        { label: "Engineer a countermeasure", role: "Xenobiologist", diff: 56,
-          success: { food: +6, knowledge: +3, text: "You isolate the rot and breed it out. The fields hold.", type: "good" },
-          failure: { food: -18, morale: -4, text: "The blight outruns you — a season's food is lost.", type: "bad" } },
-        { label: "Burn the infected fields (safe, costly)", outcome: { food: -10, text: "You torch the rot before it spreads. Lean months, but the colony lives.", type: "warn" } }
-      ] },
-    { id: "quake", w: 6, title: "Ground Tremor", text: "The young world shrugs. Habitats crack; the power plant flickers.",
-      choices: [
-        { label: "Shore up the structures", role: "Engineer", diff: 58,
-          success: { materials: -3, text: "Quick bracing saves the works. Minor losses.", type: "good" },
-          failure: { materials: -8, sufficiency: -6, morale: -4, text: "A habitat caves; infrastructure and stores are lost.", type: "bad" } },
-        { label: "Evacuate and ride it out", outcome: { sufficiency: -4, morale: -2, text: "No one is hurt, but unfinished works are abandoned to the quake.", type: "warn" } }
-      ] },
-    { id: "sickness", w: 6, title: "Fever in the Camp", text: "A sickness no one has a name for moves bunk to bunk.",
-      choices: [
-        { label: "Quarantine and treat", role: "Medic", diff: 54,
-          success: { meds: -1, text: "Caught early and contained. Everyone pulls through.", type: "good" },
-          failure: { meds: -1, pop: -1, morale: -5, text: "It spreads before you can isolate it; the colony loses one of its own.", type: "bad" } }
-      ] },
-    { id: "newcomer", w: 5, title: "A Lone Wanderer", text: "Sensors find a survival pod — or a survivor on foot. Another mouth, and another pair of hands.",
-      choices: [
-        { label: "Take them in", outcome: { recruit: true, food: -4, morale: +4, inf: { cooperate: +4 }, text: "You take them in. The colony is a little larger, and a little kinder.", type: "good" } },
-        { label: "Turn them away", outcome: { morale: -5, inf: { cooperate: -4, aggress: +2 }, text: "You close the gates. No one meets anyone's eyes for a while.", type: "warn" } }
-      ] },
-    { id: "windfall", w: 5, title: "Good Season", text: "For once the world is generous — long light, gentle weather.",
-      choices: [{ label: "Bring it all in", outcome: { food: +14, water: +6, morale: +3, text: "Granaries fill and cisterns brim. A good year to remember.", type: "good" } }] },
-    { id: "vein", w: 5, title: "Mineral Vein", text: "A survey turns up a rich seam of metals within reach of the camp.",
-      choices: [
-        { label: "Mine it hard (Engineer)", role: "Engineer", diff: 55,
-          success: { materials: +14, sufficiency: +3, text: "A clean dig — materials enough to build for years.", type: "good" },
-          failure: { materials: +5, pop: -1, text: "A shaft collapses. You get some ore, and lose a digger.", type: "bad" } },
-        { label: "Surface-gather only (safe)", outcome: { materials: +6, text: "You take the easy pickings and leave the deep seam be.", type: "info" } }
-      ] },
-    { id: "unrest", w: 5, title: "Discontent", text: "Whispers in the mess hall: the work is endless, the sky is wrong, and home is a memory.",
-      choices: [
-        { label: "Hold a council (Commander)", role: "Commander", diff: 52,
-          success: { morale: +10, text: "You hear them out and chart a way forward. The colony exhales.", type: "good" } ,
-          failure: { morale: -4, sufficiency: -2, text: "The council turns to shouting. Some down tools for a week.", type: "bad" } },
-        { label: "Ease the work schedule", outcome: { morale: +6, sufficiency: -3, text: "You let people rest. Spirits lift; progress slips.", type: "warn" } }
-      ] },
-    { id: "breakthrough", w: 4, title: "Breakthrough", text: "A late night in the lab pays off — a better way to close the loop.",
-      choices: [{ label: "Put it into practice", outcome: { sufficiency: +10, knowledge: +3, text: "Self-sufficiency takes a real leap forward.", type: "good" } }] },
-    { id: "dispute", w: 6, cond: function () { return game.colony.relations != null; }, title: "Border Dispute",
-      text: "Native foragers and your perimeter crews come to a tense standoff at the tree line.",
-      choices: [
-        { label: "Defuse it in person (Commander/Xeno)", role: "Commander", diff: 56,
-          success: { relations: +8, knowledge: +2, text: "You go out unarmed and listen. They leave a gift of fruit at the fence.", type: "good" },
-          failure: { relations: -10, morale: -3, text: "Words fail. The standoff ends badly, and trust bleeds away.", type: "bad" } },
-        { label: "Pull your people back", outcome: { relations: +3, sufficiency: -2, text: "You cede the contested ground. Peace held — for now.", type: "info" } }
-      ] },
-    { id: "raid", w: 0, cond: function () { return game.colony.relations != null && game.colony.relations < 40; }, w2: 4, title: "Night Raid",
-      text: "Figures move in the dark beyond the lights. The perimeter alarms scream. (Your defenses count here.)",
-      choices: [
-        { label: "Hold the line (Defense)", role: "Commander", diff: 56, defenseAided: true,
-          success: { food: -3, text: "The berms and watch hold; the raiders melt back into the dark with little.", type: "warn" },
-          failure: { food: -10, pop: -1, relations: -6, text: "They breach the stores. Grain and blood spilled — the perimeter wasn't enough.", type: "bad" } }
-      ] },
-    { id: "gift", w: 0, cond: function () { return game.colony.relations != null && game.colony.relations >= 60; }, w2: 4, title: "Gifts at the Fence",
-      text: "At dawn there are baskets at the perimeter — food, and strange, useful tools.",
-      choices: [{ label: "Accept with thanks", outcome: { food: +12, materials: +4, relations: +3, text: "Two peoples, learning each other's kindnesses.", type: "good" } }] }
-  ];
-
-  function rollColonyEvent(auto) {
-    // reinforcement from home is special (one-time)
-    if (!game.colony.reinforced && chance(game.earth && game.earth.status === "silent" ? 0.06 : 0.16)) { colonyReinforce(auto); return; }
-    var pool = COLONY_EVENTS.filter(function (e) { return !e.cond || e.cond(); });
-    // a few events use w2 as their live weight once their condition is met
-    var total = pool.reduce(function (s, e) { return s + (e.cond ? (e.w2 || e.w) : e.w); }, 0);
-    var r = Math.random() * total, acc = 0, ev = pool[0];
-    for (var i = 0; i < pool.length; i++) { acc += (pool[i].cond ? (pool[i].w2 || pool[i].w) : pool[i].w); if (r <= acc) { ev = pool[i]; break; } }
-    if (auto) {
-      // unattended colony: take the safe/non-role option, else the first
-      var ch = ev.choices.find(function (c) { return !c.role; }) || ev.choices[0];
-      if (ch.role) resolveColonyCheck(ch.role, ch.diff, ch.success, ch.failure, ch.defenseAided); else colonyOutcome(ch.outcome);
-      colonyAfterTurn(true); return;
-    }
-    presentColonyEvent(ev);
-  }
-  function colonyReinforce(auto) {
-    var col = game.colony; col.reinforced = true;
-    var nn = rint(2, 5); col.pop += nn; col.meters.sufficiency = clamp(col.meters.sufficiency + rint(8, 14), 0, 100); col.supplies.materials += rint(6, 12);
-    log("A ship from home makes planetfall — " + nn + " more colonists and fresh supplies. You are not alone after all.", "good"); if (!auto) sfx("win");
-    colonyAfterTurn(auto);
-  }
-  function presentColonyEvent(ev) {
-    var choices = ev.choices.map(function (ch) {
-      var noOne = ch.role && !hasAwakeSpecialist(ch.role);
-      var anyOther = ev.choices.some(function (c2) { return !c2.role || hasAwakeSpecialist(c2.role); });
-      return {
-        label: ch.label + (ch.role ? "  [" + ch.role + (noOne ? " — none aboard" : "") + "]" : ""),
-        disabled: noOne && anyOther,
-        onClick: function () {
-          closeModal();
-          if (ch.role) resolveColonyCheck(ch.role, ch.diff, ch.success, ch.failure, ch.defenseAided);
-          else { colonyOutcome(ch.outcome); sfx("select"); }
-          colonyAfterTurn(false);
+    function draw() {
+      var p = colPower();
+      openModal({
+        title: "⚡ Colony Power & Hands",
+        body: "<div class='small'>Power <b class='" + (p.brownout ? "red" : "paper") + "'>" + p.demand + " / " + p.output + "</b> · hands <b class='paper'>" + p.hands + "</b> for <b class='paper'>" + p.on.length + "</b> systems" +
+          (p.brownout ? " <span class='red'>— OVERLOADED: everything runs at " + Math.round(p.factor * 100) + "%. Shut a system to feed the rest.</span>" : " — all running systems at full.") + "</div>" + rows(),
+        choices: [{ label: "Done", onClick: function () { sfx("confirm"); closeModal(); renderColony(); } }],
+        onBind: function (root) {
+          root.querySelectorAll("[data-csys]").forEach(function (b) {
+            b.addEventListener("click", function () { var k = b.getAttribute("data-csys"); al[k] = !al[k]; sfx("blip"); closeModal(); draw(); });
+          });
         }
-      };
-    });
-    openModal({ title: "⚠ " + ev.title, body: ev.text, choices: choices });
-  }
-  function resolveColonyCheck(role, baseDiff, success, failure, defenseAided) {
-    var col = game.colony;
-    var diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
-    // A fortified colony stands a better chance against raids — the defense you built counts.
-    if (defenseAided) diff -= Math.round((col.defense || 0) / 3);
-    var roll = skillAwake(role) + rint(0, 40), ok = roll >= diff;
-    if (!ok && hasAwakeCommander() && (diff - roll) <= TIE_BAND) { ok = true; log("The Commander breaks the tie — the call holds.", "good"); }
-    sfx(ok ? "good" : "bad");
-    colonyOutcome(ok ? success : failure);
-  }
-  function colonyOutcome(o) {
-    if (!o) return;
-    var col = game.colony, s = col.supplies, m = col.meters;
-    ["food", "water", "materials", "meds"].forEach(function (k) { if (o[k]) s[k] = Math.max(0, s[k] + o[k]); });
-    if (o.pop) col.pop = Math.max(0, col.pop + o.pop);
-    if (o.recruit) col.pop += (o.recruit === true ? rint(1, 2) : o.recruit);
-    if (o.sufficiency) m.sufficiency = clamp(m.sufficiency + o.sufficiency, 0, 100);
-    if (o.morale) m.morale = clamp(m.morale + o.morale, 0, 100);
-    if (o.defense) col.defense = clamp((col.defense || 0) + o.defense, 0, 100);
-    if (o.knowledge || o.tech) col.tech = clamp((col.tech || 0) + (o.knowledge || o.tech), 0, 100);
-    if (o.relations != null && col.relations != null) col.relations = clamp(col.relations + o.relations, 0, 100);
-    if (o.inf) influence(o.inf);
-    if (o.text) log(o.text, o.type || "info");
+      });
+    }
+    draw();
   }
 
   // The colony's fate is recorded (not the whole game's) — a ship may still be flying home.
@@ -1494,18 +1387,13 @@
     tryCompose();
     return true;
   }
+  // P2-M1 skeleton: lose conditions only. The colony WIN (foothold → settled) arrives in P2-M6.
   function endColonyCheck() {
     if (game.colonyDone) return true;
     var col = game.colony, m = col.meters;
-    // Take root only on a real, sustained surplus — self-sufficiency at its ceiling AND held there
-    // for several straight years (so it's earned by the economy, not a lucky final spike).
-    if (m.sufficiency >= 100 && (col.stableYears || 0) >= 3) {
-      if (col.petition) return finishColony(true, "GUESTS OF PROXIMA", "You build a life beside the natives — two peoples on one shore. The colony is self-sustaining and growing.");
-      return finishColony(true, "HAVEN", "The colony stands on its own at last — fed, watered, powered, and growing under an alien sun. Humanity has a second cradle." + (game.earth && game.earth.status === "silent" ? " It may be the only one left." : ""));
-    }
-    if (col.pop <= 0) return finishColony(false, "WITHERED", "The last colonist lies down in alien soil. The settlement goes back to wilderness.");
-    if (col.relations != null && col.relations <= 0) return finishColony(false, "TURNED AWAY", "The natives have suffered you long enough. The colony is overrun and scattered.");
-    if (m.morale <= 0) return finishColony(false, "WITHERED", "The colony fractures into despair and faction, and does not survive the schism.");
+    if (colHeads() <= 0) return finishColony(false, "WITHERED", "The last colonist lies down in alien soil. The settlement goes back to wilderness.");
+    if (m.hope <= 0) return finishColony(false, "WITHERED", "Hope runs out before the supplies do. The colony fractures into despair and does not survive.");
+    if (col._collapse) return finishColony(false, "LIFE SUPPORT LOST", "A life-support system fails for good, and the cold and the dark take the rest. The colony is gone.");
     return false;
   }
 
@@ -1516,20 +1404,7 @@
      weighs both.
      --------------------------------------------------------- */
 
-  // A cheap, early hedge: a light-speed message races home. Whether it is heard depends on
-  // whether Earth is still listening across the years — but it costs you almost nothing to send.
-  function colonyBeacon() {
-    var col = game.colony;
-    if (col.beacon) return;
-    col.beacon = true;
-    // The message only lands if Earth is still listening when it arrives (light-speed, years stale).
-    col.beaconHeard = !(game.earth && game.earth.status === "silent");
-    log("◆ You aim the great dish at a pale star and send everything — the maps, the dead, the plea. The message races home at the speed of light. " +
-        (col.beaconHeard ? "Earth is still listening; in time, they will know what you found." : "But Earth has gone silent — there may be no one left to hear it.") + " ◆", col.beaconHeard ? "good" : "warn");
-    sfx("confirm");
-    influence({ persist: +3, cooperate: +2 });
-    colonyAfterTurn();   // sending the beacon takes a year
-  }
+  // (Beacon + launch are rebuilt in P3-M1, the Decision milestone.)
 
   // Crew split: choose who stays to hold the colony and who rides the ark home.
   function colonyLaunch() {
@@ -1885,12 +1760,8 @@
 
   // === Parallel clock: advancing one front nudges the other along unattended. ===
   function colonyAutoStep() {
-    if (!game.colony || game.colonyDone) return;
-    // sensible unattended focus: if running short, build out capacity (more food/water); else research.
-    // Build only when materials allow, otherwise research so the year isn't wasted.
-    var col = game.colony, r = colonyRates();
-    var focus = (r.ratio < 1.1 && col.supplies.materials >= buildCost()) ? "build" : "research";
-    colonyAction(focus, true);
+    if (!game.colony || game.colonyDone) return;   // safe no-op guard (parallel-front hook for M-INT1b)
+    colonyTurn(true);
   }
   function voyageAutoStep() {
     if (!game.voyage || !game.voyage.active || game.voyageDone) return;
@@ -3506,62 +3377,38 @@
   /* ---- Act II: Colony ---- */
   function renderColony() {
     if (maybeSuccession(game.crew, renderColony)) return;   // if you fall on the ground, leadership passes
-    setAlert(game.colony.meters.morale < 20 || game.colony.supplies.food <= 0 || (game.colony.relations != null && game.colony.relations < 20));
-    var col = game.colony, m = col.meters, s = col.supplies, app = $("#app");
-    var r = colonyRates();
+    var col = game.colony, m = col.meters, app = $("#app");
+    var p = colPower();
+    var lowSurv = COL_SYS.some(function (k) { return col.surv[k] <= 15; });
+    setAlert(m.hope < 20 || lowSurv);
     function bar(v, max, kind) { var pct = clamp(Math.round(v / max * 100), 0, 100); return "<div class='bar " + (kind || (pct < 25 ? "crit" : pct < 50 ? "warn" : "ok")) + "'><span style='width:" + pct + "%'></span></div>"; }
-    function stat(label, val, cls) { return "<div class='stat'><span class='label'>" + label + "</span><span class='val " + (cls || "") + "'>" + val + "</span></div>"; }
-    // Production vs consumption, the heart of self-sufficiency — show it plainly.
-    function flow(label, prod, use, cls) {
-      var net = prod - use, sign = net >= 0 ? "+" : "";
-      return "<div class='stat'><span class='label'>" + label + "</span><span class='val " + (cls || "") + "'>" +
-        prod + "/yr <span class='small dim'>eat " + use + "</span> <span class='" + (net >= 0 ? "cyan" : "red") + "'>" + sign + net + "</span></span></div>";
+    function svRow(k) {
+      var v = Math.round(col.surv[k]);
+      return "<div><div class='stat'><span class='label'>" + SURV_LABEL[k] + (col.alloc[k] ? "" : " <span class='red small'>OFF</span>") + "</span><span class='val'>" + v + "</span></div>" + bar(col.surv[k], 100) + "</div>";
     }
-    var trend = r.ratio >= 1.15 ? "<span class='cyan'>▲ thriving — surplus is taking root</span>"
-      : r.ratio >= 1.0 ? "<span class='amber'>≈ breaking even — build or research to pull ahead</span>"
-      : "<span class='red'>▼ running a deficit — self-sufficiency is slipping</span>";
+    function stat(label, val, cls) { return "<div class='stat'><span class='label'>" + label + "</span><span class='val " + (cls || "") + "'>" + val + "</span></div>"; }
     var hud =
-      "<div class='panel'><div class='panel-title'>The Colony · Year " + col.year + " · " + col.habit + " world</div>" +
-        "<div class='stat'><span class='label'>Self-sufficiency</span><span class='val cyan'>" + Math.round(m.sufficiency) + " / 100</span></div>" + bar(m.sufficiency, 100, "power") +
-        "<div class='small' style='margin-top:6px'>" + trend + "</div>" +
-        "<div class='small dim'>Self-sufficiency rises only while the colony produces more than it eats. Hold a surplus until it reaches 100 to take root" +
-          ((col.stableYears || 0) > 0 ? " — <span class='cyan'>" + col.stableYears + " stable year" + (col.stableYears === 1 ? "" : "s") + " so far</span>." : ".") + "</div>" +
+      "<div class='panel'><div class='panel-title'>The Colony · Year " + col.year + " · " + col.habit + " world · " + col.stage + "</div>" +
+        "<div class='stat'><span class='label'>Hope</span><span class='val cyan'>" + Math.round(m.hope) + " / 100</span></div>" + bar(m.hope, 100, "power") +
+        "<div class='small dim' style='margin-top:6px'>Survival, not yet a settlement. Air, water, food, warmth and medical care all drain — and there is never enough power and hands to run all five at full. Triage.</div>" +
       "</div>" +
       "<div class='cols'>" +
-        "<div class='col panel'><div class='panel-title'>Economy</div><div class='hud-grid'>" +
-          flow("Food", r.foodProd, r.foodUse, s.food <= col.pop ? "red" : "") + flow("Water", r.waterProd, r.waterUse, s.water <= col.pop ? "red" : "") +
-          stat("Materials", Math.round(s.materials) + " <span class='small dim'>+" + r.matProd + "/yr</span>") + stat("Medicine", Math.round(s.meds)) +
-          stat("Stored food", Math.round(s.food), s.food <= col.pop ? "red" : "") + stat("Stored water", Math.round(s.water), s.water <= col.pop ? "red" : "") +
-        "</div><div class='small dim' style='margin-top:4px'>Infrastructure <b class='paper'>" + col.infra + "</b> · Tech <b class='paper'>" + (col.tech || 0) + "</b>" +
-          (r.crowdF < 1 ? " · <span class='red'>⚠ overcrowded (" + col.pop + "/" + r.support + ") — works throttled</span>" : " · capacity " + col.pop + "/" + r.support) + "</div></div>" +
+        "<div class='col panel'><div class='panel-title'>Life support</div><div class='hud-grid'>" +
+          COL_SYS.map(svRow).join("") +
+        "</div><div class='small dim' style='margin-top:4px'>Power <b class='" + (p.brownout ? "red" : "paper") + "'>" + p.demand + " / " + p.output + "</b> · hands <b class='paper'>" + p.hands + "</b>" + (p.brownout ? " <span class='red'>⚠ overloaded (" + Math.round(p.factor * 100) + "%)</span>" : "") + "</div></div>" +
         "<div class='col panel'><div class='panel-title'>Settlement</div><div class='hud-grid'>" +
-          stat("Colonists", col.pop + " <span class='small dim'>/ " + col.popCap + "</span>") + stat("Morale", Math.round(m.morale), m.morale < 25 ? "red" : "") +
-          (col.relations != null ? stat("Defense", Math.round(col.defense)) + stat("Native relations", Math.round(col.relations), col.relations < 25 ? "red" : "")
-                                  : stat("Tech", (col.tech || 0)) + stat("Habitats", col.popCap)) +
+          stat("Colonists", colHeads()) + stat("Settlers", col.pop) +
+          stat("Infrastructure", col.infra) + stat("Years since exodus", col.elapsedYears) +
+          (col.relations != null ? stat("Native stance", Math.round(col.relations), col.relations < 25 ? "red" : "") : stat("Stored materials", Math.round(col.supplies.materials))) +
         "</div></div>" +
       "</div>" +
       "<div class='panel'><div class='panel-title'>Crew of record</div>" + crewStrip() + "</div>";
     var acts = "<div class='menu row'>" +
-      "<button class='btn go' data-action='colony' data-arg='build'>🏗 Build <span class='small dim'>(" + buildCost() + " mat)</span></button>" +
-      "<button class='btn small' data-action='colony' data-arg='research'>🔬 Research</button>" +
-      "<button class='btn small' data-action='colony' data-arg='survey'>🧭 Survey</button>" +
-      "<button class='btn small' data-action='colony' data-arg='tend'>❤ Tend</button>" +
-      (col.relations != null ? "<button class='btn small' data-action='colony' data-arg='fortify'>🛡 Fortify</button>" : "") +
-      (col.relations != null ? "<button class='btn small' data-action='colony' data-arg='diplomacy'>🤝 Diplomacy</button>" : "") +
+      "<button class='btn go' data-action='colony' data-arg='advance'>▶ Advance the season</button>" +
+      "<button class='btn small' data-action='colony' data-arg='allocate'>⚡ Power &amp; hands</button>" +
       "</div>";
-    // The message home: refit the ark, send a beacon, and launch when you choose.
-    var ship = "";
-    if (!game.voyage) {
-      ship = "<div class='menu row' style='margin-top:6px'>" +
-        "<button class='btn small' data-action='colony' data-arg='readyship'>🛠 Ready the ark (" + col.shipReady + "%)</button>" +
-        (col.shipReady >= 100 ? "<button class='btn go' data-action='colony' data-arg='launch'>🚀 Launch for Earth</button>" : "") +
-        (!col.beacon ? "<button class='btn small' data-action='colony' data-arg='beacon'>📡 Send a beacon home</button>" : "<span class='small dim'>📡 beacon sent</span>") +
-        "</div>";
-    } else if (game.voyage.active) {
-      ship = "<div class='menu row' style='margin-top:6px'><button class='btn small' data-action='focus' data-arg='voyage'>⇄ Mind the ship home</button>" +
-        "<span class='small dim'>The ark is " + Math.round(game.voyage.distance / game.voyage.total * 100) + "% of the way home.</span></div>";
-    }
-    app.innerHTML = hud + acts + ship + "<div class='small dim'>Each action is one year. Build raises capacity &amp; production; research makes every yield go further.</div>" +
+    app.innerHTML = hud + acts +
+      "<div class='small dim'>More to come — build, explore, contact the unknown — as the colony finds its feet.</div>" +
       "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
     renderLog();
   }
@@ -3712,9 +3559,9 @@
       case "mine": openMining(); break;
       case "ai": openAI(); break;
       case "colony":
-        if (arg === "beacon") colonyBeacon();
-        else if (arg === "launch") colonyLaunch();
-        else colonyAction(arg);
+        if (arg === "advance") colonyTurn(false);
+        else if (arg === "allocate") openColonyAllocate();
+        else if (arg === "launch") colonyLaunch();   // Game B — intact but dormant in Phase 2
         break;
       case "voyage":
         if (arg === "continue") voyageStep();

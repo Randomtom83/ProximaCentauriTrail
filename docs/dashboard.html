@@ -265,11 +265,24 @@ var SPRINTS = [
     ["Each meter: writers, readers, thresholds, ≥1 named payoff event","done"],
     ["Close audit gaps: contamination + trauma payoffs; nativeTrust can RISE; +missing-action rows","done"],
     ["Orphan check: every hidden meter has ≥1 writer AND ≥1 reader (no orphans)","done"],
-    ["Lock 5 Act II decisions (logged below)","done"]
+    ["Lock 5 Act II decisions (logged below)","done"],
+    ["Amendment P2-M0.1: recovery/decay model, DIFFICULTY.harsh scaling hook, relations vs nativeTrust, ship-strip unified","done"]
+  ]},
+  { id:"p2m1", name:"Milestone P2-M1 — Arrival seed reader + colony skeleton", tasks:[
+    ["Rebuild game.colony: survival spine (air/water/food/warmth/health) + hope + ALL meters up front","done"],
+    ["Seed reader: map Phase-1 end state (crew/ship/dest/alien/earth/potential/posture) into the colony","done"],
+    ["Labor+power allocation with a colony brownout (reuse the shed-load pattern)","done"],
+    ["Per-axis Phase-R escalation; lose on collapse / hope 0 / last colonist","done"],
+    ["Passive-decay + tier-scaling stubs wired into the turn loop","done"],
+    ["Legible landfall briefing (specialists, hull, habitability, who's here, Earth)","done"],
+    ["Headless colonyTurn(auto); rewired colonyAutoStep for the parallel front","done"],
+    ["renderColony HUD skeleton; dispatch → advance/allocate; SAVE_KEY v6→v7","done"]
   ]}
 ];
 
 var LOG = [
+  { date:"2026-06-24", tag:"feature", title:"P2-M1 — Arrival seed reader + colony skeleton (clean sheet)",
+    body:"First build of the reimagined Phase 2. The old thin colony sim (Game-A internals: colonyRates/colonyAction/applyColonyFocus/colonyScarcity/COLONY_EVENTS/event machinery/colonyBeacon/old renderColony) is replaced by a clean skeleton; Game B (the launch/voyage path) is left intact but dormant, rebuilt in P3-M1. The colony now reads the Phase-1 end state as a seed (surviving crew + roles, ship hull, leftover supplies, dest.habitResult/inhabited/knowledge, alien.*, earth.status, potential/posture, difficulty) and a plain-language LANDFALL briefing states how that seed shaped the run. Core loop: a survival spine (air/water/food/warmth/health) each produced by a manned, powered system and drained by the colony's mouths × habitability; power+hands can't run all five at once, forcing brownout triage (reused shed-load pattern); an empty axis escalates Phase-R style into health + hope damage (and settler deaths for food/water), and a sustained collapse / hope 0 / last colonist ends the run. ALL meters — survival spine, hope, elapsedYears, and the hidden ecoHarm/nativeTrust/contamination/structuralDebt/trauma + relations/shipReadiness/beaconHeard — are declared up front so later milestones wire to a stable contract; the passive-decay and DIFFICULTY.harsh tier-scaling helpers are live stubs. The colony turn runs headlessly (colonyAutoStep → colonyTurn(true)) for the future parallel front. No colony actions, events, sites, or native arc yet (P2-M2…M5). SAVE_KEY bumped v6→v7 (old saves cleanly ignored). Verified: node --check game.js audio.js; new colonyskel jsdom harness (seed→briefing→colony, stabilize vs escalating death, brownout, v7 round-trip, headless auto-step) green; Phase-1 feattest + fuzz (60 runs) clean, zero JS errors." },
   { date:"2026-06-24", tag:"build", title:"P2-M0 — Act II Consequence Ledger locked (design, no game code)",
     body:"Act II (Arrival/Colony + Voyage Home) is being rebuilt clean-sheet as two games seeded by Phase 1. Per the orchestrator review, the Consequence Ledger is locked FIRST as a design doc (docs/consequence-ledger.md) so every later milestone wires consequences against one consistent contract — avoiding the prior failure where back-half prompts promised mechanics the code never implemented. Defines the survival spine + visible hope/Earth-clock, and five HIDDEN long-tail meters (ecoHarm, nativeTrust, contamination, structuralDebt, trauma), each with writers, readers, thresholds, and a NAMED dramatic payoff event (The Ground Remembers, The Reckoning at the Treeline, The Fever Season, The Long Crack, The One Who Couldn't). ~30 action rows map each choice to its immediate visible effect AND a hidden long-tail (delayed event + ending beat) — mixed-horizon consequences. Audit gaps closed: contamination and trauma now have concrete payoffs; nativeTrust can RISE via trade/diplomacy (not one-way doom); added missing-action rows (research-shortcut, hibernate-colonists, absorb-settlers, spend-the-ship-as-shelter). Orphan check passes: every hidden meter has ≥1 writer AND ≥1 reader. Next: P2-M1 (arrival-seed reader + colony skeleton)." },
   { date:"2026-06-24", tag:"decision", title:"Going home is optional and resource-gated",
