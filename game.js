@@ -1299,7 +1299,8 @@
       // the homeward bridge (rebuilt P3-M1) — declared so composeEnding reads real fields
       shipReadiness: 0, beacon: false, beaconHeard: false,
       // bookkeeping
-      _esc: { air: 0, water: 0, food: 0, warmth: 0, health: 0 }, _safe: true, _collapse: 0
+      _esc: { air: 0, water: 0, food: 0, warmth: 0, health: 0 }, _safe: true, _collapse: 0,
+      flags: {}     // fire-once set-pieces + named threshold payoffs (persists in the v7 save)
     };
     seedColonySites();        // the discoverable world — sites hidden until scouted (P2-M3)
     seedSettlers(avgMor);     // a few named, bonded colonists came down with you — their loss is personal
@@ -1530,12 +1531,18 @@
     col._safe = !inCrisis;                 // gates passive recovery of the soft hidden meters
     colonyDecay();
     if (col._safe && col.meters.hope < 100) col.meters.hope = clamp(col.meters.hope + 1, 0, 100);
-    // Something stirs: a woken thing presses on morale every season until it's reckoned with (P2-M4/M5).
+    // Something stirs: a woken thing presses on morale every season until it's reckoned with (P2-M5).
     if (col.woke) col.meters.hope = clamp(col.meters.hope - 1, 0, 100);
-    // Deaths this season cost the colony its hope — and a bonded crewmate's grief (killCrew) compounds it.
+    // Roll the season's set-piece / named payoff / hazard / event AFTER consumption and BEFORE the
+    // death→hope tally, so event & hazard deaths cascade hope exactly like expedition/survival deaths.
+    colonyEventPhase(auto, function () { finishColonyTurn(aliveBefore, auto); });
+  }
+  // Tail of a colony season — runs after the event/hazard resolves (inline for auto, or from the
+  // event modal's onClick for a player turn).
+  function finishColonyTurn(aliveBefore, auto) {
+    var col = game.colony;
     var died = aliveBefore - alive(game.crew).length;
     if (died > 0) col.meters.hope = clamp(col.meters.hope - died * 5, 0, 100);
-
     if (!auto) sfx("tick");
     colonyAfterTurn(auto);
   }
@@ -1551,6 +1558,248 @@
     // If the colony just secured/failed but the ship is still out there, follow the ship.
     if (game.colonyDone && game.voyage && game.voyage.active) game.screen = "voyage";
     renderApp();
+  }
+
+  /* ---- P2-M4: colony events, hazards, set-pieces, named ledger payoffs ----
+     SIBLINGS of the Phase-1 applyOutcome/resolveCheck (which stay untouched): same shape, but they
+     target COLONY state (materials/tech/survival axes + hope + hidden meters), never game.supplies/ship. */
+  function applyColonyOutcome(o) {
+    if (!o) return "";
+    var col = game.colony, s = col.supplies, m = col.meters;
+    ["materials", "food", "water", "meds"].forEach(function (k) { if (o[k]) s[k] = Math.max(0, round1((s[k] || 0) + o[k])); });
+    if (o.surv) for (var a in o.surv) if (col.surv[a] != null) col.surv[a] = clamp(col.surv[a] + o.surv[a], 0, 100);
+    if (o.hope) m.hope = clamp(m.hope + o.hope, 0, 100);
+    ["tech", "ecoHarm", "contamination", "structuralDebt", "trauma"].forEach(function (k) { if (o[k]) col[k] = clamp((col[k] || 0) + o[k], 0, 100); });
+    if (o.infra) col.infra = Math.max(0, col.infra + o.infra);
+    if (o.pop) col.pop = Math.max(0, col.pop + o.pop);
+    if (o.relations != null && col.relations != null) col.relations = clamp(col.relations + o.relations, 0, 100);
+    if (o.health) {
+      if (o.target === "one") { var one = pick(awake(game.crew)); if (one) { one.health = clamp(one.health + o.health, 0, 100); if (one.health <= 0) killCrew(one, "succumbed"); else if (o.health < 0 && one.status === "Healthy") one.status = "Injured"; } }
+      else adjustHealthAll(o.health, true);
+    }
+    if (o.ailment) afflict(o.ailment === true ? null : o.ailment);
+    if (o.kill) { var v = (o.kill === "weakest") ? awake(game.crew).slice().sort(function (a, b) { return a.health - b.health; })[0] : pick(awake(game.crew)); if (v) killCrew(v, o.killVerb || "was lost"); }
+    if (o.crack) { var cc = pick(awake(game.crew).filter(function (c) { return c.status !== "Cracked" && !c.child; })) || pick(awake(game.crew)); if (cc) { cc.status = "Cracked"; log(cc.name + " is not the same after this.", "bad"); } }
+    if (o.recruit) addColonist();
+    if (o.inf) influence(o.inf);
+    if (o.text) log(o.text, o.type || "info");
+    return o.text || "";
+  }
+  function addColonist() {
+    if (alive(game.crew).length >= MAX_CREW) { log("There is no room and no rations for another mouth.", "warn"); return; }
+    var used = {}; game.crew.forEach(function (c) { used[c.name] = 1; });
+    var poolN = NAMES.filter(function (n) { return !used[n]; });
+    var nm = poolN.length ? pick(poolN) : "Settler-" + rint(10, 99);
+    var partner = pick(game.crew);
+    var c = { name: nm, role: "Colonist", health: rint(70, 90), morale: game.colony.meters.hope, status: "Healthy", skill: rint(25, 45), ailment: null, bonds: partner ? [partner.name] : [], age: rint(20, 52), child: false };
+    if (partner && partner.bonds.indexOf(nm) < 0) partner.bonds.push(nm);
+    game.crew.push(c);
+  }
+  // Same diff/roll/commander-tie/aiAssist math as resolveCheck (minus the ship-only sensors term),
+  // but resolves through applyColonyOutcome. resolveCheck itself is NOT touched.
+  function resolveColonyCheck(role, baseDiff, success, failure) {
+    var diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
+    diff -= Math.round((game.potential - 50) * 0.15);
+    diff -= aiAssist();
+    var roll = skillAwake(role) + rint(0, 40);
+    var ok = roll >= diff;
+    if (!ok && hasAwakeCommander() && (diff - roll) <= TIE_BAND) { ok = true; log("The Commander steadies them — the call holds.", "good"); }
+    sfx(ok ? "good" : "bad");
+    return applyColonyOutcome(ok ? success : failure) || (ok ? "It holds." : "It goes wrong.");
+  }
+
+  /* Colony events — EVENTS shape; routed through the generalized rollEvent(COLONY_EVENTS, {colony}). */
+  var COLONY_EVENTS = [
+    { id: "seam", w: 7, title: "A Promising Seam", text: "Survey drones flag a vein of usable ore within reach of the camp.",
+      choices: [
+        { label: "Dig it out", role: "Engineer", diff: 56,
+          success: { materials: +14, text: "A clean dig — materials enough to build for a while.", type: "good" },
+          failure: { materials: +5, health: -14, target: "one", text: "A shaft slumps; you get some ore and a hurt digger.", type: "bad" } },
+        { label: "Surface-gather only (safe)", outcome: { materials: +6, text: "You take the easy pickings and leave the deep seam be.", type: "info" } } ] },
+    { id: "badwater", w: 6, title: "Tainted Cistern", text: "The reclaimers cough up water with a wrong color and a worse smell.",
+      choices: [
+        { label: "Screen and treat it", role: "Medic", diff: 54,
+          success: { meds: -1, text: "Caught it before anyone drank deep. Clean again.", type: "good" },
+          failure: { contamination: +12, surv: { water: -10 }, text: "It's in the supply before you isolate it.", type: "bad" } },
+        { label: "Ration the clean stores", outcome: { surv: { water: -8 }, hope: -2, text: "Thirsty weeks, but no one sickens.", type: "warn" } } ] },
+    { id: "wanderer", w: 5, mood: "crew", title: "A Lone Wanderer", text: "Sensors find a survivor on foot — another mouth, another pair of hands.",
+      choices: [
+        { label: "Take them in", outcome: { recruit: true, surv: { food: -4 }, hope: +5, inf: { cooperate: +4 }, text: "You take them in. The colony is a little larger, a little kinder.", type: "good" } },
+        { label: "Turn them away", outcome: { hope: -5, inf: { cooperate: -4, aggress: +2 }, text: "You close the gates. No one meets anyone's eyes for a while.", type: "warn" } } ] },
+    { id: "quiet", w: 6, title: "A Quiet Season", text: "For once the world asks nothing of you. Long light, gentle weather.",
+      choices: [ { label: "Let the people breathe", outcome: { hope: +6, trauma: -4, text: "Spirits lift; old wounds settle a little.", type: "good" } } ] },
+    { id: "windfall", w: 5, title: "A Good Year", text: "The fields come in heavy and the cisterns brim.",
+      choices: [ { label: "Bring it all in", outcome: { surv: { food: +14, water: +8 }, food: +10, hope: +3, text: "Granaries fill. A good year to remember.", type: "good" } } ] },
+    { id: "labwork", w: 5, mood: "discover", title: "An Idea in the Lab", text: "A late night pays off — a better way to close a loop in the life-support chain.",
+      choices: [
+        { label: "Prove it out", role: "Xenobiologist", diff: 55,
+          success: { tech: +6, contamination: -5, text: "It works. Cleaner, leaner systems all round.", type: "good" },
+          failure: { surv: { health: -6 }, text: "A dead end, and a few wasted weeks.", type: "warn" } } ] },
+    { id: "coldsnap", w: 6, title: "Cold Snap", text: "A hard front rolls off the dark side. The heat can't keep up.",
+      choices: [
+        { label: "Burn materials for warmth", outcome: { materials: -6, surv: { warmth: +10 }, ecoHarm: +4, text: "You feed the furnaces. Warm enough — at a cost to the land.", type: "warn" } },
+        { label: "Huddle and endure", outcome: { surv: { warmth: -10, health: -6 }, hope: -3, text: "You ride it out cold. Some take ill.", type: "bad" } } ] },
+    { id: "machine", w: 5, title: "Works Breakdown", text: "A core fabricator throws a rod and seizes.",
+      choices: [
+        { label: "Strip and rebuild it", role: "Engineer", diff: 57,
+          success: { text: "Back online by morning. Barely a hiccup.", type: "good" },
+          failure: { structuralDebt: +8, surv: { air: -8 }, text: "You cannibalize other works to limp it along.", type: "bad" } } ] },
+    { id: "unrest", w: 5, mood: "crew", title: "Discontent", text: "Whispers in the mess: the work is endless, the sky is wrong, home is a memory.",
+      choices: [
+        { label: "Hold a council", role: "Commander", diff: 52,
+          success: { hope: +10, text: "You hear them out and chart a way forward. The colony exhales.", type: "good" },
+          failure: { hope: -4, trauma: +4, text: "The council turns to shouting. Some down tools for a week.", type: "bad" } },
+        { label: "Ease the work schedule", outcome: { hope: +6, surv: { food: -4 }, text: "You let people rest. Spirits lift; stores slip.", type: "warn" } } ] },
+    { id: "nightmares", w: 5, cond: function () { return game.colony.woke; }, title: "Bad Dreams", text: "Since you woke it, the camp doesn't sleep right. People wake with the same dream they can't name.",
+      choices: [
+        { label: "Name it, study it", role: "Xenobiologist", diff: 60,
+          success: { tech: +4, trauma: +2, text: "You begin to understand the thing in the dark. Knowing helps — a little.", type: "warn" },
+          failure: { trauma: +8, hope: -4, text: "The more you look, the more it looks back.", type: "bad" } } ] },
+    { id: "salvage", w: 5, mood: "discover", title: "Old Wreck on the Ridge", text: "Wind uncovers the ribs of something that crashed here long before you.",
+      choices: [
+        { label: "Pick it over", outcome: { materials: +8, tech: +3, ecoHarm: +2, text: "Good salvage — metal and a few answers.", type: "good" } },
+        { label: "Leave it to the dust", outcome: { hope: +1, inf: { caution: +2 }, text: "Some graves are better left shut.", type: "info" } } ] },
+    { id: "birth", w: 4, cond: function () { return game.colony.meters.hope > 50; }, title: "First Cry", text: "Against all the arithmetic of survival, a child is coming.",
+      choices: [ { label: "Welcome them", outcome: { pop: +1, hope: +9, food: -4, inf: { persist: +3 }, text: "A first cry rings down the corridors — the first of a generation that will call this world home.", type: "good" } } ] }
+  ];
+
+  /* Named ledger payoffs — fire ONCE when a hidden meter crosses its harsh-scaled threshold (col.flags). */
+  var COLONY_PAYOFFS = [
+    { id: "p_eco", meter: "ecoHarm", at: 60, ev: { id: "groundremembers", title: "The Ground Remembers",
+      text: "The land you scarred answers all at once — spores in the air ducts, blight in the fields, migration paths gone wrong. It is not malice. It is consequence.",
+      choices: [ { label: "Weather it", outcome: { surv: { food: -22, air: -12, health: -10 }, trauma: +6, hope: -8, text: "You take what the world gives back, and bury some of your own.", type: "bad" } } ] } },
+    { id: "p_fever", meter: "contamination", at: 60, ev: { id: "feverseason", title: "The Fever Season",
+      text: "What you let fester finds the whole colony at once. The infirmary overflows by the second week.",
+      choices: [ { label: "Triage and pray", outcome: { surv: { health: -20 }, meds: -2, health: -16, kill: true, killVerb: "did not survive the fever", hope: -6, text: "You hold the line where you can. Not everywhere.", type: "bad" } } ] } },
+    { id: "p_crack", meter: "structuralDebt", at: 60, ev: { id: "longcrack", title: "The Long Crack",
+      text: "The corners you cut come due in a single night: a main habitat groans, and gives.",
+      choices: [ { label: "Get everyone clear", outcome: { infra: -1, surv: { warmth: -14, air: -10 }, health: -14, target: "one", structuralDebt: -10, hope: -6, text: "A habitat is lost and someone with it, but most get out. The works are set back hard.", type: "bad" } } ] } },
+    { id: "p_trauma", meter: "trauma", at: 60, ev: { id: "onewhocouldnt", title: "The One Who Couldn't",
+      text: "It has been too much, for too long. One of your own stops answering — stares at a wall where a window should be.",
+      choices: [ { label: "Sit with them", outcome: { crack: true, hope: -5, text: "You do what you can. Some weights don't lift. They will not be the same again.", type: "bad" } } ] } }
+  ];
+
+  /* Survival set-pieces — scripted high-tension beats; intercept the roll ONCE at their thresholds. */
+  var COLONY_SETPIECES = [
+    { id: "sp_night", when: function () { return game.colony.year >= 1; }, ev: { id: "firstnight", title: "The First Night",
+      text: "Proxima sets, and a dark you have never known comes down — fourteen hours of it, full of sounds with no names.",
+      choices: [
+        { label: "Set watches, keep the fires up", role: "Commander", diff: 50,
+          success: { hope: +6, text: "You hold the camp together through the long dark. Dawn finds everyone accounted for.", type: "good" },
+          failure: { hope: -4, surv: { warmth: -8 }, text: "A long, frightened night. The fires gutter; nerves fray.", type: "warn" } },
+        { label: "Everyone inside, lights low", outcome: { surv: { warmth: -4 }, hope: -2, text: "You wait it out in the dark, listening. Morning comes anyway.", type: "info" } } ] } },
+    { id: "sp_storm", when: function () { return game.colony.year >= 2; }, ev: { id: "firststorm", title: "The First Storm",
+      text: "The sky turns the color of a bruise and the wind arrives like a fist. The young works have never been tested like this.",
+      choices: [
+        { label: "Lash it all down", role: "Engineer", diff: 56,
+          success: { materials: -4, text: "You brace the works in time. They hold, groaning, through the night.", type: "good" },
+          failure: { structuralDebt: +8, surv: { warmth: -10 }, health: -10, target: "one", text: "The storm takes a roof and nearly a life. You rebuild in the rain.", type: "bad" } },
+        { label: "Abandon the outer works, save the core", outcome: { surv: { food: -10 }, hope: -2, text: "You let the wind have the edges and hold the center.", type: "warn" } } ] } },
+    { id: "sp_winter", when: function () { return game.colony.year >= 3; }, ev: { id: "firstwinter", title: "The Long Winter",
+      text: "The seasons here are not Earth's. The cold settles in to stay, and the light thins to almost nothing. This is the one that decides whether a colony becomes a grave.",
+      choices: [
+        { label: "Pool everything, ration hard", role: "Commander", diff: 58,
+          success: { surv: { food: -8, warmth: -6 }, hope: +8, text: "You bring them through the worst of it together. When the light returns, the colony is still here — and surer of itself.", type: "good" },
+          failure: { surv: { food: -16, warmth: -12, health: -12 }, kill: true, killVerb: "did not see the spring", trauma: +8, text: "Winter takes its tithe. You come out the far side fewer, and quieter.", type: "bad" } } ] } }
+  ];
+
+  /* Colony hazards — sampled clean→catastrophic spectrum (mirrors the ship's applyHazardSeverity). */
+  var COLONY_HAZARDS = [
+    { id: "blight", w: 5, title: "Crop Blight", text: "A grey rot is in the fields, and it is moving.",
+      danger: function () { return 0.30 + (game.colony.ecoHarm || 0) / 240; },
+      options: [ { label: "Breed it out", role: "Xenobiologist", riskMult: 0.7 }, { label: "Burn the infected fields (safe, costly)", riskMult: 0.5, cost: { surv: { food: -8 } } } ],
+      resolve: function (sev) {
+        if (sev === "clean") log("You catch the blight early and stop it cold. The harvest holds.", "good");
+        else if (sev === "graze") applyColonyOutcome({ surv: { food: -8 }, text: "Some fields lost before you contain it.", type: "warn" });
+        else if (sev === "serious") applyColonyOutcome({ surv: { food: -18 }, food: -6, text: "A season's food, gutted by the rot.", type: "bad" });
+        else if (sev === "casualty") applyColonyOutcome({ surv: { food: -24 }, health: -12, hope: -4, text: "Famine on the heels of the blight; people weaken.", type: "bad" });
+        else applyColonyOutcome({ surv: { food: -30 }, kill: true, killVerb: "starved when the blight took the harvest", hope: -6, text: "The fields die, and so does someone you could not feed.", type: "bad" }); } },
+    { id: "quake", w: 5, title: "Ground Tremor", text: "The young world shrugs. Habitats crack; the works flicker.",
+      danger: function () { return 0.34 + (game.colony.structuralDebt || 0) / 220; },
+      options: [ { label: "Shore up the structures", role: "Engineer", riskMult: 0.7 }, { label: "Evacuate and ride it out", riskMult: 0.55, cost: { hope: -2 } } ],
+      resolve: function (sev) {
+        if (sev === "clean") log("The ground settles. The works hold. A scare, no more.", "good");
+        else if (sev === "graze") applyColonyOutcome({ materials: -4, text: "Minor cracking; quick repairs.", type: "warn" });
+        else if (sev === "serious") applyColonyOutcome({ structuralDebt: +6, surv: { air: -8 }, text: "A habitat splits; you lose pressure and time.", type: "bad" });
+        else if (sev === "casualty") applyColonyOutcome({ structuralDebt: +8, health: -16, target: "one", surv: { warmth: -8 }, text: "A wall comes down on the night shift.", type: "bad" });
+        else applyColonyOutcome({ infra: -1, structuralDebt: +10, kill: true, killVerb: "was lost when the habitat fell", hope: -6, text: "The quake takes a building and a life with it.", type: "bad" }); } },
+    { id: "raid", w: 4, cond: function () { return game.colony.relations != null && game.colony.relations < 45; }, title: "Night Raid",
+      text: "Figures move beyond the lights. The perimeter alarms scream.",
+      danger: function () { var col = game.colony; return 0.42 - (col.defense || 0) / 200 + (col.woke ? 0.1 : 0); },
+      options: [ { label: "Hold the line", role: "Commander", riskMult: 0.8 }, { label: "Give ground, save the people", riskMult: 0.55, cost: { materials: -6 } } ],
+      resolve: function (sev) {
+        if (sev === "clean") log("The watch holds; the raiders melt back into the dark with nothing.", "warn");
+        else if (sev === "graze") applyColonyOutcome({ food: -6, text: "They take some stores and go.", type: "warn" });
+        else if (sev === "serious") applyColonyOutcome({ food: -10, relations: -6, hope: -3, text: "They breach the stores; trust bleeds with the grain.", type: "bad" });
+        else if (sev === "casualty") applyColonyOutcome({ food: -10, health: -16, target: "one", relations: -8, text: "Blood at the fence line tonight.", type: "bad" });
+        else applyColonyOutcome({ kill: true, killVerb: "fell defending the colony", relations: -10, hope: -6, text: "The perimeter breaks. You hold the camp, but not everyone.", type: "bad" }); } },
+    { id: "landpush", w: function () { var col = game.colony; return Math.max(0.1, (col.ecoHarm || 0) / 20 + (col.woke ? 3 : 0)); },
+      title: "The Land Pushes Back", text: "Something in the biosphere has decided you are a wound it means to close.",
+      danger: function () { var col = game.colony; return 0.30 + (col.ecoHarm || 0) / 150 + (col.woke ? 0.15 : 0); },
+      options: [ { label: "Study the pattern", role: "Xenobiologist", riskMult: 0.7 }, { label: "Wall it out, hunker down", riskMult: 0.6, cost: { materials: -5 } } ],
+      resolve: function (sev) {
+        if (sev === "clean") log("You read the land's mood and step lightly. It subsides.", "good");
+        else if (sev === "graze") applyColonyOutcome({ surv: { air: -8 }, text: "Spores in the scrubbers; a hard week of filters.", type: "warn" });
+        else if (sev === "serious") applyColonyOutcome({ surv: { food: -12, health: -8 }, ecoHarm: +2, text: "The ecology fights you on every front.", type: "bad" });
+        else if (sev === "casualty") applyColonyOutcome({ surv: { air: -14, health: -12 }, health: -14, target: "one", text: "Something gets inside the perimeter, and inside a person.", type: "bad" });
+        else applyColonyOutcome({ surv: { air: -18, food: -16 }, kill: true, killVerb: "was taken by the world itself", hope: -8, text: "The world closes on the wound. You are the wound.", type: "bad" }); } }
+  ];
+
+  // The season's event phase: set-piece (once) → named payoff (once at threshold) → hazard / event /
+  // quiet. Always calls done() exactly once (which runs finishColonyTurn). Player → modal; auto → inline
+  // via resolveColonyCheck/skillAwake (no modal). The hook in colonyTurn supplies done.
+  function colonyEventPhase(auto, done) {
+    var col = game.colony;
+    if (!col.flags) col.flags = {};            // tolerate a pre-M4 v7 save that predates fire-once flags
+    for (var i = 0; i < COLONY_SETPIECES.length; i++) {
+      var sp = COLONY_SETPIECES[i];
+      if (!col.flags[sp.id] && sp.when()) { col.flags[sp.id] = true; fireColonyEvent(sp.ev, auto, done); return; }
+    }
+    for (var j = 0; j < COLONY_PAYOFFS.length; j++) {
+      var py = COLONY_PAYOFFS[j];
+      if (!col.flags[py.id] && (col[py.meter] || 0) >= tierThreshold(py.at)) { col.flags[py.id] = true; fireColonyEvent(py.ev, auto, done); return; }
+    }
+    var roll = Math.random();
+    if (roll < 0.18) {
+      var hzs = COLONY_HAZARDS.filter(function (h) { return !h.cond || h.cond(); });
+      if (hzs.length) {
+        var tot = hzs.reduce(function (s, h) { return s + (typeof h.w === "function" ? h.w() : h.w); }, 0);
+        var rr = Math.random() * tot, acc = 0, hz = hzs[0];
+        for (var k = 0; k < hzs.length; k++) { acc += (typeof hzs[k].w === "function" ? hzs[k].w() : hzs[k].w); if (rr <= acc) { hz = hzs[k]; break; } }
+        resolveColonyHazard(hz, auto, done); return;
+      }
+    }
+    if (roll < 0.55) { rollEvent(COLONY_EVENTS, { colony: true, done: done }); return; }
+    done();
+  }
+  function fireColonyEvent(ev, auto, done) {
+    if (auto) {
+      var ch = ev.choices.find(function (c) { return !c.role; }) || ev.choices[0];
+      if (ch.role) resolveColonyCheck(ch.role, ch.diff, ch.success, ch.failure);
+      else applyColonyOutcome(ch.outcome);
+      done(); return;
+    }
+    presentEvent(ev, { colony: true, done: done });
+  }
+  function resolveColonyHazard(hz, auto, done) {
+    if (auto) { doColonyHazard(hz, hz.options.find(function (o) { return !o.role; }) || hz.options[0], done); return; }
+    var anyViable = hz.options.some(function (o) { return !o.role || hasAwakeSpecialist(o.role); });
+    openModal({ title: "⚠ " + hz.title, art: hz.art || "", body: hz.text,
+      choices: hz.options.map(function (op) {
+        var noOne = op.role && !hasAwakeSpecialist(op.role);
+        return { label: op.label + (op.role ? "  [" + op.role + (noOne ? " — none on hand" : "") + "]" : ""), disabled: noOne && anyViable,
+          onClick: function () { closeModal(); doColonyHazard(hz, op, done); } };
+      }) });
+  }
+  function doColonyHazard(hz, op, done) {
+    if (op.cost) applyColonyOutcome(op.cost);
+    var d = clamp(hz.danger() * (op.riskMult || 1) * DIFFICULTY[game.difficulty].harsh, 0.03, 0.95);
+    var sev = sampleWeighted({ clean: Math.max(0.03, (1 - d) * 1.5), graze: 0.45 + d * 0.6, serious: d * 1.0,
+      casualty: Math.max(0, d - 0.34) * 1.25, severe: Math.max(0, d - 0.58) * 1.15, catastrophic: Math.max(0, d - 0.80) * 1.0 });
+    if (sev === "severe") sev = "casualty";   // colony bands map "severe" onto casualty-grade losses
+    hz.resolve(sev);
+    sfx(sev === "clean" || sev === "graze" ? "select" : "bad");
+    done();
   }
 
   // Shed-load triage across the survival systems (reuse the ship's brownout pattern). Power and hands
@@ -2252,10 +2501,15 @@
       ] }
   ];
 
-  function rollEvent() {
-    // zone tag for filtering
+  function rollEvent(pool, opts) {
+    opts = opts || {};
+    // The ship front draws from EVENTS with zone + contact gating; a colony pool (P2-M4)
+    // is passed explicitly and filters on its own e.cond only (no zones / no contact gate).
+    var isCol = !!opts.colony;
+    var source = pool || EVENTS;
     var zone = currentZone();
-    var pool = EVENTS.filter(function (e) {
+    var avail = source.filter(function (e) {
+      if (isCol) return e.cond ? !!e.cond() : true;
       // Gate alien content behind first contact; gate foreshadowing to before it.
       if (e.req === "postContact" && !game.contact) return false;
       if (e.req === "preContact" && game.contact) return false;
@@ -2263,16 +2517,19 @@
       if (!e.zones) return true;
       return e.zones.indexOf(zone) > -1;
     });
+    // No event available for this front/turn — don't stall a colony turn waiting on a modal.
+    if (!avail.length) { if (opts.done) opts.done(); return; }
     // Weighted pick — but the crew's posture bends which kinds of events surface,
     // so an aggressive run feels different from an exploratory one.
-    var total = pool.reduce(function (s, e) { return s + eventWeight(e); }, 0);
-    var r = Math.random() * total, acc = 0, ev = pool[0];
-    for (var i = 0; i < pool.length; i++) { acc += eventWeight(pool[i]); if (r <= acc) { ev = pool[i]; break; } }
-    presentEvent(ev);
+    var total = avail.reduce(function (s, e) { return s + eventWeight(e); }, 0);
+    var r = Math.random() * total, acc = 0, ev = avail[0];
+    for (var i = 0; i < avail.length; i++) { acc += eventWeight(avail[i]); if (r <= acc) { ev = avail[i]; break; } }
+    presentEvent(ev, opts);
   }
   var MOOD_AXIS = { confront: "aggress", discover: "explore", crew: "cooperate", caution: "caution" };
   function eventWeight(e) {
-    var w = e.w;
+    // Colony events may carry a front-aware weight function (e.g. reads colony state); ship events use a number.
+    var w = (typeof e.w === "function") ? e.w() : e.w;
     if (e.mood && MOOD_AXIS[e.mood]) {
       w *= (1 + clamp(game.posture[MOOD_AXIS[e.mood]], -100, 100) / 100 * 0.8);
     }
@@ -2286,7 +2543,9 @@
     return "outer";
   }
 
-  function presentEvent(ev) {
+  function presentEvent(ev, opts) {
+    opts = opts || {};
+    var isCol = !!opts.colony;
     // A role-locked choice is only honestly available if that specialist is alive and awake.
     var viable = ev.choices.map(function (ch) { return !ch.role || hasAwakeSpecialist(ch.role); });
     var anyViable = viable.some(Boolean);
@@ -2295,14 +2554,20 @@
       return {
         // Don't pretend a dead/sleeping specialist will do it. Block the option when there's a
         // real alternative; if it's the ONLY option, leave it as a desperate (penalized) attempt.
-        label: ch.label + (ch.role ? "  [" + ch.role + (noOne ? " — none aboard" : "") + "]" : ""),
+        label: ch.label + (ch.role ? "  [" + ch.role + (noOne ? (isCol ? " — none on hand" : " — none aboard") : "") + "]" : ""),
         disabled: noOne && anyViable,
         onClick: function () {
-          var msg;
-          if (ch.role) msg = resolveCheck(ch.role, ch.diff, ch.success, ch.failure);
-          else { msg = applyOutcome(ch.outcome); sfx("select"); }
-          closeModal();
-          if (!game.ended) { renderTravel(); flashLog(); }
+          if (isCol) {
+            if (ch.role) resolveColonyCheck(ch.role, ch.diff, ch.success, ch.failure);
+            else { applyColonyOutcome(ch.outcome); sfx("select"); }
+            closeModal();
+            if (opts.done) opts.done();
+          } else {
+            if (ch.role) resolveCheck(ch.role, ch.diff, ch.success, ch.failure);
+            else { applyOutcome(ch.outcome); sfx("select"); }
+            closeModal();
+            if (!game.ended) { renderTravel(); flashLog(); }
+          }
         }
       };
     });
