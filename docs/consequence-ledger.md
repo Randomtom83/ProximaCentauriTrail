@@ -66,9 +66,13 @@ Every meter below has **at least one writer and one reader** — no orphans.
 
 ### `ecoHarm` (hidden)
 - **Writers (↑):** burn forest for fuel/farmland; over-mine a site; clear ground for habitats (small);
-  industrial refining. **(↓):** choose geothermal/renewable over extractive; restoration research.
+  industrial refining. **Live (P2-M3):** Expeditions that exploit a site (`expeditionRisk`/`doExpedition`),
+  tier-scaled. **(↓):** choose geothermal/renewable over extractive; restoration research. **Reducer
+  [P2-M5]:** a dedicated Restore/Rewild project (expensive materials+labor+time) is the only way ecoHarm
+  comes down — there is NO passive recovery.
 - **Readers:** blight/odd-weather event chance scales with it; biosphere-backlash hazard severity; bleeds
-  −`nativeTrust` over time; ending beats.
+  −`nativeTrust` over time; ending beats. **Live (P2-M3):** `colHabDrain` multiplies the per-season
+  survival drain by `(1 + ecoHarm/120)` — a scarred world is harder to live on every turn.
 - **Thresholds:** <25 negligible · 25–60 occasional blight/strange weather · >60 recurring backlash +
   biosphere-collapse risk.
 - **Recovery (P2-M0.1):** **none passive.** The world stays scarred — only restoration research /
@@ -174,6 +178,8 @@ fire · Ending beat it colors.** Each implementation milestone wires the rows it
 | 28 | Push hard pace home (burn fuel) | faster arrival (`elapsedYears`−, better Earth odds) | fuel scarcity → stranded risk | homeward fuel-crisis | raced the dark |
 | 29 | Coast slow to conserve fuel | fuel safe | more years → worse Earth odds, more events | Earth goes silent en route | too late |
 | 30 | Take the fold-shortcut (knowledge/alien tech) | big distance skip (`elapsedYears`−) | lost/re-localize, hull damage risk | getting-lost | leap of faith |
+| 31 | Over-exploit a site (expedition) [P2-M3] | big one-time yield (materials/tech/food) | `ecoHarm`↑ (NO passive recovery) → +survival drain via `colHabDrain` | The Ground Remembers (P2-M4) | we became what we fled |
+| 32 | Restore / Rewild a scarred site [P2-M5] | costs materials + labor + a season | the ONLY `ecoHarm`↓ — heals the world you scarred | fewer backlash events | stewards |
 
 > **Ship-strip unification (P2-M0.1 — rows 1 & 24 are ONE graduated axis, not two toggles).** Stripping
 > the landed ship is a single escalating mechanic. Partial stripping (row 1) adds `structuralDebt`

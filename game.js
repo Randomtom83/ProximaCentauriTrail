@@ -1218,7 +1218,36 @@
   function colHeads() { return alive(game.crew).length + (game.colony.pop || 0); }
   function colHands() { return awake(game.crew).length + (game.colony.pop || 0); }
   // Habitability sets how hard the world drains you (verdant easy → lethal brutal).
-  function colHabDrain() { var h = game.colony.habit; return h === "verdant" ? 0.7 : h === "marginal" ? 1.0 : h === "barren" ? 1.4 : 1.9; }
+  function colHabDrain() {
+    var col = game.colony, h = col.habit;
+    var base = h === "verdant" ? 0.7 : h === "marginal" ? 1.0 : h === "barren" ? 1.4 : 1.9;
+    return base * (1 + (col.ecoHarm || 0) / 120);   // ecoHarm READER: a scarred world drains harder
+  }
+  /* ---- P2-M3: the discoverable map + expeditions ---- */
+  var COLONY_SITES = [
+    { id: "orevein", name: "Ore Vein", kind: "resource", icon: "⛏", yields: { materials: 14 }, capacity: 4, riskBase: 30, ecoCost: 8, wakeRisk: 0, blurb: "A seam of metals within reach of the camp." },
+    { id: "springs", name: "Hot Springs", kind: "resource", icon: "♨", yields: { water: 18, food: 6 }, capacity: 5, riskBase: 22, ecoCost: 5, wakeRisk: 0, blurb: "Geothermal water and warmth — a gentler harvest." },
+    { id: "forest", name: "Alien Forest", kind: "biome", icon: "🌲", yields: { food: 16, tech: 3 }, capacity: 4, riskBase: 40, ecoCost: 12, wakeRisk: 35, blurb: "A breathing tangle of not-quite-trees. It feels watched." },
+    { id: "ice", name: "Deep Ice", kind: "biome", icon: "🧊", yields: { water: 14, tech: 5 }, capacity: 3, riskBase: 46, ecoCost: 7, wakeRisk: 45, blurb: "Black ice kilometers thick. Something is frozen in it." },
+    { id: "ruins", name: "The Ruins", kind: "ruin", icon: "🏛", yields: { tech: 12, materials: 6 }, capacity: 3, riskBase: 55, ecoCost: 4, wakeRisk: 70, blurb: "Geometry no human hand made. Older than the light that lied to you." },
+    { id: "wreck", name: "Derelict Hull", kind: "ruin", icon: "🛰", yields: { materials: 12, meds: 2, tech: 4 }, capacity: 2, riskBase: 48, ecoCost: 3, wakeRisk: 30, blurb: "A colony ship that tried this before you — and failed. Or did it?" }
+  ];
+  // Seed the run's map: a fixed (per-run) roster of sites, hidden until scouted. No per-click RNG.
+  function seedColonySites() {
+    var col = game.colony;
+    var pool = COLONY_SITES.slice();
+    // bias the roster by what's here: ruins/wreck only when something/someone preceded you
+    if (game.dest.inhabited === "none") pool = pool.filter(function (s) { return s.id !== "ruins"; });
+    if (game.dest.inhabited !== "settlers") pool = pool.filter(function (s) { return s.id !== "wreck"; });
+    // shuffle once (deterministic order for this run), keep ~5
+    for (var i = pool.length - 1; i > 0; i--) { var j = rint(0, i); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+    col.sites = pool.slice(0, 5).map(function (s, idx) {
+      return { id: s.id, name: s.name, kind: s.kind, icon: s.icon, revealed: idx === 0, uses: 0, depleted: false };
+    });
+    col.scouted = 1;          // the first site is in view at landfall
+    col.woke = false; col.wokeWhat = null; col._pendingExpedition = null;
+  }
+  function siteArch(id) { for (var i = 0; i < COLONY_SITES.length; i++) if (COLONY_SITES[i].id === id) return COLONY_SITES[i]; return null; }
   // Reactor + built infrastructure make power; each manned, powered system feeds its survival axis.
   // Too many systems for the available power OR hands ⇒ brownout: everything runs at a reduced factor.
   function colPower() {
@@ -1272,6 +1301,7 @@
       // bookkeeping
       _esc: { air: 0, water: 0, food: 0, warmth: 0, health: 0 }, _safe: true, _collapse: 0
     };
+    seedColonySites();        // the discoverable world — sites hidden until scouted (P2-M3)
     seedSettlers(avgMor);     // a few named, bonded colonists came down with you — their loss is personal
     game.screen = "colony";
     game.log.push({ msg: "═══ PHASE 2 — ARRIVAL & COLONY ═══", type: "sys", day: game.day });
@@ -1359,7 +1389,113 @@
         col.shipReadiness = Math.min(100, col.shipReadiness + prog);
         log("Year " + col.year + ": crews refit the lander for the long crossing home — readiness " + col.shipReadiness + "%" + (col.structuralDebt > 30 ? " (the cut corners are slowing it)" : "") + ".", "info");
       } else log("Year " + col.year + ": not enough materials to refit the ship (5 needed).", "warn");
+    } else if (action === "scout") {
+      var hidden = col.sites.filter(function (st) { return !st.revealed; });
+      if (hidden.length) {
+        hidden[0].revealed = true; col.scouted = (col.scouted || 0) + 1; col.tech = clamp(col.tech + 1, 0, 100);
+        log("Year " + col.year + ": survey parties map further out — " + hidden[0].icon + " " + hidden[0].name + " comes into view.", "good");
+      } else log("Year " + col.year + ": the survey finds nothing new — you have mapped what there is to map.", "info");
+    } else if (action === "expedition") {
+      doExpedition();   // resolves col._pendingExpedition (player-only; no-op if unset)
     }
+  }
+
+  // Pure, shared by the modal (display) and the resolver (roll): what you see is what you roll.
+  function expeditionRisk(site, crewNames) {
+    var col = game.colony, inst = (col.sites || []).filter(function (st) { return st.id === site.id; })[0] || { uses: 0 };
+    var party = (crewNames || []).map(function (n) { return byName(n, game.crew); }).filter(function (c) { return c && c.status !== "Dead"; });
+    var bestSkill = 0; party.forEach(function (c) { ["Pilot", "Xenobiologist", "Engineer"].forEach(function (r) { if (c.role === r) bestSkill = Math.max(bestSkill, c.skill || 0); }); });
+    if (!bestSkill && party.length) bestSkill = Math.max.apply(null, party.map(function (c) { return (c.skill || 0) * 0.6; }));
+    // danger rises with site risk, depletion/over-extraction and a woken thing; falls with skill + hands
+    var danger = site.riskBase + inst.uses * 6 + (col.woke ? 12 : 0) - bestSkill * 0.5 - (party.length - 1) * 6;
+    danger = Math.round(clamp(danger * (0.6 + 0.5 * colHarsh()), 5, 95));   // tier-scaled
+    var death = Math.round(danger * 0.25), hurt = Math.round(danger * 0.6), lost = Math.round(danger * 0.4);
+    var woke = Math.round(site.wakeRisk * (col.woke ? 0.4 : 1) * (0.6 + 0.5 * colHarsh()));   // less new "waking" once already woke
+    var success = Math.max(20, 140 - danger - woke);
+    var tier = danger >= 70 ? "Deadly" : danger >= 45 ? "Dangerous" : danger >= 25 ? "Risky" : "Safe";
+    return { tier: tier, danger: danger, odds: { success: success, hurt: hurt, lost: lost, death: death, woke: woke } };
+  }
+
+  function doExpedition() {
+    var col = game.colony, pend = col._pendingExpedition; col._pendingExpedition = null;
+    if (!pend) return;                                   // player-only — auto/parallel path never sets this
+    var arch = siteArch(pend.siteId), inst = col.sites.filter(function (st) { return st.id === pend.siteId; })[0];
+    if (!arch || !inst || inst.depleted) return;
+    var party = (pend.crewNames || []).map(function (n) { return byName(n, game.crew); }).filter(function (c) { return c && c.status !== "Dead" && c.status !== "Hibernating"; });
+    if (!party.length) { log("Year " + col.year + ": no one fit to send — the expedition never sets out.", "warn"); return; }
+    var r = expeditionRisk(arch, party.map(function (c) { return c.name; }));
+    var band = sampleWeighted({ success: r.odds.success, hurt: r.odds.hurt, lost: r.odds.lost, death: r.odds.death, woke: r.odds.woke });
+    var who = pick(party);
+    if (band === "success" || band === "woke") {
+      // a haul either way; "woke" also disturbs something
+      var got = [];
+      Object.keys(arch.yields).forEach(function (k) {
+        if (k === "tech") { col.tech = clamp(col.tech + arch.yields.tech, 0, 100); got.push("tech +" + arch.yields.tech); }
+        else { col.supplies[k] = (col.supplies[k] || 0) + arch.yields[k]; got.push(k + " +" + arch.yields[k]); }
+      });
+      inst.uses++;
+      col.ecoHarm = clamp((col.ecoHarm || 0) + Math.round(arch.ecoCost * (0.6 + 0.5 * colHarsh())) + (inst.uses > arch.capacity ? 6 : 0), 0, 100);  // WRITER (tier-scaled; over-extraction bites)
+      if (inst.uses >= arch.capacity) { inst.depleted = true; log("Year " + col.year + ": " + arch.icon + " " + arch.name + " is worked out — nothing more to take.", "warn"); }
+      log("Year " + col.year + ": the expedition to " + arch.name + " brings back " + got.join(", ") + ".", "good"); sfx("buy");
+      if (band === "woke" && !col.woke) {
+        col.woke = true; col.wokeWhat = arch.kind === "ruin" ? "something in the ruins" : "something deep in the " + arch.name.toLowerCase();
+        log("◆ But you woke " + col.wokeWhat + ". It is aware of you now. ◆", "bad"); sfx("bad");
+      }
+    } else if (band === "hurt") {
+      if (who) { who.health = clamp(who.health - rint(14, 30), 0, 100); if (who.health <= 0) killCrew(who, "died of wounds from the expedition to " + arch.name, false, game.crew); else { afflict(null, [who]); log("Year " + col.year + ": the expedition to " + arch.name + " goes wrong — " + who.name + " comes back hurt.", "bad"); } }
+      sfx("bad");
+    } else if (band === "lost") {
+      col.supplies.food = Math.max(0, (col.supplies.food || 0) - rint(4, 10));
+      col.meters.hope = clamp(col.meters.hope - 4, 0, 100);
+      log("Year " + col.year + ": the party is lost for a season on the way to " + arch.name + " — stores burned, nerves frayed, but they straggle home.", "warn"); sfx("warn");
+    } else if (band === "death") {
+      if (who) killCrew(who, "was lost on the expedition to " + arch.name, false, game.crew);
+      sfx("death");
+    }
+  }
+
+  // Player-only: pick a revealed site + assign AWAKE crew, see the risk tier BEFORE committing.
+  function openExpedition() {
+    var col = game.colony;
+    var sites = col.sites.filter(function (st) { return st.revealed && !st.depleted; });
+    if (!sites.length) { log("No site is within reach — Scout to reveal the world first.", "warn"); sfx("empty"); return; }
+    var crewAvail = awake(game.crew).filter(function (c) { return !c.child; });
+    if (!crewAvail.length) { log("No one is awake and able to send out.", "warn"); sfx("empty"); return; }
+    var sel = { siteId: sites[0].id, crew: {} };
+    function draw() {
+      var arch = siteArch(sel.siteId);
+      var chosen = crewAvail.filter(function (c) { return sel.crew[c.name]; }).map(function (c) { return c.name; });
+      var r = chosen.length ? expeditionRisk(arch, chosen) : null;
+      var tot = r ? (r.odds.success + r.odds.hurt + r.odds.lost + r.odds.death + r.odds.woke) : 1;
+      var pct = function (n) { return Math.round(n / tot * 100); };
+      var siteRows = sites.map(function (st) { var a = siteArch(st.id);
+        return "<div class='store-row'><span>" + st.icon + " " + st.name + " <span class='small dim'>" + a.kind + " · worked " + st.uses + "/" + a.capacity + "</span></span><span class='qty small'>" + Object.keys(a.yields).map(function (k) { return k + " +" + a.yields[k]; }).join(" ") + "</span><span></span>" +
+          "<span><button class='btn small " + (sel.siteId === st.id ? "go" : "") + "' data-esite='" + st.id + "'>" + (sel.siteId === st.id ? "TARGET" : "pick") + "</button></span></div>"; }).join("");
+      var crewRows = crewAvail.map(function (c) {
+        return "<div class='store-row'><span>" + c.name + " <span class='small dim'>" + c.role + "</span></span><span></span><span></span>" +
+          "<span><button class='btn small " + (sel.crew[c.name] ? "go" : "") + "' data-ecrew='" + c.name + "'>" + (sel.crew[c.name] ? "GOING" : "send") + "</button></span></div>"; }).join("");
+      var tierCls = !r ? "dim" : (r.tier === "Deadly" || r.tier === "Dangerous") ? "red" : r.tier === "Risky" ? "amber" : "cyan";
+      var riskTxt = r
+        ? "<div class='small' style='margin-top:6px'>Risk: <b class='" + tierCls + "'>" + r.tier + "</b> — about <span class='cyan'>" + pct(r.odds.success) + "%</span> a clean haul, <span class='red'>" + pct(r.odds.death) + "%</span> someone may not come back, " + pct(r.odds.hurt) + "% hurt, " + pct(r.odds.lost) + "% lost a season" + (r.odds.woke ? ", <span class='amber'>" + pct(r.odds.woke) + "% you stir something</span>" : "") + ".</div>" +
+          "<div class='small dim'>Exploiting this site scars the world (it gets harder to live here). " + (chosen.length === crewAvail.length ? "<span class='amber'>Sending everyone leaves no hands at home this season.</span>" : "") + "</div>"
+        : "<div class='small dim' style='margin-top:6px'>Assign at least one awake crew member to see the risk.</div>";
+      openModal({
+        title: "🧭 Mount an Expedition",
+        body: "<div class='small dim'>Send awake crew to a known site. " + siteArch(sel.siteId).blurb + "</div>" +
+          "<div class='panel-title' style='margin-top:6px'>Where</div>" + siteRows +
+          "<div class='panel-title' style='margin-top:6px'>Who (awake crew only)</div>" + crewRows + riskTxt,
+        choices: [
+          { label: chosen.length ? "Send the expedition" : "Pick crew first", disabled: !chosen.length,
+            onClick: function () { col._pendingExpedition = { siteId: sel.siteId, crewNames: chosen }; closeModal(); colonyTurn("expedition", false); } },
+          { label: "Not now", onClick: function () { sfx("cancel"); closeModal(); renderColony(); } }
+        ],
+        onBind: function (root) {
+          root.querySelectorAll("[data-esite]").forEach(function (b) { b.addEventListener("click", function () { sel.siteId = b.getAttribute("data-esite"); sfx("blip"); closeModal(); draw(); }); });
+          root.querySelectorAll("[data-ecrew]").forEach(function (b) { b.addEventListener("click", function () { var n = b.getAttribute("data-ecrew"); sel.crew[n] = !sel.crew[n]; sfx("blip"); closeModal(); draw(); }); });
+        }
+      });
+    }
+    draw();
   }
 
   // One colony season: your chosen action lands first, then each manned, powered survival system feeds
@@ -1369,10 +1505,10 @@
   function colonyTurn(action, auto) {
     var col = game.colony;
     col.year++; col.elapsedYears = Math.round(game.shipYears || 0) + col.year;
+    var aliveBefore = alive(game.crew).length;    // captured BEFORE the action so expedition deaths cascade hope
     applyColonyAction(action);
     var p = colPower(), heads = colHeads(), drain = colHabDrain();
     var techEase = 1 - (col.tech || 0) / 200;     // research lowers per-head consumption
-    var aliveBefore = alive(game.crew).length;
     if (p.brownout) log("Year " + col.year + ": power and hands can't run every system — works falter (" + Math.round(p.factor * 100) + "%).", "warn");
 
     var inCrisis = false;
@@ -1394,6 +1530,8 @@
     col._safe = !inCrisis;                 // gates passive recovery of the soft hidden meters
     colonyDecay();
     if (col._safe && col.meters.hope < 100) col.meters.hope = clamp(col.meters.hope + 1, 0, 100);
+    // Something stirs: a woken thing presses on morale every season until it's reckoned with (P2-M4/M5).
+    if (col.woke) col.meters.hope = clamp(col.meters.hope - 1, 0, 100);
     // Deaths this season cost the colony its hope — and a bonded crewmate's grief (killCrew) compounds it.
     var died = aliveBefore - alive(game.crew).length;
     if (died > 0) col.meters.hope = clamp(col.meters.hope - died * 5, 0, 100);
@@ -3469,17 +3607,28 @@
         "</div></div>" +
       "</div>" +
       "<div class='panel'><div class='panel-title'>Crew &amp; colonists</div>" + crewStrip() + "</div>";
+    var revealed = (col.sites || []).filter(function (st) { return st.revealed; });
+    var hiddenN = (col.sites || []).filter(function (st) { return !st.revealed; }).length;
+    var worldRows = revealed.length
+      ? revealed.map(function (st) { var a = siteArch(st.id);
+          return "<div class='store-row'><span>" + st.icon + " " + st.name + (st.depleted ? " <span class='red small'>worked out</span>" : "") + "</span><span class='small dim'>" + a.kind + "</span><span class='small dim'>" + st.uses + "/" + a.capacity + "</span><span></span></div>"; }).join("")
+      : "<div class='small dim'>Nothing mapped yet — Scout to find sites worth an expedition.</div>";
+    var strain = (col.ecoHarm || 0) >= 30 ? "<div class='small amber' style='margin-top:4px'>The land feels strained — what you take, it remembers.</div>" : "";
+    var stir = col.woke ? "<div class='small red'>Something stirs beyond the perimeter. It knows you are here.</div>" : "";
+    var world = "<div class='panel'><div class='panel-title'>Known world · " + revealed.length + "/" + (col.sites || []).length + " mapped" + (hiddenN ? " · " + hiddenN + " unscouted" : "") + "</div>" + worldRows + strain + stir + "</div>";
     var acts = "<div class='menu row'>" +
       "<button class='btn go' data-action='colony' data-arg='secure'>🛡 Secure</button>" +
       "<button class='btn small' data-action='colony' data-arg='build'>🏗 Build</button>" +
       "<button class='btn small' data-action='colony' data-arg='research'>🔬 Research</button>" +
+      "<button class='btn small' data-action='colony' data-arg='scout'>🧭 Scout</button>" +
+      "<button class='btn small' data-action='colony' data-arg='expedition'>⛏ Expedition</button>" +
       "<button class='btn small' data-action='colony' data-arg='tend'>❤ Tend</button>" +
       "<button class='btn small' data-action='colony' data-arg='refit'>🛠 Refit ship</button>" +
       "<button class='btn small' data-action='colony' data-arg='hold'>▶ Hold</button>" +
       "<button class='btn small' data-action='colony' data-arg='allocate'>⚡ Power</button>" +
       "</div>";
-    app.innerHTML = hud + acts +
-      "<div class='small dim'>Each action takes a season: <b class='paper'>Secure</b> shores up the weakest system · <b class='paper'>Build</b> grows capacity · <b class='paper'>Research</b> raises tech (eases the squeeze) · <b class='paper'>Tend</b> lifts hope · <b class='paper'>Refit</b> readies the ship home · <b class='paper'>Hold</b> rests. Explore &amp; contact arrive next.</div>" +
+    app.innerHTML = hud + world + acts +
+      "<div class='small dim'>Each action is a season. <b class='paper'>Scout</b> reveals the world · <b class='paper'>Expedition</b> sends crew to a site for a haul, at real risk · <b class='paper'>Secure/Build/Research/Tend/Refit</b> shape the colony · <b class='paper'>Hold</b> rests. Exploiting sites scars the land.</div>" +
       "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
     renderLog();
   }
@@ -3631,8 +3780,9 @@
       case "ai": openAI(); break;
       case "colony":
         if (arg === "allocate") openColonyAllocate();
+        else if (arg === "expedition") openExpedition();   // player-only modal (sets _pendingExpedition)
         else if (arg === "launch") colonyLaunch();   // Game B — intact but dormant in Phase 2
-        else colonyTurn(arg, false);   // secure / build / research / tend / refit / hold — one action per season
+        else colonyTurn(arg, false);   // secure / build / research / tend / refit / scout / hold — one action per season
         break;
       case "voyage":
         if (arg === "continue") voyageStep();
