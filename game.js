@@ -1209,6 +1209,9 @@
   function tierThreshold(base) { return Math.round(base * (1.5 - 0.5 * colHarsh())); }   // higher (later) on Settler
   function tierOdds(base) { return base * (0.6 + 0.5 * colHarsh()); }                     // rarer on Settler
   function tierDecay(base) { return base * (1.5 - 0.5 * colHarsh()); }                    // faster recovery on Settler
+  // Victory gate (P2-M6): the INVERSE of tierThreshold — a harder tier sets a HIGHER bar to clear
+  // (Settler ×1.0, Pioneer ×1.12, Voyager ×1.3). Exact numbers deferred to the M-INT2 balance sweep.
+  function colWinBar(base) { return Math.round(base * (0.8 + 0.4 * colHarsh())); }
 
   var COL_SYS = ["air", "water", "food", "warmth", "health"];   // the survival spine
   var SURV_LABEL = { air: "Air", water: "Water", food: "Food", warmth: "Warmth", health: "Medical care" };
@@ -1302,6 +1305,9 @@
       shipReadiness: 0, beacon: false, beaconHeard: false,
       // bookkeeping
       _esc: { air: 0, water: 0, food: 0, warmth: 0, health: 0 }, _safe: true, _collapse: 0,
+      // P2-M6: survival→foothold→settled progression. _stable counts consecutive stable seasons;
+      // footholdReached gates the future affordance; settledEligible enables the player-confirmed win.
+      _stable: 0, footholdReached: false, settledEligible: false,
       flags: {}     // fire-once set-pieces + named threshold payoffs (persists in the v7 save)
     };
     seedColonySites();        // the discoverable world — sites hidden until scouted (P2-M3)
@@ -1668,8 +1674,75 @@
     var col = game.colony;
     var died = aliveBefore - alive(game.crew).length;
     if (died > 0) col.meters.hope = clamp(col.meters.hope - died * 5, 0, 100);
+    colonyStageCheck(auto);     // P2-M6: survival→foothold, and recompute settled eligibility
     if (!auto) sfx("tick");
     colonyAfterTurn(auto);
+  }
+
+  /* ---- P2-M6: foothold transition + player-confirmed Settlement victory ----
+     The colony advances by SURVIVAL stability, not a timer: a streak of seasons with nothing in crisis,
+     every axis above the floor, and hope holding. Clearing survival is an automatic transition to a
+     "foothold" (with a one-time narrative beat); becoming a thriving, growing "settlement" is a WIN the
+     player chooses to claim once eligible — it never ends the game on its own. */
+  function colonyStageCheck(auto) {
+    var col = game.colony, m = col.meters;
+    // A stable season: not in crisis, every survival axis comfortably off the floor, hope holding.
+    var stable = col._safe && COL_SYS.every(function (k) { return col.surv[k] >= 50; }) && m.hope >= 45;
+    col._stable = stable ? (col._stable || 0) + 1 : 0;   // any backslide resets the streak
+    // Foothold — automatic once the survival streak holds. Fires a one-time beat on the player path.
+    if (col.stage === "survival" && col._stable >= colWinBar(3)) {
+      col.stage = "foothold"; col.footholdReached = true;
+      log("Year " + col.year + ": the colony has a foothold. You are no longer just surviving — you can begin to build something that lasts.", "good");
+      sfx("win");
+      if (!auto) openFutureDecision();
+    }
+    // Settled eligibility — recomputed every season; growth + sustained prosperity, never an auto-win.
+    // Front-agnostic so it holds on empty, native, and settler worlds alike.
+    col.settledEligible = col.stage !== "survival" &&
+      col.infra >= colWinBar(12) && (col.tech || 0) >= colWinBar(40) &&
+      COL_SYS.every(function (k) { return col.surv[k] >= 60; }) &&
+      m.hope >= 60 && (col._stable || 0) >= colWinBar(6);
+  }
+
+  // The future affordance: a player-only modal framing what a foothold makes possible. The real
+  // Stay/Launch/Split Decision is built in P3-M1 (teased here, not live). The one live choice is to
+  // FOUND the settlement — a standalone victory — which is gated on settled eligibility.
+  function openFutureDecision() {
+    var col = game.colony;
+    var eligible = !!col.settledEligible;
+    openModal({
+      title: "⚖ The future",
+      body: "<div class='small'>The colony has cleared survival. People look up from the work of staying alive and begin to imagine staying.</div>" +
+        "<div class='small dim' style='margin-top:8px'>Build it into a lasting <b>settlement</b> and this world is yours — a complete ending in itself, whether or not anyone ever goes home. " +
+        "And one day, once you've readied a ship, you could carry word back to Earth across the long dark.</div>" +
+        "<div class='small dim' style='margin-top:8px; opacity:0.6'><i>The crossing home — staying, launching, or splitting the crew — comes later.</i></div>" +
+        (eligible
+          ? "<div class='small cyan' style='margin-top:8px'>The settlement is established and thriving. You could call it founded.</div>"
+          : "<div class='small amber' style='margin-top:8px'>The settlement isn't established enough yet — keep building and growing.</div>"),
+      choices: [
+        { label: "⭐ Found the settlement — claim this world", disabled: !eligible, onClick: function () { confirmSettlement(); } },
+        { label: "Keep building", onClick: function () { sfx("cancel"); closeModal(); renderColony(); } }
+      ]
+    });
+  }
+
+  // The player-confirmed win. A short confirm so an errant click can't end the game.
+  function confirmSettlement() {
+    var col = game.colony;
+    openModal({
+      title: "⭐ Found the settlement?",
+      body: "<div class='small'>Call it founded? The colony's story ends here — as a victory. The work of survival becomes the work of living.</div>",
+      choices: [
+        { label: "Yes — this is home now", onClick: function () {
+            col.stage = "settled";
+            var cause = "Under an alien sun, a human settlement takes root and grows. The crossing cost everything, and it was worth it — there is a future here now.";
+            if (col.nativeStanding === "allied") cause += " Two peoples share this world, and neither stands alone.";
+            closeModal();
+            finishColony(true, "SETTLED", cause);
+          } },
+        { label: "Not yet", onClick: function () { sfx("cancel"); closeModal(); openFutureDecision(); } }
+      ]
+    });
   }
   // Finish a colony year. auto = the colony advancing unattended while you mind the ship home.
   function colonyAfterTurn(auto) {
@@ -4051,10 +4124,14 @@
       (col.relations != null && !col.nativesGone ? "<button class='btn small' data-action='colony' data-arg='contact'>🤝 Contact</button>" : "") +
       (col.relations != null && !col.nativesGone ? "<button class='btn small' data-action='colony' data-arg='fortify'>🧱 Fortify</button>" : "") +
       ((col.ecoHarm || 0) > 0 ? "<button class='btn small' data-action='colony' data-arg='restore'>🌱 Restore</button>" : "") +
+      (col.footholdReached ? "<button class='btn small' data-action='colony' data-arg='decide'>⚖ The future</button>" : "") +
       "<button class='btn small' data-action='colony' data-arg='hold'>▶ Hold</button>" +
       "<button class='btn small' data-action='colony' data-arg='allocate'>⚡ Power</button>" +
       "</div>";
-    app.innerHTML = hud + world + acts +
+    var settledBanner = col.settledEligible
+      ? "<div class='panel' style='border-color:#33ff66'><div class='small cyan'>★ The colony is thriving — you could call it <b>founded</b>. Open <b class='paper'>⚖ The future</b> to claim this world.</div></div>"
+      : "";
+    app.innerHTML = hud + world + settledBanner + acts +
       "<div class='small dim'>Each action is a season. <b class='paper'>Scout</b> reveals the world · <b class='paper'>Expedition</b> sends crew to a site for a haul, at real risk · <b class='paper'>Secure/Build/Research/Tend/Refit</b> shape the colony · <b class='paper'>Hold</b> rests. Exploiting sites scars the land.</div>" +
       "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
     renderLog();
@@ -4209,6 +4286,7 @@
         if (arg === "allocate") openColonyAllocate();
         else if (arg === "expedition") openExpedition();   // player-only modal (sets _pendingExpedition)
         else if (arg === "contact") openContact();         // player-only modal (sets _pendingContact)
+        else if (arg === "decide") openFutureDecision();    // P2-M6 future affordance — confirmed in-modal
         else if (arg === "launch") colonyLaunch();   // Game B — intact but dormant in Phase 2
         else colonyTurn(arg, false);   // secure / build / research / tend / refit / scout / restore / fortify / hold — one action per season
         break;
