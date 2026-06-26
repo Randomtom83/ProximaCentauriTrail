@@ -67,9 +67,9 @@ Every meter below has **at least one writer and one reader** — no orphans.
 ### `ecoHarm` (hidden)
 - **Writers (↑):** burn forest for fuel/farmland; over-mine a site; clear ground for habitats (small);
   industrial refining. **Live (P2-M3):** Expeditions that exploit a site (`expeditionRisk`/`doExpedition`),
-  tier-scaled. **(↓):** choose geothermal/renewable over extractive; restoration research. **Reducer
-  [P2-M5]:** a dedicated Restore/Rewild project (expensive materials+labor+time) is the only way ecoHarm
-  comes down — there is NO passive recovery.
+  tier-scaled. **(↓):** choose geothermal/renewable over extractive; restoration research. **Reducer LIVE
+  (P2-M5):** the Restore/Rewild season action (`applyColonyAction "restore"` — 8 materials + a season,
+  `ecoHarm −tierDecay(10)`) is the ONLY way ecoHarm comes down — there is NO passive recovery.
 - **Readers:** blight/odd-weather event chance scales with it; biosphere-backlash hazard severity; bleeds
   −`nativeTrust` over time; ending beats. **Live (P2-M3):** `colHabDrain` multiplies the per-season
   survival drain by `(1 + ecoHarm/120)` — a scarred world is harder to live on every turn.
@@ -81,15 +81,24 @@ Every meter below has **at least one writer and one reader** — no orphans.
   (spores/blight/migration) — heavy food + health hit; colors a **Scorched** ending beat.
 
 ### `nativeTrust` (hidden; only when `dest.inhabited === "natives"`)
-- **Writers (↓):** aggression at contact; displacing them from a site; `ecoHarm` spillover; breaking a
-  deal. **(↑):** fair trade; sharing medicine/knowledge; the Diplomacy action; restraint when provoked.
-  *(Audit fix: it MUST be raisable, not one-way doom.)*
-- **Readers:** gates raids-escalate vs aid-arrives; trade prices; opens/closes the petition/alliance
-  ending forks; a decisive late event.
+- **Writers LIVE (P2-M5):** **(↓)** seizing a site (`doContact "displace"`), war (`doNativeWar`),
+  Fortify (a wall reads as a threat), the per-season `ecoHarm`-spillover bleed AND the **`col.woke` bleed**
+  (Decision A — disturbing what the natives hold sacred costs you their trust); **(↑)** fair trade, sharing
+  medicine, Parley (Xenobiologist), Restore, restraint, and the allied Reckoning. *(Audit fix: it MUST be
+  raisable, not one-way doom — confirmed live both directions.)*
+- **Readers LIVE (P2-M5):** the per-season **gravitation** (sets the ceiling/floor visible `relations`
+  drifts toward, ≤2/season); the **raid hazard `danger()`** (low trust escalates raids, high trust abates
+  them → "aid arrives"); the **Reckoning gate**; the words-only render hint. (Trade prices / petition
+  alliance ending fork read it later at compose time.)
 - **Thresholds:** <25 hostile (raids, paths closed) · 25–60 wary (transactional) · >75 allied (aid,
-  gifts, shared defense, merger ending).
-- **Named payoff event — "The Reckoning at the Treeline"** (fires on a late threshold crossing): they
-  decisively stand with you (allied) or move against you (hostile).
+  gifts, shared defense, merger ending). Harsh-scaled via `tierThreshold`.
+- **Named payoff event — "The Reckoning at the Treeline" LIVE (P2-M5)** (bidirectional, fires once late,
+  `year ≥ 4`): high trust (≥75) → they decisively stand WITH you (`nativeStanding="allied"`); low trust
+  (≤`tierThreshold(22)`) → they move AGAINST you (`nativeStanding="hostile"`). Both consume the shared
+  `flags.p_reckon`. The wipeout (`doNativeWar`) pre-consumes it and sets `nativeStanding="displacers"`.
+- **Persisted ending-fork fields (M-INT1 reads):** `nativeStanding` (allied/hostile/displacers),
+  `nativesGone` (wipeout), `settlerStanding` (merged/rivals); plus `nativeTrust` itself for the petition/
+  alliance threshold read at compose time.
 
 ### `contamination` (hidden)
 - **Writers (↑):** eat unscreened local biology (pre-research); drink unreclaimed water; skip the

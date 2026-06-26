@@ -1261,8 +1261,8 @@
     return { on: on, output: output, demand: demand, hands: hands, brownout: brownout, factor: factor };
   }
   // Passive recovery of the soft hidden meters (P2-M0.1): only when the colony is safe and hope is above
-  // its floor; slow; ecoHarm & structuralDebt never decay passively. No-ops until later milestones write
-  // these meters, but wired now so P2-M2…M5 hook in rather than retrofit.
+  // its floor; slow. ecoHarm & structuralDebt never decay passively — ecoHarm only comes down via the
+  // active Restore action (P2-M5); structuralDebt via reinforce projects.
   function colonyDecay() {
     var col = game.colony;
     if (!col._safe || col.meters.hope < 12) return;
@@ -1277,6 +1277,7 @@
     var surv = alive(), n = surv.length;
     var avgMor = n ? Math.round(surv.reduce(function (s, c) { return s + c.morale; }, 0) / n) : 50;
     var natives = game.dest.inhabited === "natives";
+    var nstance = natives ? seedNativeStance() : null;   // space first-contact echoes on the ground (P2-M5)
     // Clean-sheet colony state — ALL meters declared up front (most written by later milestones).
     game.colony = {
       stage: "survival", year: 0,
@@ -1292,10 +1293,11 @@
       // resources + built capacity
       supplies: { food: 64, water: 42, materials: 22, meds: 4 },
       infra: 6, tech: Math.round(game.dest.knowledge || 0),
-      // natives: surface stance (visible) vs deep reputation (hidden) — see ledger §1/§3
-      relations: natives ? 35 : null, defense: natives ? 14 : 0,
+      // natives: surface stance (visible) vs deep reputation (hidden) — see ledger §1/§3; seeded by posture (P2-M5)
+      relations: natives ? nstance.relations : null, defense: natives ? nstance.defense : 0,
+      nativeStanding: null, nativesGone: false, settlerStanding: null,   // ending-fork fields (M-INT1 reads)
       // hidden long-tail meters (declared now; written by P2-M2…M5)
-      ecoHarm: 0, nativeTrust: natives ? 40 : null, contamination: 0, structuralDebt: 0, trauma: 0,
+      ecoHarm: 0, nativeTrust: natives ? nstance.trust : null, contamination: 0, structuralDebt: 0, trauma: 0,
       // the homeward bridge (rebuilt P3-M1) — declared so composeEnding reads real fields
       shipReadiness: 0, beacon: false, beaconHeard: false,
       // bookkeeping
@@ -1307,6 +1309,20 @@
     game.screen = "colony";
     game.log.push({ msg: "═══ PHASE 2 — ARRIVAL & COLONY ═══", type: "sys", day: game.day });
     landfallBriefing();
+  }
+
+  // How you met the unknown out in the dark colors how these natives meet you on the ground (P2-M5):
+  // welcoming (you communed once) / hostile (word of violence travels) / indifferent (no contact made).
+  function seedNativeStance() {
+    var a = game.alien || {};
+    var friendly = a.friendly === true, hostile = a.friendly === false || a.pursuit;
+    var base = (a.posture === "freeze" && friendly) ? { relations: 50, trust: 60 }
+             : (a.posture === "fight" || hostile) ? { relations: 22, trust: 25 }
+             : { relations: 35, trust: 40 };
+    base.relations = clamp(base.relations + rint(-6, 6), 0, 100);
+    base.trust = clamp(base.trust + rint(-6, 6), 0, 100);
+    base.defense = Math.round(10 + (60 - base.trust) / 6);   // they arm against you in proportion to wariness
+    return base;
   }
 
   // Named, bonded settlers (crew-lite) so deaths on the ground land like Phase-1 crew deaths, cascading
@@ -1398,6 +1414,24 @@
       } else log("Year " + col.year + ": the survey finds nothing new — you have mapped what there is to map.", "info");
     } else if (action === "expedition") {
       doExpedition();   // resolves col._pendingExpedition (player-only; no-op if unset)
+    } else if (action === "contact") {
+      doContact();      // resolves col._pendingContact (player-only; no-op if unset)
+    } else if (action === "restore") {
+      // the ONLY ecoHarm reducer — active, never passive (ledger row 32). Costs materials + a season.
+      if (s.materials >= 8) {
+        s.materials -= 8;
+        var heal = Math.round(tierDecay(10));
+        col.ecoHarm = clamp((col.ecoHarm || 0) - heal, 0, 100);
+        if (col.nativeTrust != null) col.nativeTrust = clamp(col.nativeTrust + 2, 0, 100);   // tending the world they revere
+        log("Year " + col.year + ": work parties rewild a scarred stretch — the land eases (ecoHarm -" + heal + ").", "good");
+      } else log("Year " + col.year + ": not enough materials to mount a restoration (8 needed).", "warn");
+    } else if (action === "fortify") {
+      // defense's first writer (ledger row 26) — a wall reads as a threat to the people beyond it
+      if (s.materials >= 7) {
+        s.materials -= 7; col.defense = (col.defense || 0) + 6;
+        if (col.nativeTrust != null) col.nativeTrust = clamp(col.nativeTrust - 3, 0, 100);
+        log("Year " + col.year + ": you raise the perimeter — walls, watchtowers, cleared fields of fire (defense " + col.defense + ").", "info");
+      } else log("Year " + col.year + ": not enough materials to fortify (7 needed).", "warn");
     }
   }
 
@@ -1499,6 +1533,88 @@
     draw();
   }
 
+  /* ---- P2-M5: the native arc — Contact hub, the wipeout, and the Reckoning ---- */
+  // Resolves col._pendingContact (player-only; auto path never sets it, so this is a no-op headless).
+  function doContact() {
+    var col = game.colony, pend = col._pendingContact; col._pendingContact = null;
+    if (!pend || col.relations == null) return;          // natives only
+    var s = col.supplies, kind = pend.kind;
+    if (kind === "trade") {
+      if (s.materials < 6) { log("Year " + col.year + ": nothing worth trading on hand.", "warn"); return; }
+      s.materials -= 6; s.food = round1((s.food || 0) + 10);
+      applyColonyOutcome({ relations: +8, nativeTrust: +2, inf: { cooperate: +2 },
+        text: "You trade metalwork for grain and strange fruit. A fair exchange — and they remember it.", type: "good" });
+    } else if (kind === "share") {
+      if ((s.meds || 0) < 2) { log("Year " + col.year + ": no medicine to spare across the treeline.", "warn"); return; }
+      s.meds = Math.max(0, s.meds - 2);
+      applyColonyOutcome({ relations: +6, nativeTrust: +10, trauma: -2, inf: { cooperate: +4 },
+        text: "You send a healer and what medicine you can spare. It is not forgotten.", type: "good" });
+    } else if (kind === "parley") {
+      resolveColonyCheck("Xenobiologist", 56,
+        { nativeTrust: +8, tech: +5, relations: +4, text: "You sit, and listen, and begin to learn their grammar of this world.", type: "good" },
+        { nativeTrust: +2, relations: -2, text: "A long, awkward silence on both sides. Something, at least, was attempted.", type: "warn" });
+    } else if (kind === "displace") {
+      var site = (col.sites || []).filter(function (st) { return st.id === pend.siteId; })[0];
+      var arch = site && siteArch(site.id);
+      if (arch && arch.yields) { Object.keys(arch.yields).forEach(function (k) {
+        if (k === "tech") col.tech = clamp(col.tech + arch.yields.tech, 0, 100);
+        else s[k] = round1((s[k] || 0) + arch.yields[k]); });
+        if (site) site.uses++; }
+      applyColonyOutcome({ relations: -22, nativeTrust: -16, ecoHarm: +8, trauma: +4, inf: { aggress: +6, cooperate: -4 },
+        text: "You take the ground you wanted and move them off it. They go. They do not forgive.", type: "bad" });
+    } else if (kind === "war") {
+      doNativeWar();
+    }
+  }
+  // The wipeout (gut-punch): a costly assault that, if it succeeds, empties the treeline for good.
+  function doNativeWar() {
+    var col = game.colony;
+    var force = (col.defense || 0) + skillAwake("Commander") * 0.4;
+    if (odds(40 + force - (col.nativeTrust || 0) * 0.2)) {
+      col.nativesGone = true; col.nativeStanding = "displacers"; col.flags.p_reckon = true;   // explicit consume — no one left to reckon with
+      col.relations = 0; col.nativeTrust = clamp((col.nativeTrust || 0) - 40, 0, 100);
+      applyColonyOutcome({ surv: { health: -10 }, ecoHarm: +6, trauma: +12, hope: -6, kill: true,
+        killVerb: "did not come back from the assault on the natives",
+        text: "It is over in three brutal seasons. The treeline is empty now — the raids will not come again, and neither will anything else.", type: "bad" });
+    } else {
+      applyColonyOutcome({ relations: -20, nativeTrust: -20, surv: { health: -16 }, kill: true,
+        killVerb: "fell in the failed assault", trauma: +10, hope: -8,
+        text: "You move against them and it goes wrong. You have made an enemy of a whole world, and buried your own for it.", type: "bad" });
+    }
+  }
+  // The Contact modal — native-facing choices only (Fortify/Restore are plain season actions).
+  function openContact() {
+    var col = game.colony;
+    if (col.relations == null || col.nativesGone) { log("There is no one here to treat with.", "warn"); sfx("empty"); return; }
+    var s = col.supplies;
+    var sites = (col.sites || []).filter(function (st) { return st.revealed && !st.depleted; });
+    var sel = { siteId: sites.length ? sites[0].id : null };
+    function commit(kind) { col._pendingContact = { kind: kind, siteId: sel.siteId }; closeModal(); colonyTurn("contact", false); }
+    function draw() {
+      var hint = col.nativeTrust >= 75 ? "They speak of you as kin."
+        : col.nativeTrust >= 25 ? "They watch you warily, weighing each thing you do."
+        : "They have decided what you are. The treeline is all but closed to you.";
+      var siteRows = sites.length ? sites.map(function (st) {
+        return "<div class='store-row'><span>" + st.icon + " " + st.name + "</span><span></span><span></span><span><button class='btn small " + (sel.siteId === st.id ? "go" : "") + "' data-csite='" + st.id + "'>" + (sel.siteId === st.id ? "TARGET" : "pick") + "</button></span></div>"; }).join("")
+        : "<div class='small dim'>No site is in reach to seize — Scout first.</div>";
+      openModal({
+        title: "🤝 Contact",
+        body: "<div class='small dim'>" + hint + "</div><div class='small'>Surface stance: <b>" + Math.round(col.relations) + "</b></div>" +
+          "<div class='panel-title' style='margin-top:6px'>A site to seize</div>" + siteRows,
+        choices: [
+          { label: "Trade goods  [−6 mat → +food, +stance]", disabled: s.materials < 6, onClick: function () { commit("trade"); } },
+          { label: "Share medicine  [−2 meds → +trust]", disabled: (s.meds || 0) < 2, onClick: function () { commit("share"); } },
+          { label: "Parley & learn  [Xenobiologist]", onClick: function () { commit("parley"); } },
+          { label: "Seize a site  [crater trust]", disabled: !sel.siteId, onClick: function () { commit("displace"); } },
+          { label: "Drive them out  [war]", onClick: function () { commit("war"); } },
+          { label: "Not now", onClick: function () { sfx("cancel"); closeModal(); renderColony(); } }
+        ],
+        onBind: function (root) { root.querySelectorAll("[data-csite]").forEach(function (b) { b.addEventListener("click", function () { sel.siteId = b.getAttribute("data-csite"); sfx("blip"); closeModal(); draw(); }); }); }
+      });
+    }
+    draw();
+  }
+
   // One colony season: your chosen action lands first, then each manned, powered survival system feeds
   // its axis while the world drains them by the mouths it must keep (research eases the drain); an empty
   // axis escalates (Phase-R style) into health & hope damage, and deaths cost the colony its hope.
@@ -1533,6 +1649,15 @@
     if (col._safe && col.meters.hope < 100) col.meters.hope = clamp(col.meters.hope + 1, 0, 100);
     // Something stirs: a woken thing presses on morale every season until it's reckoned with (P2-M5).
     if (col.woke) col.meters.hope = clamp(col.meters.hope - 1, 0, 100);
+    // Natives (P2-M5): relations is the fast surface stance; nativeTrust the slow anchor it gravitates
+    // toward — a single fair trade is felt today, but only a pattern relocates the anchor. ecoHarm and a
+    // woken thing (the P2-M3 forward declaration, Decision A) slowly bleed the trust the world is owed.
+    if (col.relations != null && col.nativeTrust != null) {
+      var gap = col.nativeTrust - col.relations;
+      if (gap) col.relations = clamp(col.relations + (gap > 0 ? 1 : -1) * Math.min(2, Math.abs(gap)), 0, 100);
+      if ((col.ecoHarm || 0) >= tierThreshold(40)) col.nativeTrust = clamp(col.nativeTrust - tierDecay(1), 0, 100);
+      if (col.woke) col.nativeTrust = clamp(col.nativeTrust - tierDecay(1), 0, 100);
+    }
     // Roll the season's set-piece / named payoff / hazard / event AFTER consumption and BEFORE the
     // death→hope tally, so event & hazard deaths cascade hope exactly like expedition/survival deaths.
     colonyEventPhase(auto, function () { finishColonyTurn(aliveBefore, auto); });
@@ -1573,6 +1698,10 @@
     if (o.infra) col.infra = Math.max(0, col.infra + o.infra);
     if (o.pop) col.pop = Math.max(0, col.pop + o.pop);
     if (o.relations != null && col.relations != null) col.relations = clamp(col.relations + o.relations, 0, 100);
+    if (o.nativeTrust != null && col.nativeTrust != null) col.nativeTrust = clamp(col.nativeTrust + o.nativeTrust, 0, 100);
+    if (o.defense) col.defense = Math.max(0, (col.defense || 0) + o.defense);
+    if (o.standing) col.nativeStanding = o.standing;     // ending-fork field ONLY — does NOT consume p_reckon (set that explicitly)
+    if (o.standingS) col.settlerStanding = o.standingS;  // settlers merger fork
     if (o.health) {
       if (o.target === "one") { var one = pick(awake(game.crew)); if (one) { one.health = clamp(one.health + o.health, 0, 100); if (one.health <= 0) killCrew(one, "succumbed"); else if (o.health < 0 && one.status === "Healthy") one.status = "Injured"; } }
       else adjustHealthAll(o.health, true);
@@ -1676,7 +1805,22 @@
       choices: [ { label: "Get everyone clear", outcome: { infra: -1, surv: { warmth: -14, air: -10 }, health: -14, target: "one", structuralDebt: -10, hope: -6, text: "A habitat is lost and someone with it, but most get out. The works are set back hard.", type: "bad" } } ] } },
     { id: "p_trauma", meter: "trauma", at: 60, ev: { id: "onewhocouldnt", title: "The One Who Couldn't",
       text: "It has been too much, for too long. One of your own stops answering — stares at a wall where a window should be.",
-      choices: [ { label: "Sit with them", outcome: { crack: true, hope: -5, text: "You do what you can. Some weights don't lift. They will not be the same again.", type: "bad" } } ] } }
+      choices: [ { label: "Sit with them", outcome: { crack: true, hope: -5, text: "You do what you can. Some weights don't lift. They will not be the same again.", type: "bad" } } ] } },
+    // The Reckoning at the Treeline (P2-M5) — the bidirectional nativeTrust payoff. Both share the
+    // `consumes: "p_reckon"` flag (set at fire time by the loop, NOT via o.standing) and each gate carries
+    // `!flags.p_reckon`, so exactly one fires, once, late.
+    { id: "p_reckon_allied", consumes: "p_reckon",
+      gate: function (col) { return col.relations != null && col.nativeTrust != null && !col.flags.p_reckon && col.year >= 4 && col.nativeTrust >= 75; },
+      ev: { id: "reckon_allied", title: "The Reckoning at the Treeline",
+        text: "They come out of the forest at dawn — not as raiders, but ranked and waiting. Whatever was coming for your colony, they mean to meet it beside you.",
+        choices: [ { label: "Stand together", outcome: { standing: "allied", defense: +20, surv: { food: +10 }, hope: +12, nativeTrust: +6, relations: +12, recruit: true,
+          text: "The line holds because there are two peoples on it now. You will not be driven off this world.", type: "good" } } ] } },
+    { id: "p_reckon_hostile", consumes: "p_reckon",
+      gate: function (col) { return col.relations != null && col.nativeTrust != null && !col.flags.p_reckon && col.year >= 4 && col.nativeTrust <= tierThreshold(22); },
+      ev: { id: "reckon_hostile", title: "The Reckoning at the Treeline",
+        text: "They come out of the forest at dawn — all of them, all at once. The grudge you taught them has a face now, and it is yours.",
+        choices: [ { label: "Hold what you can", outcome: { standing: "hostile", surv: { food: -20, health: -16 }, kill: true, killVerb: "fell when the treeline came down on the colony",
+          nativeTrust: -10, relations: -20, hope: -10, trauma: +8, text: "You hold the core and lose the edge. The world has decided what you are to it.", type: "bad" } } ] } }
   ];
 
   /* Survival set-pieces — scripted high-tension beats; intercept the roll ONCE at their thresholds. */
@@ -1700,7 +1844,15 @@
       choices: [
         { label: "Pool everything, ration hard", role: "Commander", diff: 58,
           success: { surv: { food: -8, warmth: -6 }, hope: +8, text: "You bring them through the worst of it together. When the light returns, the colony is still here — and surer of itself.", type: "good" },
-          failure: { surv: { food: -16, warmth: -12, health: -12 }, kill: true, killVerb: "did not see the spring", trauma: +8, text: "Winter takes its tithe. You come out the far side fewer, and quieter.", type: "bad" } } ] } }
+          failure: { surv: { food: -16, warmth: -12, health: -12 }, kill: true, killVerb: "did not see the spring", trauma: +8, text: "Winter takes its tithe. You come out the far side fewer, and quieter.", type: "bad" } } ] } },
+    // Settlers (overtaken) — a lean one-time merger-vs-rivalry beat (P2-M5). The fork rides on settlerStanding
+    // + pop/contamination; relations/nativeTrust stay strictly natives-only.
+    { id: "sp_merger", when: function () { return game.dest.inhabited === "settlers" && game.colony.year >= 2; },
+      ev: { id: "settlermerger", title: "The Other Camp",
+        text: "The expedition that came before you did not all die. A ragged band walks in from the derelict's shadow — fewer than they were, and asking to be one people with you.",
+        choices: [
+          { label: "Take them in — one colony", outcome: { standingS: "merged", recruit: true, pop: +2, surv: { food: -8 }, contamination: +6, hope: +6, inf: { cooperate: +5 }, text: "You merge the camps. More hands, more mouths — and a strain of something their derelict carried.", type: "good" } },
+          { label: "Keep them at arm's length", outcome: { standingS: "rivals", hope: -2, inf: { caution: +3, aggress: +2 }, text: "You trade with them but keep the gates. Two camps, eyeing each other across the valley.", type: "warn" } } ] } }
   ];
 
   /* Colony hazards — sampled clean→catastrophic spectrum (mirrors the ship's applyHazardSeverity). */
@@ -1723,9 +1875,10 @@
         else if (sev === "serious") applyColonyOutcome({ structuralDebt: +6, surv: { air: -8 }, text: "A habitat splits; you lose pressure and time.", type: "bad" });
         else if (sev === "casualty") applyColonyOutcome({ structuralDebt: +8, health: -16, target: "one", surv: { warmth: -8 }, text: "A wall comes down on the night shift.", type: "bad" });
         else applyColonyOutcome({ infra: -1, structuralDebt: +10, kill: true, killVerb: "was lost when the habitat fell", hope: -6, text: "The quake takes a building and a life with it.", type: "bad" }); } },
-    { id: "raid", w: 4, cond: function () { return game.colony.relations != null && game.colony.relations < 45; }, title: "Night Raid",
+    { id: "raid", w: 4, cond: function () { var col = game.colony; return col.relations != null && !col.nativesGone && col.relations < 45; }, title: "Night Raid",
       text: "Figures move beyond the lights. The perimeter alarms scream.",
-      danger: function () { var col = game.colony; return 0.42 - (col.defense || 0) / 200 + (col.woke ? 0.1 : 0); },
+      // low nativeTrust escalates the raid; high trust pushes it negative (the help that simply doesn't bite)
+      danger: function () { var col = game.colony; return 0.42 - (col.defense || 0) / 200 + (col.woke ? 0.1 : 0) + (60 - (col.nativeTrust || 60)) / 200; },
       options: [ { label: "Hold the line", role: "Commander", riskMult: 0.8 }, { label: "Give ground, save the people", riskMult: 0.55, cost: { materials: -6 } } ],
       resolve: function (sev) {
         if (sev === "clean") log("The watch holds; the raiders melt back into the dark with nothing.", "warn");
@@ -1757,7 +1910,11 @@
     }
     for (var j = 0; j < COLONY_PAYOFFS.length; j++) {
       var py = COLONY_PAYOFFS[j];
-      if (!col.flags[py.id] && (col[py.meter] || 0) >= tierThreshold(py.at)) { col.flags[py.id] = true; fireColonyEvent(py.ev, auto, done); return; }
+      if (col.flags[py.id]) continue;
+      // gated payoffs (the bidirectional Reckoning) use a predicate; the original meter-threshold ones are
+      // behavior-identical via the else branch. A `consumes` flag is set at fire time (NOT via o.standing).
+      var ok = py.gate ? py.gate(col) : (col[py.meter] || 0) >= tierThreshold(py.at);
+      if (ok) { col.flags[py.id] = true; if (py.consumes) col.flags[py.consumes] = true; fireColonyEvent(py.ev, auto, done); return; }
     }
     var roll = Math.random();
     if (roll < 0.18) {
@@ -3869,6 +4026,8 @@
           stat("Infrastructure", col.infra) + stat("Tech", col.tech || 0) +
           stat("Years since exodus", col.elapsedYears) +
           (col.relations != null ? stat("Native stance", Math.round(col.relations), col.relations < 25 ? "red" : "") : stat("Ship home", (col.shipReadiness || 0) + "%")) +
+          (col.relations != null ? stat("They", col.nativesGone ? "gone" : (col.nativeTrust >= 75 ? "trust you" : col.nativeTrust >= 25 ? "watch warily" : "hostile"), (col.nativeTrust < 25 && !col.nativesGone) ? "red" : "") : "") +
+          (game.dest.inhabited === "settlers" && col.settlerStanding ? stat("Other camp", col.settlerStanding) : "") +
         "</div></div>" +
       "</div>" +
       "<div class='panel'><div class='panel-title'>Crew &amp; colonists</div>" + crewStrip() + "</div>";
@@ -3889,6 +4048,9 @@
       "<button class='btn small' data-action='colony' data-arg='expedition'>⛏ Expedition</button>" +
       "<button class='btn small' data-action='colony' data-arg='tend'>❤ Tend</button>" +
       "<button class='btn small' data-action='colony' data-arg='refit'>🛠 Refit ship</button>" +
+      (col.relations != null && !col.nativesGone ? "<button class='btn small' data-action='colony' data-arg='contact'>🤝 Contact</button>" : "") +
+      (col.relations != null && !col.nativesGone ? "<button class='btn small' data-action='colony' data-arg='fortify'>🧱 Fortify</button>" : "") +
+      ((col.ecoHarm || 0) > 0 ? "<button class='btn small' data-action='colony' data-arg='restore'>🌱 Restore</button>" : "") +
       "<button class='btn small' data-action='colony' data-arg='hold'>▶ Hold</button>" +
       "<button class='btn small' data-action='colony' data-arg='allocate'>⚡ Power</button>" +
       "</div>";
@@ -4046,8 +4208,9 @@
       case "colony":
         if (arg === "allocate") openColonyAllocate();
         else if (arg === "expedition") openExpedition();   // player-only modal (sets _pendingExpedition)
+        else if (arg === "contact") openContact();         // player-only modal (sets _pendingContact)
         else if (arg === "launch") colonyLaunch();   // Game B — intact but dormant in Phase 2
-        else colonyTurn(arg, false);   // secure / build / research / tend / refit / scout / hold — one action per season
+        else colonyTurn(arg, false);   // secure / build / research / tend / refit / scout / restore / fortify / hold — one action per season
         break;
       case "voyage":
         if (arg === "continue") voyageStep();
