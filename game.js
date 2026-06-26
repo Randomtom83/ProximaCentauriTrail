@@ -1216,6 +1216,10 @@
   var COL_SYS = ["air", "water", "food", "warmth", "health"];   // the survival spine
   var SURV_LABEL = { air: "Air", water: "Water", food: "Food", warmth: "Warmth", health: "Medical care" };
   var COL_DRAW = 3;          // power each running survival system needs
+  // The colony counts CYCLES, not Earth years (Decision: cycles, not years). A tidally-locked red-dwarf
+  // world has no honest Earth calendar; the Earth-frame "years since exodus" advances by this small
+  // fraction of an Earth year per cycle (never +1/turn), and colony crew age by the same small amount.
+  var CYCLE_YEARS = 0.5;
 
   // Heads = living named crew + abstract settlers (mouths); hands = those who can actually work.
   function colHeads() { return alive(game.crew).length + (game.colony.pop || 0); }
@@ -1273,6 +1277,49 @@
     col.trauma = clamp((col.trauma || 0) - tierDecay(1), 0, 100);
   }
 
+  // Decision (cycles, not years): the colony's "Cycle N" counter is decoupled from the honest Earth
+  // clock. elapsedYears advances by a small fraction of an Earth year per cycle (never +1/turn), and the
+  // founders age by that same small amount — a little over a colony's life, not frozen and no die-off.
+  // Reuses the journey's OLD_AGE / COME_OF_AGE constants but NOT ageCrew() (which advances shipYears and
+  // fires journey-only pregnancy/birth). Runs AFTER aliveBefore is captured so a drift death cascades hope.
+  function colonyAgeDrift() {
+    var col = game.colony;
+    var base = (col._exodusYear != null) ? col._exodusYear : Math.round(game.shipYears || 0);
+    col.elapsedYears = Math.round(base + col.year * CYCLE_YEARS);
+    var living = alive(game.crew);
+    for (var i = 0; i < living.length; i++) {
+      var c = living[i];
+      c.age = round1(c.age + (c.child ? CYCLE_YEARS * 2 : CYCLE_YEARS));
+      if (c.child && c.age >= COME_OF_AGE) {     // a child of this world grows into a working hand
+        c.child = false; c.role = "Colonist"; c.skill = rint(35, 60);
+        log("Cycle " + col.year + ": " + c.name + " has come of age — a child of this world takes a place among its builders.", "good");
+      }
+      if (!c.child && c.age >= OLD_AGE) {         // gentle, age-scaled mortality for true elders
+        if (chance((c.age - OLD_AGE) * 0.012 * colHarsh())) killCrew(c, "died at " + Math.round(c.age) + ", an elder of the colony", false, game.crew);
+      }
+    }
+  }
+
+  // A passive per-cycle recovery tick — the colony analog of the ship's auto-medbay (Decision: heal +
+  // safe-gather reuse the journey's verbs). Only on SAFE cycles (nothing in crisis) AND with a healthy,
+  // powered medical-care axis; gated up by an awake Medic. No recovery on crisis cycles — that's what the
+  // survival escalation is for.
+  function colonyRecovery() {
+    var col = game.colony;
+    if (!col._safe) return;                                   // crisis cycles get no quarter
+    if (col.surv.health < 40 || !col.alloc.health) return;    // needs a healthy, powered infirmary axis
+    var medic = skillAwake("Medic"), powered = !colPower().brownout;
+    var heal = Math.round(3 + (col.surv.health - 40) / 30 + medic / 25);   // small, scales with the axis + a medic
+    adjustHealthAll(heal, true);                              // mend awake living crew a little
+    var sick = ailing(game.crew).filter(function (c) { return c.status !== "Hibernating"; });
+    if (sick.length && chance(clamp((0.25 + medic / 300) * (powered ? 1 : 0.5), 0, 0.8))) {
+      var pat = sick.slice().sort(function (a, b) { return a.health - b.health; })[0];
+      pat.ailment = null; if (pat.status === "Sick" || pat.status === "Injured") pat.status = "Healthy";
+      pat.health = clamp(pat.health + 8, 0, 100);
+      log("Cycle " + col.year + ": the infirmary's steady care tells — " + pat.name + " recovers.", "good");
+    }
+  }
+
   function beginColony(petition) {
     closeModal();
     // Landing wakes everyone — no one rides out the colony in cold sleep.
@@ -1284,7 +1331,8 @@
     // Clean-sheet colony state — ALL meters declared up front (most written by later milestones).
     game.colony = {
       stage: "survival", year: 0,
-      elapsedYears: Math.round(game.shipYears || 0),     // total years since the exodus (Earth clock)
+      elapsedYears: Math.round(game.shipYears || 0),     // honest Earth clock — advances a small fraction per cycle
+      _exodusYear: Math.round(game.shipYears || 0),      // fixed Earth-year at landfall; the base for elapsedYears
       habit: game.dest.habitResult, petition: !!petition,
       // population: named crew live in game.crew; pop is the abstract settler count (grows later)
       pop: 0, popCap: n + 6,
@@ -1388,36 +1436,63 @@
       if (s.materials >= 6) {
         s.materials -= 6; col.sysLvl[axis] = (col.sysLvl[axis] || 0) + 1; col.surv[axis] = clamp(col.surv[axis] + 14, 0, 100);
         if (axis === "health") col.contamination = clamp(col.contamination - tierDecay(4), 0, 100);   // infirmary/sanitation
-        log("Year " + col.year + ": you shore up " + SURV_LABEL[axis] + " — sturdier works, and a buffer restored.", "good");
-      } else log("Year " + col.year + ": not enough materials to shore up the works (6 needed).", "warn");
+        log("Cycle " + col.year + ": you shore up " + SURV_LABEL[axis] + " — sturdier works, and a buffer restored.", "good");
+      } else log("Cycle " + col.year + ": not enough materials to shore up the works (6 needed).", "warn");
     } else if (action === "build") {
       var cost = 5 + Math.floor(col.infra / 3);
-      if (s.materials >= cost) { s.materials -= cost; col.infra += 1; log("Year " + col.year + ": new habitats and generators — colony capacity grows (infra " + col.infra + ").", "good"); }
+      if (s.materials >= cost) { s.materials -= cost; col.infra += 1; log("Cycle " + col.year + ": new habitats and generators — colony capacity grows (infra " + col.infra + ").", "good"); }
       else {  // improvise with unproven local stuff when short — corners get cut (ledger: rush/cut corners)
         col.infra += 1; col.structuralDebt = clamp(col.structuralDebt + 10, 0, 100); col.contamination = clamp(col.contamination + 5, 0, 100);
-        log("Year " + col.year + ": short on materials, you improvise the build — it stands, but on cut corners.", "warn");
+        log("Cycle " + col.year + ": short on materials, you improvise the build — it stands, but on cut corners.", "warn");
       }
     } else if (action === "research") {
       var t = Math.round(4 + (eng + xeno) / 30); col.tech = clamp(col.tech + t, 0, 100);
       col.contamination = clamp(col.contamination - tierDecay(3), 0, 100);   // understanding the world → safer living
       influence({ knowledge: +2 });
-      log("Year " + col.year + ": the labs learn the world — tech +" + t + ", and safer ways to live in it.", "good");
+      log("Cycle " + col.year + ": the labs learn the world — tech +" + t + ", and safer ways to live in it.", "good");
     } else if (action === "tend") {
       m.hope = clamp(m.hope + 8, 0, 100); col.trauma = clamp(col.trauma - tierDecay(5), 0, 100);
-      log("Year " + col.year + ": you tend the people — spirits lift, and old wounds settle.", "good");
+      // Tend now mends BODIES too, not just morale (the colony has no other deliberate healer): heal awake
+      // living crew, and — auto-medbay style — clear one crewmate's Sick/Injured, boosted by an awake Medic.
+      var med = skillAwake("Medic");
+      adjustHealthAll(Math.round(8 + med / 12), true);
+      var hurt = awake(game.crew).filter(function (c) { return c.ailment || c.status === "Sick" || c.status === "Injured"; });
+      if (hurt.length && med + rint(0, 40) >= 64) {
+        var pat = hurt.slice().sort(function (a, b) { return a.health - b.health; })[0];
+        pat.ailment = null; if (pat.status === "Sick" || pat.status === "Injured") pat.status = "Healthy";
+        pat.health = clamp(pat.health + 10, 0, 100);
+        log("Cycle " + col.year + ": the infirmary sets " + pat.name + " back on their feet.", "good");
+      }
+      log("Cycle " + col.year + ": you tend the people — spirits lift, bodies mend, and old wounds settle.", "good");
+    } else if (action === "work") {
+      // A safe, repeatable labor→resource valve — the colony analog of the journey's Mine. No risk, no
+      // ecoHarm; a modest yield scaled by hands + tech, deliberately OUT-PAID by the riskier Expedition.
+      var hands = colHands(), techF = 1 + (col.tech || 0) / 150;
+      var mats = Math.round((2 + hands * 0.6) * techF);
+      var chow = Math.round((3 + hands * 0.5) * techF);
+      s.materials = round1((s.materials || 0) + mats);
+      s.food = round1((s.food || 0) + chow);
+      var extra = "";
+      // Empty (none) worlds have no natives to trade with (Contact is natives-only) — a work cycle is the
+      // outlet: only a genuine ration SURPLUS is rendered down and put up as preservable medical stock, so
+      // ordinary work is never taxed. Minimal trade valve for a non-native colony.
+      if (game.dest.inhabited === "none" && s.food >= 80) {
+        s.food = round1(s.food - 10); s.meds = (s.meds || 0) + 1; extra = " · a ration surplus is put up as medical stock (+1 meds)";
+      }
+      log("Cycle " + col.year + ": work crews gather and make do — materials +" + mats + ", food +" + chow + extra + ".", "good");
     } else if (action === "refit") {
       if (s.materials >= 5) {
         s.materials -= 5;
         var prog = Math.max(3, Math.round((12 + eng / 8) * (1 - (col.structuralDebt || 0) / 160)));   // structuralDebt taxes the refit
         col.shipReadiness = Math.min(100, col.shipReadiness + prog);
-        log("Year " + col.year + ": crews refit the lander for the long crossing home — readiness " + col.shipReadiness + "%" + (col.structuralDebt > 30 ? " (the cut corners are slowing it)" : "") + ".", "info");
-      } else log("Year " + col.year + ": not enough materials to refit the ship (5 needed).", "warn");
+        log("Cycle " + col.year + ": crews refit the lander for the long crossing home — readiness " + col.shipReadiness + "%" + (col.structuralDebt > 30 ? " (the cut corners are slowing it)" : "") + ".", "info");
+      } else log("Cycle " + col.year + ": not enough materials to refit the ship (5 needed).", "warn");
     } else if (action === "scout") {
       var hidden = col.sites.filter(function (st) { return !st.revealed; });
       if (hidden.length) {
         hidden[0].revealed = true; col.scouted = (col.scouted || 0) + 1; col.tech = clamp(col.tech + 1, 0, 100);
-        log("Year " + col.year + ": survey parties map further out — " + hidden[0].icon + " " + hidden[0].name + " comes into view.", "good");
-      } else log("Year " + col.year + ": the survey finds nothing new — you have mapped what there is to map.", "info");
+        log("Cycle " + col.year + ": survey parties map further out — " + hidden[0].icon + " " + hidden[0].name + " comes into view.", "good");
+      } else log("Cycle " + col.year + ": the survey finds nothing new — you have mapped what there is to map.", "info");
     } else if (action === "expedition") {
       doExpedition();   // resolves col._pendingExpedition (player-only; no-op if unset)
     } else if (action === "contact") {
@@ -1429,15 +1504,15 @@
         var heal = Math.round(tierDecay(10));
         col.ecoHarm = clamp((col.ecoHarm || 0) - heal, 0, 100);
         if (col.nativeTrust != null) col.nativeTrust = clamp(col.nativeTrust + 2, 0, 100);   // tending the world they revere
-        log("Year " + col.year + ": work parties rewild a scarred stretch — the land eases (ecoHarm -" + heal + ").", "good");
-      } else log("Year " + col.year + ": not enough materials to mount a restoration (8 needed).", "warn");
+        log("Cycle " + col.year + ": work parties rewild a scarred stretch — the land eases (ecoHarm -" + heal + ").", "good");
+      } else log("Cycle " + col.year + ": not enough materials to mount a restoration (8 needed).", "warn");
     } else if (action === "fortify") {
       // defense's first writer (ledger row 26) — a wall reads as a threat to the people beyond it
       if (s.materials >= 7) {
         s.materials -= 7; col.defense = (col.defense || 0) + 6;
         if (col.nativeTrust != null) col.nativeTrust = clamp(col.nativeTrust - 3, 0, 100);
-        log("Year " + col.year + ": you raise the perimeter — walls, watchtowers, cleared fields of fire (defense " + col.defense + ").", "info");
-      } else log("Year " + col.year + ": not enough materials to fortify (7 needed).", "warn");
+        log("Cycle " + col.year + ": you raise the perimeter — walls, watchtowers, cleared fields of fire (defense " + col.defense + ").", "info");
+      } else log("Cycle " + col.year + ": not enough materials to fortify (7 needed).", "warn");
     }
   }
 
@@ -1463,7 +1538,7 @@
     var arch = siteArch(pend.siteId), inst = col.sites.filter(function (st) { return st.id === pend.siteId; })[0];
     if (!arch || !inst || inst.depleted) return;
     var party = (pend.crewNames || []).map(function (n) { return byName(n, game.crew); }).filter(function (c) { return c && c.status !== "Dead" && c.status !== "Hibernating"; });
-    if (!party.length) { log("Year " + col.year + ": no one fit to send — the expedition never sets out.", "warn"); return; }
+    if (!party.length) { log("Cycle " + col.year + ": no one fit to send — the expedition never sets out.", "warn"); return; }
     var r = expeditionRisk(arch, party.map(function (c) { return c.name; }));
     var band = sampleWeighted({ success: r.odds.success, hurt: r.odds.hurt, lost: r.odds.lost, death: r.odds.death, woke: r.odds.woke });
     var who = pick(party);
@@ -1476,19 +1551,19 @@
       });
       inst.uses++;
       col.ecoHarm = clamp((col.ecoHarm || 0) + Math.round(arch.ecoCost * (0.6 + 0.5 * colHarsh())) + (inst.uses > arch.capacity ? 6 : 0), 0, 100);  // WRITER (tier-scaled; over-extraction bites)
-      if (inst.uses >= arch.capacity) { inst.depleted = true; log("Year " + col.year + ": " + arch.icon + " " + arch.name + " is worked out — nothing more to take.", "warn"); }
-      log("Year " + col.year + ": the expedition to " + arch.name + " brings back " + got.join(", ") + ".", "good"); sfx("buy");
+      if (inst.uses >= arch.capacity) { inst.depleted = true; log("Cycle " + col.year + ": " + arch.icon + " " + arch.name + " is worked out — nothing more to take.", "warn"); }
+      log("Cycle " + col.year + ": the expedition to " + arch.name + " brings back " + got.join(", ") + ".", "good"); sfx("buy");
       if (band === "woke" && !col.woke) {
         col.woke = true; col.wokeWhat = arch.kind === "ruin" ? "something in the ruins" : "something deep in the " + arch.name.toLowerCase();
         log("◆ But you woke " + col.wokeWhat + ". It is aware of you now. ◆", "bad"); sfx("bad");
       }
     } else if (band === "hurt") {
-      if (who) { who.health = clamp(who.health - rint(14, 30), 0, 100); if (who.health <= 0) killCrew(who, "died of wounds from the expedition to " + arch.name, false, game.crew); else { afflict(null, [who]); log("Year " + col.year + ": the expedition to " + arch.name + " goes wrong — " + who.name + " comes back hurt.", "bad"); } }
+      if (who) { who.health = clamp(who.health - rint(14, 30), 0, 100); if (who.health <= 0) killCrew(who, "died of wounds from the expedition to " + arch.name, false, game.crew); else { afflict(null, [who]); log("Cycle " + col.year + ": the expedition to " + arch.name + " goes wrong — " + who.name + " comes back hurt.", "bad"); } }
       sfx("bad");
     } else if (band === "lost") {
       col.supplies.food = Math.max(0, (col.supplies.food || 0) - rint(4, 10));
       col.meters.hope = clamp(col.meters.hope - 4, 0, 100);
-      log("Year " + col.year + ": the party is lost for a season on the way to " + arch.name + " — stores burned, nerves frayed, but they straggle home.", "warn"); sfx("warn");
+      log("Cycle " + col.year + ": the party is lost for a season on the way to " + arch.name + " — stores burned, nerves frayed, but they straggle home.", "warn"); sfx("warn");
     } else if (band === "death") {
       if (who) killCrew(who, "was lost on the expedition to " + arch.name, false, game.crew);
       sfx("death");
@@ -1546,12 +1621,12 @@
     if (!pend || col.relations == null) return;          // natives only
     var s = col.supplies, kind = pend.kind;
     if (kind === "trade") {
-      if (s.materials < 6) { log("Year " + col.year + ": nothing worth trading on hand.", "warn"); return; }
+      if (s.materials < 6) { log("Cycle " + col.year + ": nothing worth trading on hand.", "warn"); return; }
       s.materials -= 6; s.food = round1((s.food || 0) + 10);
       applyColonyOutcome({ relations: +8, nativeTrust: +2, inf: { cooperate: +2 },
         text: "You trade metalwork for grain and strange fruit. A fair exchange — and they remember it.", type: "good" });
     } else if (kind === "share") {
-      if ((s.meds || 0) < 2) { log("Year " + col.year + ": no medicine to spare across the treeline.", "warn"); return; }
+      if ((s.meds || 0) < 2) { log("Cycle " + col.year + ": no medicine to spare across the treeline.", "warn"); return; }
       s.meds = Math.max(0, s.meds - 2);
       applyColonyOutcome({ relations: +6, nativeTrust: +10, trauma: -2, inf: { cooperate: +4 },
         text: "You send a healer and what medicine you can spare. It is not forgotten.", type: "good" });
@@ -1627,12 +1702,13 @@
   // auto = the colony advancing unattended (the parallel-front hook).
   function colonyTurn(action, auto) {
     var col = game.colony;
-    col.year++; col.elapsedYears = Math.round(game.shipYears || 0) + col.year;
+    col.year++;                                   // the colony CYCLE counter (cycles, not Earth years)
     var aliveBefore = alive(game.crew).length;    // captured BEFORE the action so expedition deaths cascade hope
+    colonyAgeDrift();                             // honest Earth clock + a small per-cycle aging drift on the founders
     applyColonyAction(action);
     var p = colPower(), heads = colHeads(), drain = colHabDrain();
     var techEase = 1 - (col.tech || 0) / 200;     // research lowers per-head consumption
-    if (p.brownout) log("Year " + col.year + ": power and hands can't run every system — works falter (" + Math.round(p.factor * 100) + "%).", "warn");
+    if (p.brownout) log("Cycle " + col.year + ": power and hands can't run every system — works falter (" + Math.round(p.factor * 100) + "%).", "warn");
 
     var inCrisis = false;
     COL_SYS.forEach(function (k) {
@@ -1651,6 +1727,7 @@
     });
 
     col._safe = !inCrisis;                 // gates passive recovery of the soft hidden meters
+    colonyRecovery();                      // colony auto-medbay: a little healing on safe cycles
     colonyDecay();
     if (col._safe && col.meters.hope < 100) col.meters.hope = clamp(col.meters.hope + 1, 0, 100);
     // Something stirs: a woken thing presses on morale every season until it's reckoned with (P2-M5).
@@ -1692,7 +1769,7 @@
     // Foothold — automatic once the survival streak holds. Fires a one-time beat on the player path.
     if (col.stage === "survival" && col._stable >= colWinBar(3)) {
       col.stage = "foothold"; col.footholdReached = true;
-      log("Year " + col.year + ": the colony has a foothold. You are no longer just surviving — you can begin to build something that lasts.", "good");
+      log("Cycle " + col.year + ": the colony has a foothold. You are no longer just surviving — you can begin to build something that lasts.", "good");
       sfx("win");
       if (!auto) openFutureDecision();
     }
@@ -4086,7 +4163,7 @@
     }
     function stat(label, val, cls) { return "<div class='stat'><span class='label'>" + label + "</span><span class='val " + (cls || "") + "'>" + val + "</span></div>"; }
     var hud =
-      "<div class='panel'><div class='panel-title'>The Colony · Year " + col.year + " · " + col.habit + " world · " + col.stage + "</div>" +
+      "<div class='panel'><div class='panel-title'>The Colony · Cycle " + col.year + " · " + col.habit + " world · " + col.stage + "</div>" +
         "<div class='stat'><span class='label'>Hope</span><span class='val cyan'>" + Math.round(m.hope) + " / 100</span></div>" + bar(m.hope, 100, "power") +
         "<div class='small dim' style='margin-top:6px'>Survival, not yet a settlement. Air, water, food, warmth and medical care all drain — and there is never enough power and hands to run all five at full. Triage.</div>" +
       "</div>" +
@@ -4115,6 +4192,7 @@
     var world = "<div class='panel'><div class='panel-title'>Known world · " + revealed.length + "/" + (col.sites || []).length + " mapped" + (hiddenN ? " · " + hiddenN + " unscouted" : "") + "</div>" + worldRows + strain + stir + "</div>";
     var acts = "<div class='menu row'>" +
       "<button class='btn go' data-action='colony' data-arg='secure'>🛡 Secure</button>" +
+      "<button class='btn small' data-action='colony' data-arg='work'>👷 Work</button>" +
       "<button class='btn small' data-action='colony' data-arg='build'>🏗 Build</button>" +
       "<button class='btn small' data-action='colony' data-arg='research'>🔬 Research</button>" +
       "<button class='btn small' data-action='colony' data-arg='scout'>🧭 Scout</button>" +
@@ -4132,7 +4210,7 @@
       ? "<div class='panel' style='border-color:#33ff66'><div class='small cyan'>★ The colony is thriving — you could call it <b>founded</b>. Open <b class='paper'>⚖ The future</b> to claim this world.</div></div>"
       : "";
     app.innerHTML = hud + world + settledBanner + acts +
-      "<div class='small dim'>Each action is a season. <b class='paper'>Scout</b> reveals the world · <b class='paper'>Expedition</b> sends crew to a site for a haul, at real risk · <b class='paper'>Secure/Build/Research/Tend/Refit</b> shape the colony · <b class='paper'>Hold</b> rests. Exploiting sites scars the land.</div>" +
+      "<div class='small dim'>Each action is a cycle. <b class='paper'>Work</b> gathers materials &amp; food safely · <b class='paper'>Scout</b> reveals the world · <b class='paper'>Expedition</b> sends crew to a site for a bigger haul, at real risk · <b class='paper'>Tend</b> mends spirits and bodies · <b class='paper'>Secure/Build/Research/Refit</b> shape the colony · <b class='paper'>Hold</b> rests. Exploiting sites scars the land.</div>" +
       "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
     renderLog();
   }
