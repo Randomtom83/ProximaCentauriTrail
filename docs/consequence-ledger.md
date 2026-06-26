@@ -197,6 +197,16 @@ fire · Ending beat it colors.** Each implementation milestone wires the rows it
 > Wire as one escalating choice with a threshold so `structuralDebt` is **never double-counted** across
 > the two rows.
 
+> **FORWARD MARKER — `confirmSettlement` must be re-guarded at P3-M1/M-INT1 (P2-M6 note, no code yet).**
+> P2-M6 ships the player-confirmed Settlement victory as `confirmSettlement` → `finishColony(true,
+> "SETTLED")`, which **hard-ends the whole run**. That is correct ONLY while the launch/voyage front is
+> dormant (Phase 2). Once a voyage can be live (P3-M1 launch + M-INT1 composed endings), settling while a
+> ship is mid-crossing would short-circuit the parallel finale and break **TWO WORLDS**. At P3-M1/M-INT1,
+> BOTH (a) `confirmSettlement`'s **availability** (and the `⚖ The future` "Found the settlement" choice)
+> AND (b) its **"the colony's story ends here"** copy MUST be guarded: when a ship is in flight, founding
+> must **record the settled-front outcome** for `composeEnding` to weigh (set the colony front done/won),
+> NOT call `endGame`. Row 21 (Choose STAY) already assumes this seam.
+
 ---
 
 ## 4. Cascade engines (must thread through every milestone)
