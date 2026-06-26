@@ -243,3 +243,79 @@ and the duplicate Farm action are gone; overcrowding replaces the brownout; habi
 journey sets opening difficulty and en-route knowledge seeds starting tech. Fixed a Commander-floor leak
 (aging/AI ran after the floor). Save key bumped to v6. Sweep gradient held (Settler 47 / Pioneer 43 /
 Voyager 17 top win-rate; naive 0 everywhere; zero JS errors).
+
+# ============================================================
+# GAME-A POLISH — colony-loop fixes (post-P2-M6, pre-P3-M1)
+# A scoped FIX pass, not a milestone. Closes Game-A playability
+# gaps surfaced in playtesting before Game B (P3-M1) is built.
+# ============================================================
+
+## Context
+Playtesting the delivered Game A (P2-M6, commit fd93013) surfaced three loop defects and
+one trade gap that make a struggling colony unplayable rather than hard: (1) the colony
+has NO way to heal crew — `colonyTurn` only ever damages, Tend touched hope/trauma only,
+and there is no colony analog of the ship's auto-medbay; (2) there is no safe labor→
+resource action — materials come only from risky Expeditions (which can kill) and events,
+so a materials-starved colony has no non-lethal agency (a death spiral with no valve);
+(3) the colony advanced a "Year" counter that added a full Earth-year per turn while never
+aging crew — producing the "45-year-old at Year 59 / 82 since exodus" contradiction and a
+biologically frozen colony. Plus on `none`/uninhabited worlds there is no trade at all
+(Contact-trade is natives-only). This pass fixes all four; Game B stays parked.
+
+## Locked decisions (log each as a `decision` LOG entry in docs/dashboard.html)
+1. **CLOCK = CYCLES, not Years (option C).** A tidally-locked red-dwarf world (Proxima
+   Centauri b: ~11.2-day orbit, likely no normal day/night) has no honest Earth calendar.
+   The colony counter is relabeled **"Cycle N"**; the Earth-frame "years since exodus"
+   becomes a *separate, honest* stat that advances by a small fraction of an Earth year per
+   cycle — never +1 Earth-year/turn. This dissolves the age contradiction at the root.
+2. **HEAL + SAFE-GATHER reuse the journey's verbs (option A).** Tend actually mends bodies
+   (not just morale); a passive per-cycle recovery tick is the colony analog of the ship's
+   auto-medbay; a new **Work/Harvest** action is the colony analog of journey **Mine** — a
+   safe, repeatable labor→resource valve. The colony reuses Act-I patterns rather than
+   inventing new ones.
+
+## The five fixes (all in game.js; route through the colony loop / its siblings)
+1. **Clock = Cycles (Decision 1):** relabel the colony turn counter "Year N"→"Cycle N"
+   everywhere player-facing; DECOUPLE the exodus clock (`elapsedYears` advances by a small
+   Earth-fraction per cycle, not +1/turn) and label it as the Earth frame; AGING DRIFT —
+   age colony crew by that same small per-cycle Earth amount (reuse the aging-rate /
+   OLD_AGE / come-of-age constants; do NOT call the journey `ageCrew()` wholesale if it
+   also advances shipYears or fires journey-only birth). Founders age a little over a
+   normal Game-A — not frozen, no mass die-off.
+2. **Tend heals (Decision 2):** the "tend" action, in addition to hope/trauma, heals awake
+   living crew and clears a Sick/Injured status the way the ship's auto-medbay does, boosted
+   by an awake Medic (`skillAwake("Medic")`).
+3. **Per-cycle recovery tick (Decision 2):** when the colony is `_safe` (not in crisis) AND
+   the Medical-care survival axis is healthy, a small passive heal + a chance to clear a
+   lingering ailment, gated up by an awake Medic / powered infirmary. None on crisis turns.
+4. **Work/Harvest action (Decision 2):** a new safe season action — assign the cycle's labor
+   for a modest, risk-free materials/food yield scaled by hands (`colHands`) + tech, no
+   ecoHarm. Tuned so risky Expeditions still pay more (tech/special finds).
+5. **Empty-world trade gap:** on `none` worlds, a minimal way to convert resources (a passing-
+   trader / supply-drop event OR a small convert option folded into Work). Kept minimal.
+
+## DO-NOT-TOUCH / forward-links
+- **Zero-diff gate:** `applyOutcome` + `resolveCheck` stay byte-identical to HEAD — none of
+  this needs them.
+- **Game B stays dormant:** `colonyLaunch`/`doLaunch`/`startVoyage`/`sendBeacon` untouched.
+- **Forward-link to P3-M1:** Fix 1's decoupled `elapsedYears` is the honest substrate the
+  **P3-M4 Years-Since-Exodus clock** and **P3-M2 generations** need — doing it now de-risks
+  both. The P2-M6 confirmSettlement forward marker (guard settling once a voyage can be live)
+  is unchanged and still owned by P3-M1/M-INT1.
+
+## Verification (all pass before STOP)
+- `node --check game.js audio.js`; zero-diff gate (applyOutcome/resolveCheck md5-identical
+  to HEAD).
+- New `/tmp/colonyfix.js`: Tend raises a hurt crewmate's health and can clear Sick/Injured;
+  a safe colony passively recovers an injured colonist over cycles while a crisis colony does
+  NOT; Work yields materials/food with no death/ecoHarm and scales with hands; after N cycles
+  crew age has DRIFTED up a small amount (not frozen, not +N) and `elapsedYears` is an honest
+  small Earth number (not cycle-count); labels read "Cycle" not "Year"; v7 round-trips.
+- Smoke win-rate: a sound Settler colony still reaches settled, now MORE survivable but not
+  trivial (flag for the M-INT2 sweep).
+- Re-run colonyskel + colonym2..m6 + feattest + fuzz — all green.
+
+## Delivery
+One scoped session on `claude/intelligent-galileo-y2siqb` (PR #1); dashboard SPRINTS entry
+(label "Fix") + feature LOG + the two decision entries; bump LAST_UPDATED; commit + push.
+STOP — do not begin P3-M1; the plan is parked and Tom greenlights it after this lands.
