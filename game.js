@@ -142,6 +142,7 @@
   var O2_PER_SLEEPER = 0.1;
   var REACTOR_BASE = 20;
   var HOLD_MAX = 300;            // cargo capacity in units (fuel/oxygen/food/parts/charges each 1/unit; medicine exempt)
+  var LAUNCH_READY = 100;       // refit % the lander must reach before the ark can attempt the crossing home (P3-M1 gate; tune in M-INT2)
   var MAX_CREW = 8;             // ship can't carry an unlimited crowd
   // Generational voyage: biological aging per turn (awake vs cold sleep), coming-of-age, old age.
   var AGE_PER_TURN = 0.40;      // awake crew age ~0.4 years/turn — the void is decades long
@@ -1781,34 +1782,65 @@
       m.hope >= 60 && (col._stable || 0) >= colWinBar(6);
   }
 
-  // The future affordance: a player-only modal framing what a foothold makes possible. The real
-  // Stay/Launch/Split Decision is built in P3-M1 (teased here, not live). The one live choice is to
-  // FOUND the settlement — a standalone victory — which is gated on settled eligibility.
+  // THE DECISION (P3-M1) — the Game-A→Game-B hinge. Once the colony has a foothold the future opens into
+  // real, simultaneous choices: STAY and make this world wholly yours; READY & SEND the ship home with a
+  // crew split (a true split — some go, some hold the colony); loose a cheaper light-speed BEACON as a
+  // hedge; and, when established, FOUND the settlement (a standalone victory that no longer hard-ends the
+  // game if an ark is already out there — both fronts then compose). The crossing turn loop itself is P3-M2.
   function openFutureDecision() {
     var col = game.colony;
     var eligible = !!col.settledEligible;
+    var ready = (col.shipReadiness || 0) >= LAUNCH_READY;
+    var launched = !!(game.voyage && game.voyage.active);
+    var beaconSent = !!col.beacon;
     openModal({
-      title: "⚖ The future",
-      body: "<div class='small'>The colony has cleared survival. People look up from the work of staying alive and begin to imagine staying.</div>" +
-        "<div class='small dim' style='margin-top:8px'>Build it into a lasting <b>settlement</b> and this world is yours — a complete ending in itself, whether or not anyone ever goes home. " +
-        "And one day, once you've readied a ship, you could carry word back to Earth across the long dark.</div>" +
-        "<div class='small dim' style='margin-top:8px; opacity:0.6'><i>The crossing home — staying, launching, or splitting the crew — comes later.</i></div>" +
+      title: "⚖ The Decision",
+      body: "<div class='small'>The colony has cleared survival. Now the long question: stay and make this world wholly your own — or try to carry what you found back across the dark to a waiting Earth?</div>" +
+        "<div class='small dim' style='margin-top:8px'>These are not exclusive. Ready the lander and send a crew home while the rest hold the colony. Loose a light-speed <b>beacon</b> as a cheaper hedge. And when the settlement is established, call it <b>founded</b> — a victory in itself, whether or not the ark ever reaches home.</div>" +
+        (launched ? "<div class='small cyan' style='margin-top:8px'>The ark is away, bound for Earth — its crossing still to come.</div>" : "") +
         (eligible
           ? "<div class='small cyan' style='margin-top:8px'>The settlement is established and thriving. You could call it founded.</div>"
-          : "<div class='small amber' style='margin-top:8px'>The settlement isn't established enough yet — keep building and growing.</div>"),
+          : "<div class='small amber' style='margin-top:8px'>The settlement isn't established enough yet to found — keep building and growing.</div>") +
+        (!launched && !ready ? "<div class='small amber' style='margin-top:6px'>The lander isn't spaceworthy yet (refit " + (col.shipReadiness || 0) + "% / " + LAUNCH_READY + "%) — keep refitting before it can attempt the crossing.</div>" : ""),
       choices: [
+        { label: launched ? "🚀 The ark is away" : (ready ? "🚀 Ready &amp; send the ship home" : "🚀 Send the ship home — not spaceworthy yet"),
+          disabled: launched || !ready, onClick: function () { closeModal(); colonyLaunch(); } },
+        { label: beaconSent ? "📡 Beacon already sent" : "📡 Send a beacon home — a light-speed hedge",
+          disabled: beaconSent, onClick: function () { sendBeacon(); } },
         { label: "⭐ Found the settlement — claim this world", disabled: !eligible, onClick: function () { confirmSettlement(); } },
-        { label: "Keep building", onClick: function () { sfx("cancel"); closeModal(); renderColony(); } }
+        { label: "Stay — keep building", onClick: function () { sfx("cancel"); closeModal(); renderColony(); } }
       ]
     });
   }
 
+  // The light-speed beacon — a cheaper hedge than a physical crossing. A real TIMING call: sent while
+  // Earth still listens, the word gets through (beaconHeard, which composeEnding reads); loosed after
+  // Earth has gone silent, it crosses an empty house. One-shot — you cannot recall or re-send it.
+  function sendBeacon() {
+    var col = game.colony;
+    if (col.beacon) { log("The beacon is already away — its message is light-years gone. You can't recall it or send another.", "warn"); sfx("empty"); return; }
+    col.beacon = true;
+    col.beaconHeard = !!(game.earth && game.earth.status !== "silent");   // WRITER for the field composeEnding reads
+    col.meters.hope = clamp(col.meters.hope + 2, 0, 100);                 // something hopeful in the trying
+    log(col.beaconHeard
+      ? "A season's power pours skyward: a light-speed beacon screaming the maps and the warnings back toward a still-living Earth. Whether anyone is left to act on it you will never know — but the word is away."
+      : "You loose the beacon into the dark — but Earth has already gone silent behind you, and it crosses toward an empty house. Still: you sent it.", col.beaconHeard ? "good" : "warn");
+    sfx("confirm"); closeModal(); save(); renderColony();
+  }
+
   // The player-confirmed win. A short confirm so an errant click can't end the game.
+  // P3-M1 re-guard (the P2-M6 forward marker, now due): if an ark is already away (voyage launched +
+  // pending) settling must NOT read as a hard finale. The mechanism is already correct — finishColony
+  // records colonyDone and tryCompose WAITS for the live voyage, composing TWO WORLDS later — so this is
+  // a COPY + follow-the-ark change, not a composer change.
   function confirmSettlement() {
     var col = game.colony;
+    var shipOut = !!(game.voyage && game.voyage.active && !game.voyageDone);
     openModal({
       title: "⭐ Found the settlement?",
-      body: "<div class='small'>Call it founded? The colony's story ends here — as a victory. The work of survival becomes the work of living.</div>",
+      body: shipOut
+        ? "<div class='small'>Call it founded? You've made a lasting home here — the colony's victory is yours. But the ark is still out in the dark; its fate, and Earth's, are not yet written. This claims the colony; the crossing's story goes on.</div>"
+        : "<div class='small'>Call it founded? The colony's story ends here — as a victory. The work of survival becomes the work of living.</div>",
       choices: [
         { label: "Yes — this is home now", onClick: function () {
             col.stage = "settled";
@@ -1816,6 +1848,8 @@
             if (col.nativeStanding === "allied") cause += " Two peoples share this world, and neither stands alone.";
             closeModal();
             finishColony(true, "SETTLED", cause);
+            // With an ark still away, finishColony→tryCompose WAITS (no hard end) — persist + follow the ship out.
+            if (!game.ended && game.voyage && game.voyage.active && !game.voyageDone) { game.screen = "voyage"; save(); renderApp(); }
           } },
         { label: "Not yet", onClick: function () { sfx("cancel"); closeModal(); openFutureDecision(); } }
       ]
@@ -1827,8 +1861,9 @@
     endColonyCheck();                          // may set colonyDone + compose (ends game only if both fronts done)
     if (game.ended) return;
     if (auto) return;                          // off-front: caller renders
-    // Player drove the colony this turn — nudge the homebound ship along the shared clock.
-    if (game.voyage && game.voyage.active && !game.voyageDone) { voyageTurn(true); save(); }
+    // Player drove the colony this turn — nudge the homebound ship along the shared clock (unless the ark
+    // is launched-but-not-yet-flying: the crossing loop is P3-M2; this milestone parks the ship).
+    if (game.voyage && game.voyage.active && !game.voyageDone && game.voyage._flying !== false) { voyageTurn(true); save(); }
     if (game.ended) return;
     // If the colony just secured/failed but the ship is still out there, follow the ship.
     if (game.colonyDone && game.voyage && game.voyage.active) game.screen = "voyage";
@@ -2166,23 +2201,38 @@
   // Crew split: choose who stays to hold the colony and who rides the ark home.
   function colonyLaunch() {
     var col = game.colony;
-    if (col.shipReady < 100) { log("The ship isn't ready for the crossing yet — keep at the refit.", "warn"); sfx("empty"); return; }
+    // FIXED readiness gate: the LIVE field is shipReadiness (written by Refit, taxed by structuralDebt via
+    // its reader) — NOT the dead, never-declared col.shipReady. structuralDebt already taxes it; don't re-tax.
+    if ((col.shipReadiness || 0) < LAUNCH_READY) {
+      log("The lander isn't spaceworthy yet — keep at the refit (readiness " + (col.shipReadiness || 0) + "% / " + LAUNCH_READY + "%).", "warn"); sfx("empty"); return;
+    }
     var living = alive();
+    // Children and anyone still in cold sleep can't crew the ark — they hold the colony by default.
+    function canGo(c) { return !c.child && c.status !== "Hibernating"; }
     var picks = {};
     living.forEach(function (c) { picks[c.name] = false; });   // default: stay
     function draw() {
       var rows = living.map(function (c) {
+        if (!canGo(c)) {
+          return "<div class='crew-row'><span class='nm'>" + c.name + "</span><span class='rl small'>" + c.role + (c.child ? " · child" : " · asleep") + "</span>" +
+            "<span class='small dim'>stays (can't crew the ark)</span></div>";
+        }
         return "<div class='crew-row'><span class='nm'>" + c.name + "</span><span class='rl small'>" + c.role + "</span>" +
           "<span><button class='btn small " + (picks[c.name] ? "" : "go") + "' data-split='stay' data-name='" + c.name + "'>STAY</button>" +
           "<button class='btn small " + (picks[c.name] ? "go" : "") + "' data-split='go' data-name='" + c.name + "'>RETURN</button></span></div>";
       }).join("");
       var nGo = living.filter(function (c) { return picks[c.name]; }).length;
+      var nStay = living.length - nGo;
+      // A TRUE split: at least one returns to fly the ark, AND at least one stays to hold the colony —
+      // the launch never strands the colony and never lifts off empty.
+      var ok = nGo >= 1 && nStay >= 1;
       openModal({
         title: "🚀 Crew the ark for home",
-        body: "<div class='small dim'>Choose who flies the news back to Earth and who stays to hold the colony. The ship needs at least one hand; the colony needs its keepers. The voyage will provision from colony stores.</div>" + rows +
-          "<div class='small' style='margin-top:6px'>Returning: <b class='paper'>" + nGo + "</b> · Staying: <b class='paper'>" + (living.length - nGo) + "</b></div>",
+        body: "<div class='small dim'>Choose who flies the news back to Earth and who stays to hold the colony. The ark needs at least one hand to fly it; the colony needs at least one to keep it. The voyage provisions from colony stores.</div>" + rows +
+          "<div class='small' style='margin-top:6px'>Returning: <b class='paper'>" + nGo + "</b> · Staying: <b class='paper'>" + nStay + "</b></div>",
         choices: [
-          { label: nGo >= 1 ? "Launch for Earth" : "Assign at least one to RETURN", disabled: nGo < 1,
+          { label: ok ? "Launch for Earth" : (nGo < 1 ? "Assign at least one to RETURN" : "At least one must STAY to hold the colony"),
+            disabled: !ok,
             onClick: function () { closeModal(); doLaunch(living.filter(function (c) { return picks[c.name]; })); } },
           { label: "Not yet", onClick: function () { sfx("cancel"); closeModal(); renderColony(); } }
         ],
@@ -2201,18 +2251,25 @@
     // Move the returnees out of the colony crew into the ship's crew.
     var goNames = {}; returnees.forEach(function (c) { goNames[c.name] = 1; });
     game.crew = game.crew.filter(function (c) { return !goNames[c.name]; });   // colony keeps the rest
-    // Provision the voyage from colony stores (and a full refuel as part of the refit). The
-    // homeward crossing is ~the whole trail again, so fuel must cover it or the ark dies adrift.
-    var prov = { fuel: 78, oxygen: 46 + Math.min(40, Math.round(col.supplies.water * 0.4)),
-                 food: Math.min(Math.round(col.supplies.food * 0.45), 90), medicine: Math.min(col.supplies.meds, 3) };
+    // Provision the ark from colony stores (with a full refuel as part of the refit). The homeward
+    // crossing is ~the whole trail again, so fuel must cover it. Provisions are capped to HOLD_MAX
+    // (mirroring cargoUsed — medicine is hold-exempt), trimming food then oxygen then fuel to fit.
+    var prov = { fuel: 78, oxygen: 46 + Math.round((col.supplies.water || 0) * 0.4),
+                 food: Math.round((col.supplies.food || 0) * 0.45), medicine: Math.min(col.supplies.meds || 0, 3) };
+    var over = (prov.fuel + prov.oxygen + prov.food) - HOLD_MAX;   // non-exempt cargo over capacity
+    if (over > 0) { var tf = Math.min(prov.food, over); prov.food -= tf; over -= tf;
+      if (over > 0) { var to = Math.min(prov.oxygen, over); prov.oxygen -= to; over -= to; }
+      if (over > 0) prov.fuel = Math.max(0, prov.fuel - over); }
+    // DEDUCT the provisions from the colony — a real both-fronts cost (the food/water/meds leave with them).
     col.supplies.food = Math.max(0, col.supplies.food - prov.food);
     col.supplies.water = Math.max(0, col.supplies.water - Math.round(prov.oxygen * 0.3));
     col.supplies.meds = Math.max(0, col.supplies.meds - prov.medicine);
     col.pop = Math.max(0, col.pop - returnees.length);     // those people leave the colony's count
-    startVoyage(returnees, prov, true);
-    log("The ark lifts off Proxima on a pillar of fire, " + returnees.length + " aboard, carrying word of a new world home. Below, the colony watches it go.", "sys");
+    startVoyage(returnees, prov, true, false);             // create the voyage front but DO NOT FLY (P3-M1)
+    log("The ark lifts off Proxima on a pillar of fire, " + returnees.length + " aboard, carrying word of a new world home. Below, the colony watches it go. The long crossing is still ahead of them.", "sys");
     sfx("launch");
     game.screen = "voyage";
+    save();                 // persist AFTER the screen flip so a reload returns to the parked-ark front
     renderApp();
   }
 
@@ -2232,10 +2289,12 @@
     renderApp();
   }
 
-  function startVoyage(crew, prov, fromColony) {
+  // fly=false sets up the voyage front WITHOUT crossing (P3-M1 colony launch — the crossing loop is P3-M2).
+  // The legacy arrival-RETURN path (beginReturn) omits it → flies as before. Missing _flying (old saves) flies.
+  function startVoyage(crew, prov, fromColony, fly) {
     crew.forEach(function (c) { if (c.status === "Hibernating") c.status = c.ailment ? "Sick" : "Healthy"; });
     game.voyage = {
-      active: true, arrived: false, fromColony: !!fromColony, crew: crew,
+      active: true, arrived: false, fromColony: !!fromColony, crew: crew, _flying: fly !== false,
       supplies: { fuel: prov.fuel, oxygen: prov.oxygen, food: prov.food, medicine: prov.medicine || 2 },
       ship: { hull: Math.max(40, Math.round(game.ship.hull)), parts: Math.max(2, game.ship.parts), reactorBase: REACTOR_BASE },
       thrust: "cruise", rations: "full",
@@ -2254,7 +2313,7 @@
 
   // One homeward turn (auto = the off-front advancing unattended while you mind the colony).
   function voyageTurn(auto) {
-    var v = game.voyage; if (!v || !v.active || v.arrived) return;
+    var v = game.voyage; if (!v || !v.active || v.arrived || v._flying === false) return;   // P3-M1: a launched-but-not-flying ark never crosses (the loop is P3-M2)
     v.turn++;
     var th = THRUST[v.thrust], rat = RATIONS[v.rations], pace = th.speed / THRUST.cruise.speed;
     var p = voyPower();
@@ -2434,6 +2493,7 @@
   }
   // Player-driven homeward turn (the "Continue" on the voyage screen).
   function voyageStep() {
+    if (game.voyage && game.voyage._flying === false) { renderVoyage(); return; }   // P3-M1: the ark is away; the crossing is P3-M2
     voyageTurn(false);
     if (modalOpen()) return;      // an event modal will resume the turn via its onClick
     voyageAfterTurn(false);
@@ -2523,7 +2583,7 @@
     colonyTurn(low && col.supplies.materials >= 6 ? "secure" : (col.supplies.materials >= 6 ? "research" : "hold"), true);
   }
   function voyageAutoStep() {
-    if (!game.voyage || !game.voyage.active || game.voyageDone) return;
+    if (!game.voyage || !game.voyage.active || game.voyageDone || game.voyage._flying === false) return;   // P3-M1: parked ark never auto-crosses
     voyageTurn(true);
     if (!game.ended && !game.voyageDone) save();
   }
@@ -4220,6 +4280,20 @@
   function renderVoyage() {
     var v = game.voyage; if (!v) { renderTitle(); return; }
     if (maybeSuccession(v.crew, renderVoyage)) return;   // if you die on the road home, command passes
+    // P3-M1: the ark has launched but the crossing turn loop is P3-M2 — show a placeholder, fly nothing.
+    if (v._flying === false) {
+      var app0 = $("#app");
+      var colAlive = game.colony && !game.colonyDone;
+      app0.innerHTML =
+        "<div class='panel'><div class='panel-title'>The ark is away — the crossing begins</div>" +
+          "<div class='small'>The lander has lifted from Proxima with <b class='paper'>" + alive(v.crew).length + "</b> aboard, carrying the maps and the warnings, and is falling outward toward the long dark between the stars.</div>" +
+          "<div class='small dim' style='margin-top:8px'>The years of the crossing home are still ahead of them. For now the colony goes on without them" + (colAlive ? " — there is still work on the ground." : ".") + "</div>" +
+          (colAlive ? "<div class='menu row' style='margin-top:8px'><button class='btn small' data-action='focus' data-arg='colony'>⇄ Tend the colony</button></div>" : "") +
+        "</div>" +
+        "<div class='panel-title' style='margin-top:10px'>Ship's Log</div><div class='log' id='log'></div>";
+      renderLog();
+      return;
+    }
     var s = v.supplies, p = voyPower();
     setAlert(v.ship.hull < 25 || s.oxygen < 10 || s.fuel <= 0 || p.brownout);
     var app = $("#app");

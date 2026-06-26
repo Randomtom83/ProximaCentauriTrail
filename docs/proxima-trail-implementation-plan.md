@@ -319,3 +319,70 @@ biologically frozen colony. Plus on `none`/uninhabited worlds there is no trade 
 One scoped session on `claude/intelligent-galileo-y2siqb` (PR #1); dashboard SPRINTS entry
 (label "Fix") + feature LOG + the two decision entries; bump LAST_UPDATED; commit + push.
 STOP — do not begin P3-M1; the plan is parked and Tom greenlights it after this lands.
+
+# ============================================================
+# P3-M1 — THE DECISION + launch machinery (Game-A→Game-B hinge)
+# ONE SESSION. Build the home-front STATE + crew-split machinery,
+# then STOP BEFORE FLYING — the crossing turn loop is P3-M2.
+# ============================================================
+
+## Context
+P2-M6 delivered Game A (foothold → player-confirmed SETTLED). The foothold opened a one-time
+`⚖ The future` beat that *teased* a road home with a disabled "coming in P3-M1" line. P3-M1
+turns that tease into the real **Decision** and builds every piece of the launch EXCEPT the
+crossing itself: the home-front state, the crew split, the provisioning, the beacon writer, and
+the guards that let a ship exist without anything flying. The home crossing turn loop, HOME
+events/hazards, the Earth-signal arc, and generations are all P3-M2..M4.
+
+## Locked decisions (logged as `decision` entries in docs/dashboard.html)
+1. **Launch home is a TRUE crew split — ≥1 stays AND ≥1 returns.** The ark never lifts off empty
+   and never strands the colony; children and anyone in cold sleep can't crew it. Rejected: the
+   old gate that only required ≥1 RETURN (which allowed an all-aboard launch that abandoned the
+   colony).
+2. **Settling stays available with an ark in flight — it COMPOSES, never hard-ends.** Founding the
+   settlement while a ship is out there records `colonyDone(SETTLED)` and `tryCompose` WAITS for the
+   live voyage, composing TWO WORLDS later; only the confirm COPY changes ("the ark's fate is still
+   unwritten"). Rejected: blocking the settle while a ship is live, or hard-ending the game and
+   throwing away the in-flight ark.
+
+## Build (all game.js — copy + state + a guard, NOT a composer rewrite)
+1. **Decision hub** — `openFutureDecision` becomes the live hub once footholdReached: Stay · Ready &
+   send the ship home (→ readiness gate → roster) · Send a beacon · Found the settlement.
+2. **Readiness gate** — `colonyLaunch` gates on `col.shipReadiness >= LAUNCH_READY` (the dead,
+   never-declared `col.shipReady` is gone). Below the bar the launch path shows disabled with a plain
+   hint. structuralDebt already taxes readiness through Refit's reader; not re-taxed.
+3. **Roster** — assign each living crewmate STAY/RETURN; enforce ≥1 each side; children/asleep can't
+   crew the ark (shown STAY-locked).
+4. **doLaunch** — provision the ark from colony stores capped to HOLD_MAX (trim food→oxygen→fuel),
+   DEDUCT the provisions from the colony, move the RETURN crew into `game.voyage`, create the voyage
+   with `_flying:false`. Does not fly.
+5. **Beacon writer** — `sendBeacon()` sets `col.beaconHeard = (game.earth.status !== "silent")` (a real
+   timing call), one-shot, the cheaper hedge. This is the missing WRITER for the field composeEnding
+   already reads.
+6. **confirmSettlement re-guard** — the P2-M6 forward marker, now due: with a live ark, the confirm
+   copy reflows and the game does not hard-end (the mechanism — finishColony→tryCompose-waits — was
+   already correct).
+7. **"Does not fly" guard** — a `_flying` flag freezes `voyageTurn` / `voyageStep` / `voyageAutoStep`
+   and the colony's auto-voyage tick; `renderVoyage` shows an "the ark is away — the crossing begins"
+   placeholder. The legacy arrival-RETURN path (`beginReturn`) omits the flag and still flies as before.
+
+## DO-NOT-TOUCH (held)
+- Zero-diff gate: `applyOutcome` / `resolveCheck` md5-identical to HEAD.
+- `composeEnding` / `tryCompose` not rewritten — they already compose colony×voyage and already wait
+  for an active voyage.
+
+## Verification (all passed before STOP)
+- `node --check game.js audio.js`; zero-diff gate md5-identical.
+- New `/tmp/decisionm1.js`: readiness gate blocks below / allows at the bar; roster rejects all-STAY
+  and all-RETURN, accepts a split; doLaunch deducts + caps at HOLD_MAX + moves RETURN crew into
+  `game.voyage` (`_flying:false`) and nothing crosses across colony cycles; sendBeacon writes
+  beaconHeard for live AND silent Earth (+ one-shot); Found-with-a-live-ark records SETTLED WITHOUT
+  ending while a STAY path reaches the SETTLED end screen; v7 round-trip of the launch state.
+- STAY-path SETTLED smoke (m6smoke + decisionm1) — no regression to the delivered win.
+- colonyskel + colonym2..m6 + colonyfix + feattest + fuzz — all green. (acttwo/voyage2 are stale
+  pre-P2 harnesses, already red at HEAD — out of scope.)
+
+## STOP
+Game-A→Game-B hinge built: the Decision is reachable (Stay / a true crew-split launch / a beacon
+hedge / Found), launch sets up the home FRONT and the crew split — but NOTHING flies. The crossing
+turn loop is P3-M2, after Tom reconfirms.
