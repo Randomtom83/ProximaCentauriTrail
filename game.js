@@ -1131,7 +1131,7 @@
   function arrivalChoices() {
     var d = game.dest, ch = [];
     var viable = d.habitResult === "verdant" || d.habitResult === "marginal";
-    if (viable && !d.overtaken) {
+    if (viable) {   // overtaken no longer blocks colonizing — a viable world is yours to settle even if another ship arrived first
       ch.push({ label: "STAY — colonize, and signal Earth to send more", onClick: function () { beginColony(false); } });
     }
     if (viable && d.inhabited === "natives") {
