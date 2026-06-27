@@ -2849,7 +2849,14 @@
     var tier, cause, won;
     if (c && v) {
       if (cWon && vWon) { won = true; tier = "TWO WORLDS"; cause = "A colony takes root under an alien sun — and the ship reaches home with the news. Two cradles now. Humanity is no longer all in one place, and never will be again. " + c.cause + " " + v.cause; }
-      else if (cWon && !vWon) { won = true; tier = beaconHeard ? "A WORLD, AND WORD" : "A WORLD, AT LEAST"; cause = "The colony stands and grows — but the ship that carried the news never made it home. " + (beaconHeard ? "Yet your beacon reached a living Earth years ago; they know what you found, and where. " : "Earth may never know. The future, at least, has a foothold. ") + c.cause; }
+      else if (cWon && !vWon) {
+        // P3-M-INT1: split on v.tier — the ship DID arrive for TOO LATE / A SILENT SHORE (Earth was
+        // gone/silent, not the ship lost), so "never made it home" only holds for LOST WITH ALL HANDS.
+        won = true;
+        if (v.tier === "TOO LATE") { tier = "A WORLD, AND AN EMPTY SKY"; cause = "The colony stands and grows — and the ship did reach home space, only to find the sky where Earth was gone utterly quiet: no domes, no beacons, no answer at all. The crossing was made; there was simply no one left to make it to. What you built out here is no longer humanity's newest thread — it is the only one. " + c.cause; }
+        else if (v.tier === "A SILENT SHORE") { tier = "A WORLD, AND A SILENT SHORE"; cause = "The colony stands and grows — and the ship did reach home space, only to find Earth still there and answering nothing, every receiver dark. The news arrived; the silence kept it. Whatever became of the cradle became of it without a word. The world you built out here is the only one still speaking. " + c.cause; }
+        else { tier = beaconHeard ? "A WORLD, AND WORD" : "A WORLD, AT LEAST"; cause = "The colony stands and grows — but the ship that carried the news never made it home. " + (beaconHeard ? "Yet your beacon reached a living Earth years ago; they know what you found, and where. " : "Earth may never know. The future, at least, has a foothold. ") + c.cause; }
+      }
       else if (!cWon && vWon) { won = true; tier = "THE MESSENGER"; cause = "The colony fell — but the ship reached home carrying the maps, the warnings, and the survivors. Someone else will try again, knowing more. " + v.cause; }
       else if (beaconHeard) { won = true; tier = "THE WORD GOT THROUGH"; cause = "The colony withered and the ship was lost in the dark — but your beacon had already reached a living Earth, carrying the maps and the warnings. You did not survive. What you learned did. The next ones will know more. " + c.cause; }
       else { won = false; tier = "EXTINCT"; cause = "The colony withered and the ship was swallowed by the dark. The long gamble is over, and it is lost. " + c.cause; }
@@ -4795,6 +4802,13 @@
   /* ---------------------------------------------------------
      18. Boot
      --------------------------------------------------------- */
+  // Inert test seam: attaches nothing in production. A harness opts in by setting
+  // window.__PROXIMA_TEST__ = true BEFORE this script loads, then drives composeEnding
+  // over seeded (colonyDone × voyageDone × beaconHeard) inputs to characterize endings.
+  if (typeof window !== "undefined" && window.__PROXIMA_TEST__) {
+    window.__proxima = { get game() { return game; }, composeEnding: composeEnding };
+  }
+
   renderTitle();
   updateTopbar();
 })();
