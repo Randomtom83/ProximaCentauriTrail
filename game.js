@@ -21,6 +21,14 @@
   function chance(p) { return Math.random() < p; }
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function round1(n) { return Math.round(n * 10) / 10; }
+  // P3-M4: one cumulative Years-Since-Exodus clock across fronts. Colony + voyage run on ONE
+  // wall-clock after a split, so take the LARGER post-launch contribution, not the sum.
+  function exodusYears() {
+    var y = game.shipYears || 0;                                              // Phase-1 outbound leg
+    var colExtra = (game.colony ? game.colony.year * CYCLE_YEARS : 0);
+    var voyExtra = (game.voyage ? game.voyage.turn * VOY_YEARS_PER_TURN : 0);
+    return Math.round(y + Math.max(colExtra, voyExtra));
+  }
   function sfx(name) { if (window.Sound) window.Sound.play(name); }
 
   function el(tag, attrs, html) {
@@ -149,6 +157,11 @@
   var AGE_HIB = 0.04;          // cold sleep nearly stops biological time
   var COME_OF_AGE = 14;
   var OLD_AGE = 70;            // past this, the dark starts to call
+  var VOY_YEARS_PER_TURN = 1.6;   // P3-M4: a homeward turn is years on the voyage calendar (tune M-INT2)
+  // P3-M4: Earth's fate is a hidden TRUTH the crew read only through a BOUNDED, lagging BELIEF.
+  var EARTH_BANDS = ["thriving", "recovered", "changed", "silent", "gone"];   // index 0 best → 4 worst
+  var EARTH_DOOM_YEARS = 220;     // the longer the whole endeavor, the worse Earth trends
+  var EARTH_NOISE_P = 0.30;       // belief jitter — still clamped within ±1 band of truth
   var AI_NAME = "ATLAS";       // the ship's mind
   var AI_DECAY = 0.9;          // integrity lost per turn — loneliness accelerates it
 
@@ -245,7 +258,7 @@
       shipYears: 0,               // calendar years elapsed on the voyage
       _pregnancy: null,           // { parent, turnsLeft } when a child is on the way
       ai: { integrity: 100 },     // ATLAS, the ship mind — helpful, then fallible, then hostile
-      earth: { status: "live", heard: 0 },  // the signal from home: live → fading → silent
+      earth: { status: "live", heard: 0, truth: 2, estimate: 2 },  // status=belief view; truth hidden, estimate=shown belief (P3-M4)
       _wormholes: 0,              // wormholes encountered (capped per run)
       _wormholePending: false
     };
@@ -560,6 +573,111 @@
       else { msg = pick(["A faint signal from Earth — mostly noise, and someone reading names of the dead.", "Earth's voice is barely there now: four years stale, and fading."]); mor = -2; }
       adjustMoraleAll(mor, true);
       log("📡 " + msg, mor >= 0 ? "good" : "warn");
+    }
+  }
+
+  /* ---------------------------------------------------------
+     5d-bis. P3-M4 — Earth's fate (bounded divergence) on the HOME front.
+     SIBLINGS of the outbound earthSignal/ageCrew (left byte-identical),
+     per the colonyAgeDrift / voyageHazard* precedent.
+     --------------------------------------------------------- */
+  // status is a DERIVED view of BELIEF, so every legacy earth.status reader keeps working.
+  function deriveEarthStatus(est) { return ["live", "live", "faint", "silent", "silent"][clamp(Math.round(est), 0, 4)]; }
+  // Truth drifts, time-pressured: the longer the whole endeavor, the worse Earth trends.
+  function earthTruthStep() {
+    var e = game.earth; if (!e) return;
+    var pressure = clamp(exodusYears() / EARTH_DOOM_YEARS, 0, 1);
+    var worse = 0.10 + pressure * 0.50, better = 0.10 * (1 - pressure);
+    if (chance(worse)) e.truth = Math.min(4, e.truth + 1);
+    else if (chance(better)) e.truth = Math.max(0, e.truth - 1);   // a young/short endeavor can RECOVER
+  }
+  // The voyage-aware Earth tick: steps truth, then the BOUNDED, lagging, noisy belief (|est−truth| ≤ 1),
+  // writes the derived status, and drips a belief-banded dispatch off the VOYAGE clock.
+  function voyageEarthSignal() {
+    var e = game.earth, v = game.voyage;
+    if (!e || !v) return;
+    if (e.truth == null) e.truth = (e.status === "silent") ? 4 : 2;   // tolerate old saves / direct returns
+    if (e.estimate == null) e.estimate = e.truth;
+    earthTruthStep();
+    e.estimate = clamp(e.estimate + Math.sign(e.truth - e.estimate), 0, 4);        // LAG: one step toward truth
+    if (chance(EARTH_NOISE_P)) e.estimate = clamp(e.estimate + (chance(0.5) ? 1 : -1), 0, 4);   // NOISE jitter
+    e.estimate = clamp(e.estimate, e.truth - 1, e.truth + 1);                      // BOUND: within one band of truth
+    e.status = deriveEarthStatus(e.estimate);                                      // belief-derived view (back-compat)
+    if (e.estimate >= 3 && !e._silenced) {     // first time belief crosses into silence — a late gut-punch
+      e._silenced = true;
+      adjustMoraleAll(-6, true, v.crew);
+      log("◆ The signal from Earth thins to nothing. You wait. It does not come back. ◆", "bad");
+      sfx("death");
+      return;
+    }
+    if (v.turn % 7 === 0) {                     // a periodic belief-banded dispatch
+      e.heard++;
+      var msg, mor, band = Math.round(e.estimate);
+      if (band <= 1) { msg = pick(["Earth answers strong across the gulf — domes holding, harvests in, and they cheer your bearing home.", "A clean broadcast from home: a world that mended itself, asking only that you hurry."]); mor = +2; }
+      else if (band === 2) { msg = pick(["Earth's transmissions are thinner now, and graver — failing domes, rising seas, but still they ask after you.", "Home reports a hard decade, and holds on. They are counting the years until you reach them."]); mor = -1; }
+      else if (band === 3) { msg = pick(["A faint signal from Earth — mostly noise, and someone reading names of the dead.", "Earth's voice is barely there now: years stale, and fading between the static."]); mor = -2; }
+      else { msg = pick(["You sweep the old frequencies. Nothing answers from Earth at all.", "Where Earth's beacon should be there is only the cold hiss of the sky."]); mor = -3; }
+      adjustMoraleAll(mor, true, v.crew);
+      log("📡 " + msg, mor >= 0 ? "good" : "warn");
+    }
+  }
+
+  // Generational aging on the HOME front — sibling of ageCrew (which stays outbound-only and byte-identical),
+  // mirroring colonyAgeDrift. Operates entirely on v.crew off the voyage-year counter.
+  function voyageNeededRole() {
+    var have = {}; alive(game.voyage.crew).forEach(function (c) { if (!c.child) have[c.role] = 1; });
+    var missing = ROLE_ORDER.filter(function (r) { return r !== "Commander" && !have[r]; });
+    return missing.length ? pick(missing) : pick(["Pilot", "Engineer", "Medic", "Xenobiologist"]);
+  }
+  function voyageAddChild(parentName) {
+    var v = game.voyage;
+    if (alive(v.crew).length >= MAX_CREW) return null;
+    var used = {}; v.crew.forEach(function (c) { used[c.name] = 1; });
+    var pool = KID_NAMES.filter(function (n) { return !used[n.trim()]; });
+    var nm = (pool.length ? pick(pool) : "Child-" + rint(10, 99)).trim();
+    var c = { name: nm, role: "Child", health: 100, morale: 80, status: "Healthy",
+              skill: 0, ailment: null, bonds: parentName ? [parentName] : [], age: 0, child: true };
+    v.crew.push(c);
+    var par = byName(parentName, v.crew);
+    if (par && par.bonds.indexOf(nm) < 0) par.bonds.push(nm);
+    return c;
+  }
+  function voyageAgeCrew() {
+    var v = game.voyage; if (!v) return;
+    var living = alive(v.crew);
+    for (var i = 0; i < living.length; i++) {
+      var c = living[i];
+      var rate = c.status === "Hibernating" ? AGE_HIB : (c.child ? VOY_YEARS_PER_TURN * 2 : VOY_YEARS_PER_TURN);
+      c.age = round1(c.age + rate);
+      // Coming of age mid-crossing: a transit-born child MANS a station — prefer Pilot when none is awake,
+      // which directly lowers voyageHazardDanger (skillAwake("Pilot", v.crew)).
+      if (c.child && c.age >= COME_OF_AGE) {
+        c.child = false;
+        c.role = hasAwakeSpecialist("Pilot", v.crew) ? voyageNeededRole() : "Pilot";
+        c.skill = rint(45, 70);
+        log("On the long road home, " + c.name + " comes of age and takes the " + c.role + " station — a child of the dark now flies the ark home.", "good");
+      }
+      if (!c.child && c.age >= OLD_AGE) {
+        if (chance((c.age - OLD_AGE) * 0.012 * DIFFICULTY[game.difficulty].harsh)) killCrew(c, "died at " + Math.round(c.age) + ", an elder of the long crossing", false, v.crew);
+      }
+    }
+    if (v._pregnancy) {
+      var parent = byName(v._pregnancy.parent, v.crew);
+      if (!parent || parent.status === "Dead") v._pregnancy = null;
+      else if (parent.status !== "Hibernating") {       // gestation pauses in cold sleep
+        v._pregnancy.turnsLeft--;
+        if (v._pregnancy.turnsLeft <= 0) {
+          var kid = voyageAddChild(parent.name);
+          v._pregnancy = null;
+          if (kid) { adjustMoraleAll(+8, true, v.crew); log("A child is born aboard the homebound ark — " + kid.name + ". A generation that will know only this ship, and the world ahead.", "good"); sfx("good"); }
+        }
+      }
+    } else {
+      var adults = awake(v.crew).filter(function (c) { return !c.child && c.age < 58 && c.morale > 38; });
+      if (adults.length >= 2 && alive(v.crew).length < MAX_CREW && chance(0.05)) {
+        v._pregnancy = { parent: pick(adults).name, turnsLeft: rint(6, 11) };
+        log(byName(v._pregnancy.parent, v.crew).name + " is expecting, even out here — a new pair of hands, in time.", "info");
+      }
     }
   }
 
@@ -2302,6 +2420,20 @@
       // the fold/known shortcuts), so a live-Earth arrival is achievable before the signal dies.
       distance: 0, total: Math.round(TOTAL_DIST * 0.62), turn: 0, _starve: 0, _anoxia: 0
     };
+    // P3-M4 handoff seam: reconcile Earth's hidden truth/belief FROM the OBSERVED outbound status,
+    // so an Earth that went silent on the way out can never be "revived" to faint by the first
+    // voyage tick — and the truth-based arrival stays consistent with the established outcome.
+    if (game.earth) {
+      if (game.earth.truth == null) game.earth.truth = 2;
+      if (game.earth.estimate == null) game.earth.estimate = game.earth.truth;
+      if (game.earth.status === "silent") {                 // outbound silence is binding
+        game.earth.truth = Math.max(game.earth.truth, 3);
+        game.earth.estimate = game.earth.truth;             // belief reflects the observed silence — no "faint" flicker
+        game.earth._silenced = true;
+      } else {
+        game.earth.estimate = clamp(game.earth.estimate, game.earth.truth - 1, game.earth.truth + 1);
+      }
+    }
     save();
   }
 
@@ -2339,7 +2471,8 @@
     var vwear = rint(0, 1) + Math.round((pace - 1) * 2);
     if (vwear > 0 && hasAwakeSpecialist("Engineer", v.crew) && chance(skillAwake("Engineer", v.crew) / 140)) vwear -= 1;
     v.ship.hull = clamp(v.ship.hull - vwear, 0, 100);
-    earthSignal();   // Earth keeps fading behind/ahead of you
+    voyageEarthSignal();   // P3-M4: the home-front Earth arc runs off the VOYAGE clock (bounded belief over hidden truth)
+    voyageAgeCrew();       // P3-M4: voyage crew age — a transit-born child matures to man a station; elders pass
     applyCommanderFloor(v.crew);    // a Commander aboard keeps the homeward crew off the floor — applied last
     // arrival?
     if (v.distance >= v.total) { voyageArrive(); return; }
@@ -2570,14 +2703,20 @@
 
   function voyageArrive() {
     var v = game.voyage; v.arrived = true; v.active = false;
-    var earthGone = game.earth && game.earth.status === "silent";
+    // P3-M4: resolve on Earth's hidden TRUTH (not the shown belief) — the arrival can honestly surprise.
+    var truth = game.earth ? game.earth.truth : 2;
     var crewN = alive(v.crew).length, hull = v.ship.hull;
     var won = false, tier, cause;
     if (crewN === 0) { finishVoyage(false, "LOST WITH ALL HANDS", "The ship reaches home space on momentum alone. There is no one left aboard to send the signal."); return; }
-    if (earthGone) {
-      tier = "TOO LATE"; cause = "You cross back to where Earth was — and find it silent. Domes dark, the seas gone still. You carried hope across the void to a house already empty.";
-    } else if (hull >= 55 && crewN >= 1) { won = true; tier = "MESSENGER"; cause = "You reach home space with the only good news in a generation — a second world, and the way to it. A dying Earth dares, again, to pack its bags."; }
-    else { won = true; tier = "THE LONG WAY HOME"; cause = "Battered but breathing, you limp into home space and pass on what you found. It will have to be enough — and somehow, it is."; }
+    if (truth >= 4) {                            // gone
+      tier = "TOO LATE"; cause = "You cross back to where Earth was — and find nothing answering at all. No domes, no beacons, not even the old automatic chatter. You carried hope across the void to a grave.";
+    } else if (truth === 3) {                    // silent
+      tier = "A SILENT SHORE"; cause = "You reach home space and the receivers stay dark. Earth is still there — continents, oceans — but no one hails back. You drift in shouting your good news into a silence that has its own weight.";
+    } else if (hull >= 55 && crewN >= 1) {       // changed / recovered / thriving, sound arrival
+      won = true;
+      if (truth <= 1) { tier = "WORD WORTH CROSSING FOR"; cause = "You reach home space and Earth answers strong — it held, it mended, it endured. And now you hand it a second world besides. The crossing was worth every year it cost."; }
+      else { tier = "MESSENGER"; cause = "You reach home space with the only good news in a generation — a second world, and the way to it. A dying Earth dares, again, to pack its bags."; }
+    } else { won = true; tier = "THE LONG WAY HOME"; cause = "Battered but breathing, you limp into home space and pass on what you found. It will have to be enough — and somehow, it is."; }
     finishVoyage(won, tier, cause);
   }
   function finishVoyage(won, tier, cause) {
@@ -4411,7 +4550,7 @@
     var earthTxt = game.earth && game.earth.status === "silent" ? "<span class='red'>silent</span>" : (game.earth && game.earth.status === "faint" ? "<span class='amber'>faint</span>" : "<span class='cyan'>live</span>");
     var toggle = (game.colony && !game.colonyDone) ? "<button class='btn small' data-action='focus' data-arg='colony'>⇄ Tend the colony</button>" : "";
     var hud =
-      "<div class='panel'><div class='panel-title'>The Long Way Home · Year " + (Math.round(game.shipYears) + v.turn) + "</div>" +
+      "<div class='panel'><div class='panel-title'>The Long Way Home · Year " + exodusYears() + " since exodus</div>" +
         "<div class='track'><span class='ship' style='left:" + pct + "%'>◄</span><span class='dest' style='left:2px;right:auto'>EARTH ⊕</span></div>" +
         "<div class='small dim' style='margin-top:6px'>" + Math.round(v.distance) + " / " + v.total + " home · Signal from Earth: " + earthTxt + "</div>" +
       "</div>" +
@@ -4419,6 +4558,7 @@
         "<div class='col panel'><div class='panel-title'>Ship</div><div class='hud-grid'>" +
           stat("Fuel", Math.round(s.fuel), 100) + stat("Oxygen", Math.round(s.oxygen), 100) + stat("Food", Math.round(s.food), 100) +
           stat("Medicine", s.medicine, 12) + stat("Hull", v.ship.hull, 100) +
+          stat("Years since exodus", exodusYears()) +
           "<div class='stat'><span class='label'>Reactor</span><span class='val " + (p.brownout ? "red" : "cyan") + "'>" + p.demand + " / " + p.output + (p.brownout ? " ⚠" : "") + "</span></div>" +
         "</div><div class='small dim'>Thrust: <b class='paper'>" + THRUST[v.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[v.rations].label + "</b></div></div>" +
         "<div class='col panel'><div class='panel-title'>Crew aboard (" + alive(v.crew).length + ")</div>" + crewStrip(v.crew) + "</div>" +
