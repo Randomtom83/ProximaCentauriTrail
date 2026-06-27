@@ -2265,7 +2265,7 @@
     col.supplies.water = Math.max(0, col.supplies.water - Math.round(prov.oxygen * 0.3));
     col.supplies.meds = Math.max(0, col.supplies.meds - prov.medicine);
     col.pop = Math.max(0, col.pop - returnees.length);     // those people leave the colony's count
-    startVoyage(returnees, prov, true, false);             // create the voyage front but DO NOT FLY (P3-M1)
+    startVoyage(returnees, prov, true, true);              // P3-M2: launch flows straight into the crossing (the ark flies)
     log("The ark lifts off Proxima on a pillar of fire, " + returnees.length + " aboard, carrying word of a new world home. Below, the colony watches it go. The long crossing is still ahead of them.", "sys");
     sfx("launch");
     game.screen = "voyage";
@@ -4280,7 +4280,8 @@
   function renderVoyage() {
     var v = game.voyage; if (!v) { renderTitle(); return; }
     if (maybeSuccession(v.crew, renderVoyage)) return;   // if you die on the road home, command passes
-    // P3-M1: the ark has launched but the crossing turn loop is P3-M2 — show a placeholder, fly nothing.
+    // P3-M2: a fresh launch flies immediately (doLaunch passes fly=true). This branch now only catches a
+    // legacy P3-M1-era PARKED save (_flying:false) — offer a one-click "begin the crossing" so it's not stranded.
     if (v._flying === false) {
       var app0 = $("#app");
       var colAlive = game.colony && !game.colonyDone;
@@ -4288,7 +4289,8 @@
         "<div class='panel'><div class='panel-title'>The ark is away — the crossing begins</div>" +
           "<div class='small'>The lander has lifted from Proxima with <b class='paper'>" + alive(v.crew).length + "</b> aboard, carrying the maps and the warnings, and is falling outward toward the long dark between the stars.</div>" +
           "<div class='small dim' style='margin-top:8px'>The years of the crossing home are still ahead of them. For now the colony goes on without them" + (colAlive ? " — there is still work on the ground." : ".") + "</div>" +
-          (colAlive ? "<div class='menu row' style='margin-top:8px'><button class='btn small' data-action='focus' data-arg='colony'>⇄ Tend the colony</button></div>" : "") +
+          "<div class='menu row' style='margin-top:8px'><button class='btn go' data-action='voyage' data-arg='begin'>▶ Begin the crossing</button>" +
+          (colAlive ? "<button class='btn small' data-action='focus' data-arg='colony'>⇄ Tend the colony</button>" : "") + "</div>" +
         "</div>" +
         "<div class='panel-title' style='margin-top:10px'>Ship's Log</div><div class='log' id='log'></div>";
       renderLog();
@@ -4443,7 +4445,8 @@
         else colonyTurn(arg, false);   // secure / build / research / tend / refit / scout / restore / fortify / hold — one action per season
         break;
       case "voyage":
-        if (arg === "continue") voyageStep();
+        if (arg === "begin") { game.voyage._flying = true; sfx("launch"); save(); renderApp(); }   // P3-M2: un-park a legacy ark
+        else if (arg === "continue") voyageStep();
         else if (arg === "thrust") openVoyageThrust();
         else if (arg === "rations") openVoyageRations();
         else if (arg === "pods") voyageHibernate();

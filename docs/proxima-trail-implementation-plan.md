@@ -386,3 +386,55 @@ events/hazards, the Earth-signal arc, and generations are all P3-M2..M4.
 Game-A→Game-B hinge built: the Decision is reachable (Stay / a true crew-split launch / a beacon
 hedge / Found), launch sets up the home FRONT and the crew split — but NOTHING flies. The crossing
 turn loop is P3-M2, after Tom reconfirms.
+
+# ============================================================
+# P3-M2 — UNFREEZE THE HOME CROSSING (Game B proper begins)
+# DELIVERED. The crossing loop already existed (S15-era sibling),
+# frozen by P3-M1's _flying. P3-M2 flips a colony-launched ark to
+# flying. UNFREEZE + AUDIT + VERIFY — not a rebuild.
+# ============================================================
+
+## Re-anchor (verified against source, commit 6d741e8 — reported, not rebuilt)
+- The complete sibling crossing loop is LIVE: `voyageTurn` / `voyPower` / `VOYAGE_EVENTS` /
+  `rollVoyageEvent` / `presentVoyageEvent` / `resolveVoyageCheck` / `voyageOutcome` / `voyageArrive` /
+  `finishVoyage` / `voyageStep` / `voyageAutoStep` / `voyageHibernate` / `voyageRest` / `voyageScavenge` /
+  `renderVoyage` — with the Phase-R `_starve`/`_anoxia` teeth, hibernation, `earthSignal()`, tiered
+  arrival endings, and a real HUD. NOT rebuilt.
+- `confirmSettlement` already carries the P3-M1 `shipOut` guard: with a live voyage it does NOT hard-end —
+  `finishColony(true,"SETTLED")`→`tryCompose` WAITS. `composeEnding`'s `if (c && v)` branch already
+  composes SETTLED + voyage → TWO WORLDS / A WORLD, AT LEAST / THE MESSENGER. `tryCompose` already waits
+  for both fronts; the `focus` handler already switches screens; the off-front already auto-ticks
+  (`voyageAfterTurn`→`colonyAutoStep`). **All unchanged — zero-diff gate holds.**
+- Staleness audit: every voyage helper + const is live post-colony-rebuild; nothing renamed/removed.
+
+## The only code change — UNFREEZE (chose option (a) + a legacy-save safety net)
+- **`doLaunch`** now calls `startVoyage(returnees, prov, true, /*fly=*/true)` — launching a colony-built
+  ark flows straight into the crossing (option (a), the simplest). The six `_flying===false` guards
+  (`voyageTurn`/`voyageStep`/`voyageAutoStep`/the `colonyAfterTurn` auto-tick/`renderVoyage`) stay and now
+  only catch a legacy P3-M1-era PARKED save.
+- **Legacy-save safety:** `renderVoyage`'s `_flying===false` placeholder gains a **`▶ Begin the crossing`**
+  control (dispatch `voyage:begin` → sets `_flying=true`, save, re-render) so no P3-M1 parked save is
+  stranded.
+- **`beginReturn`** (legacy arrival turn-around, `_flying` defaults true) is UNCHANGED and shares the same
+  loop — not double-built.
+
+## Out of scope (flagged, not built)
+- Sampled-severity **HOME_HAZARDS** crossing (P3-M3 — confirmed absent: `applyHazardSeverity` is
+  outbound/colony-only; `VOYAGE_EVENTS` are discrete skill-check events).
+- Visible **Years-Since-Exodus** dread clock (P3-M4 — the HUD already shows a Year line).
+- Fuller bidirectional **focus toggle** UX (M-INT1b — P3-M2 leaves the off-front on the existing auto-step).
+
+## Verification (all passed)
+- `node --check game.js audio.js`; zero-diff gate: `applyOutcome`/`resolveCheck`/`composeEnding`/
+  `tryCompose` md5-identical to HEAD (the unfreeze touches none of them).
+- New `/tmp/crossingm2.js`: a colony-launched ark FLIES (not parks) and a turn advances; the Phase-R
+  `_starve`/`_anoxia` teeth bite; brownout halves scrubber recovery; a hibernated returnee doesn't act/eat
+  as awake; arrival reaches MESSENGER / THE LONG WAY HOME / TOO LATE and can be LOST WITH ALL HANDS; the
+  colony auto-ticks while the ark flies; settling WHILE the ark flies does NOT hard-end and composes
+  TWO WORLDS on arrival; v7 round-trips a flying voyage.
+- Regression: `feattest` + `fuzz` + `colonyskel` + `colonym2..m6` + `colonyfix` + `decisionm1` all green
+  (`decisionm1`'s P3-M1 "parked / does-not-fly" assertions updated to the P3-M2 truth — the ark now flies).
+
+## STOP
+The crossing is live: launching a split crew flies the ark home on the existing loop, the colony runs in
+parallel, and settling mid-crossing composes TWO WORLDS. P3-M3 (home content/hazards) awaits Tom's reconfirm.
