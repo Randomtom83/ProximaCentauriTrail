@@ -692,142 +692,112 @@ needs — `earth.truth`, the belief-derived `status`, and `exodusYears()` — ar
 
 ---
 
-# M-INT1 — Endings composition (generalize `composeEnding` over colony × home × beacon)
+# M-INT1 — Endings composition (split the two-world `cWon && !vWon` branch on `v.tier`)
 
 ## Context
-P3-M4 split the homeward arrival into six distinct tiers, but `composeEnding` (the two-world composer) still
-reads only the boolean `vWon` — so in any **two-world** ending those six tiers collapse into win/lose, and the
-collapsed prose is now factually wrong for some states. A settled colony whose ark reaches home space to find
-Earth **gone** (`TOO LATE`) or **silent** (`A SILENT SHORE`) emits *"the colony stands and grows — but the ship
-that carried the news never made it home"* — yet the ship **did** make it home; Earth was simply gone or silent
-when it arrived. M-INT1 generalizes the composer so each two-world state reads coherently, **without disturbing
-any ending that is already correct**.
+P3-M4 gave the homeward arrival six distinct tiers, but `composeEnding`'s two-world branch keys only on the
+booleans `cWon` / `vWon` / `beaconHeard` — it never reads `v.tier`, so all six voyage tiers collapse. That
+collapse is harmless everywhere except one branch: **`cWon && !vWon`** (a settled colony whose ship did NOT
+"win"). That branch hardcodes *"the ship that carried the news never made it home"* — which is **FALSE** for
+two of the three losing voyage tiers, because the ship **did** reach home space; Earth was simply gone
+(`TOO LATE`) or silent (`A SILENT SHORE`) when it arrived. M-INT1 fixes exactly that one incoherence and
+nothing else.
 
 This milestone **unfreezes `composeEnding`** — one of the four functions the P3-M4 zero-diff gate holds
-md5-identical. The md5 freeze stops protecting it; this plan defines the replacement safety net (a golden /
-characterization harness, below) that locks the new composer to a **closed, declared set of changes**.
+md5-identical. The md5 freeze stops protecting it; the **golden-lock** harness below replaces it, pinning the
+change to a closed, two-cell, declared-output set.
 
-## Re-anchor — what exists at HEAD `22e600c` (verified against source; do NOT rebuild)
-- **`tryCompose` (game.js:2836-2843):** ship-never-launched → colony fate alone composes (`!game.voyage`);
-  otherwise waits for BOTH fronts (`colonyDone` && `voyageDone`) then calls `composeEnding`. **Unchanged by
-  M-INT1** (the wait logic stays md5-identical).
-- **`composeEnding` (game.js:2844-2863):** reads `c = game.colonyDone`, `v = game.voyageDone`,
-  `beaconHeard = game.colony && game.colony.beaconHeard`. Three structural sections:
-  - **(A) two-world `c && v` (2850-2855):** keys ONLY on `cWon` / `vWon` / `beaconHeard` — this is where the
-    six voyage tiers collapse. Current cells:
-    - `cWon && vWon` → **TWO WORLDS**
-    - `cWon && !vWon` → **A WORLD, AND WORD** (beacon) / **A WORLD, AT LEAST** (no beacon)
-    - `!cWon && vWon` → **THE MESSENGER**
-    - `!cWon && !vWon && beaconHeard` → **THE WORD GOT THROUGH**
-    - `!cWon && !vWon && !beaconHeard` → **EXTINCT**
-  - **(B) colony-only `c` (2856-2860):** `!cWon && beaconHeard` → **THE WORD GOT THROUGH**; else passthrough
-    `won=cWon; tier=c.tier; cause=c.cause` (+ beacon suffix when `cWon && beaconHeard`). **Already coherent —
-    frozen byte-identical.**
-  - **(C) voyage-only `v` (2861):** passthrough `won=vWon; tier=v.tier; cause=v.cause` — already surfaces the 6
-    tiers. **Already coherent — frozen byte-identical.**
-  - Then `endGame(won, cause, tier)` (2865).
-- **The 6 voyage tiers — `voyageArrive` (game.js:2704-2721):** wins = **WORD WORTH CROSSING FOR** (`truth ≤ 1`,
-  hull ≥ 55), **MESSENGER** (`truth = 2`, hull ≥ 55), **THE LONG WAY HOME** (hull < 55, crew ≥ 1); losses =
-  **TOO LATE** (`truth ≥ 4`), **A SILENT SHORE** (`truth = 3`), **LOST WITH ALL HANDS** (crew = 0).
-- **Colony tiers — `finishColony` (game.js:2293):** win **SETTLED** (1968); losses **WITHERED** (2304-2305, two
-  causes) and **LIFE SUPPORT LOST** (2306). Note: section A reads only `cWon`, so WITHERED and LIFE SUPPORT LOST
-  are indistinguishable in two-world endings (both `!cWon`) — re-tiering keys on `cWon`, preserving that.
-- **Out of scope (note, do NOT touch):** `resolveActTwo` (game.js:1266, incl. the WITHERED at 1281) and any
-  path that calls `endGame` **directly** — these BYPASS `composeEnding` and are not M-INT1 endings.
+## Re-anchor — what exists at HEAD (verified against source; do NOT rebuild)
+`composeEnding` (game.js:2844-2863); the game logic is unchanged since `22e600c`.
+- **`tryCompose` (2836-2843):** ship-never-launched → colony fate alone composes; otherwise waits for BOTH
+  fronts then calls `composeEnding`. **Unchanged by M-INT1.**
+- **Two-world branch `c && v` (2850-2855)** keys only on `cWon` / `vWon` / `beaconHeard`; **never reads
+  `v.tier`**. Its matrix today:
+  - `cWon && vWon` → **TWO WORLDS** (collapses 3 winning voyage tiers — **coherent**, leave byte-identical)
+  - `cWon && !vWon` (2852) → tier `beaconHeard ? "A WORLD, AND WORD" : "A WORLD, AT LEAST"`, cause begins
+    *"The colony stands and grows — but the ship that carried the news never made it home. "* — **the one
+    incoherent branch** (covers `v.tier ∈ {TOO LATE, A SILENT SHORE, LOST WITH ALL HANDS}`)
+  - `!cWon && vWon` → **THE MESSENGER** (coherent, leave byte-identical)
+  - `!cWon && !vWon && beaconHeard` → **THE WORD GOT THROUGH**; else → **EXTINCT** (both byte-identical)
+- **Single-world branches (2856-2861):** colony-only (B) and voyage-only (C) already pass their own tier
+  through. **Both byte-identical.**
+- **The 3 losing voyage tiers — `voyageArrive` (game.js:2704-2721):** **TOO LATE** (`truth ≥ 4` — ship
+  arrives, Earth gone), **A SILENT SHORE** (`truth = 3` — ship arrives, Earth silent), **LOST WITH ALL
+  HANDS** (`crew = 0` — ship never arrives; "never made it home" is **true** here).
+- **Out of scope (note, do NOT touch):** `resolveActTwo` (game.js:1266) and any path that calls `endGame`
+  **directly** — these BYPASS `composeEnding`.
 
-## Decision (locked) — ADDITIVE RE-TIERING
-Preserve **every existing tier's prose byte-identical AND keep it reachable**; introduce **NEW tiers ONLY** for
-the enumerated collapsed two-world cells whose current text is incoherent or materially under-stated. The named
-input tuples move from the generic tier to a new tier **by design** — that is the milestone. No existing string
-is reworded. (`homeClass` is derived from `v.tier`, not re-derived from `earth.truth`, so the truth→tier mapping
-stays single-sourced in `voyageArrive`.)
+## Decision (locked) — ADDITIVE RE-TIERING, two cells only
+Preserve every existing reachable tier's prose **byte-identical**; add new text **only** for the two
+incoherent cells. Split the `cWon && !vWon` branch on `v.tier`:
 
-### The CLOSED re-tier set (two-world `c && v` only — every other tuple is unchanged)
-Derive `homeClass` from `v.tier`: `living` (WORD WORTH CROSSING FOR) · `changed` (MESSENGER) · `hard` (THE LONG
-WAY HOME) · `gone` (TOO LATE) · `silent` (A SILENT SHORE) · `lost` (LOST WITH ALL HANDS). Re-tier keys on
-`(cWon, homeClass[, beaconHeard])`:
+| v.tier | meaning | action |
+|---|---|---|
+| `TOO LATE` | ship arrived, Earth gone | **NEW pinned text** (cell 1) |
+| `A SILENT SHORE` | ship arrived, Earth silent | **NEW pinned text** (cell 2) |
+| `LOST WITH ALL HANDS` | ship never arrived | **KEEP existing line byte-identical** (the `else`) |
 
-| # | colony | homeClass (v.tier) | today's text | why | NEW tier |
-|---|---|---|---|---|---|
-| 1 | SETTLED | living (WORD WORTH CROSSING FOR) | TWO WORLDS | under-states a *mended* Earth + a 2nd world | **TWO WORLDS, AND A WAKING EARTH** |
-| 2 | SETTLED | gone (TOO LATE) | A WORLD, AND WORD / AT LEAST | **FALSE** — "never made it home"; ship arrived, Earth gone | **A WORLD, AND AN EMPTY SKY** |
-| 3 | SETTLED | silent (A SILENT SHORE) | A WORLD, AND WORD / AT LEAST | **FALSE** — same lie; ship arrived, Earth silent | **A WORLD, AND A SILENT SHORE** |
-| 4 | WITHERED / LIFE SUPPORT LOST | living (WORD WORTH CROSSING FOR) | THE MESSENGER | under-states a *living* Earth (parallel to #1) | **THE MESSENGER, AND A LIVING EARTH** |
+Everything else is untouched: the `cWon && vWon` → TWO WORLDS collapse stays as-is (coherent); `!cWon &&
+vWon` → THE MESSENGER, the `!cWon && !vWon` THE WORD GOT THROUGH / EXTINCT pair, and both single-world
+branches stay byte-identical. The beacon-dependent tier names **A WORLD, AND WORD** / **A WORLD, AT LEAST**
+remain reachable through the retained `LOST WITH ALL HANDS` else (both beacon states), so nothing is
+orphaned.
 
-**Everything NOT in this table stays byte-identical and reachable**, including: SETTLED + {changed, hard} →
-**TWO WORLDS**; SETTLED + lost (both beacon states) → **A WORLD, AND WORD** / **A WORLD, AT LEAST** (this cell
-keeps those two strings reachable); failed + {changed, hard} → **THE MESSENGER**; failed + {gone, silent, lost}
-→ **THE WORD GOT THROUGH** (beacon) / **EXTINCT** (no beacon); and all of sections B and C.
+### Implementation shape (surgical, in place — no refactor)
+Replace the single `cWon && !vWon` arm at game.js:2852 with a three-way split on `v.tier` (TOO LATE / A
+SILENT SHORE / else), `won` stays `true` for all three. The two new arms are **beacon-independent** (one
+pinned string each — the arrival outcome carries the beat); the `else` reproduces today's line verbatim,
+including its `beaconHeard` ternary. No `composeOutcome` extraction is required; the diff is one branch.
 
-### Declared new text (pinned into the golden set as expected output)
-Cells **1** and **4** are beacon-independent (the ship reached a living Earth and delivered word in person);
-cells **2** and **3** are beacon-dependent (a beacon heard earlier, when Earth was still alive, is meaningful).
-Six pinned strings total:
-
-- **#1 — TWO WORLDS, AND A WAKING EARTH** (win): `"A colony takes root under an alien sun — and the ship crosses
-  home to find Earth not dying but mending, strong enough to act on what you bring. Three cradles now, and the
-  oldest one healing. Humanity is no longer all in one place, and the place it came from is getting back on its
-  feet. " + c.cause + " " + v.cause`
-- **#2 — A WORLD, AND AN EMPTY SKY** (win): `"The colony stands and grows — and the ship crossed the whole dark
-  only to find the sky where Earth was gone quiet for good. " + (beaconHeard ? "Your beacon reached a living
-  Earth years ago, before the silence closed in; somewhere in the record, they knew what you found. " : "Earth
-  will never know what you built out here. ") + "The future has a foothold; the past has none. " + c.cause`
-- **#3 — A WORLD, AND A SILENT SHORE** (win): `"The colony stands and grows — and the ship reached home space to
-  find Earth still there but answering nothing, the receivers dark. " + (beaconHeard ? "Your beacon reached a
-  living Earth years ago, before it fell silent; they had the maps, once. " : "Whatever happened to the cradle
-  happened without a word reaching you. ") + "You carried the future to a new shore; the old one keeps its
-  silence. " + c.cause`
-- **#4 — THE MESSENGER, AND A LIVING EARTH** (win): `"The colony fell — but the ship reached a living, mending
-  Earth with the maps, the warnings, and the survivors. They have the strength to try again, and a place worth
-  trying for. Someone else will set out, knowing more. " + v.cause`
-
-## Implementation shape
-1. **Extract a pure `composeOutcome(c, v, beaconHeard)`** returning `{won, tier, cause}` with no side-effects.
-   `composeEnding` becomes: derive the inputs, call `composeOutcome`, then `endGame(o.won, o.cause, o.tier)`.
-   This is the unit-testable seam that replaces the md5 freeze.
-2. **Sections B and C** inside `composeOutcome` are the SAME expressions as HEAD, line-for-line — frozen by the
-   golden harness, not by md5.
-3. **Section A** becomes a dispatch: compute `homeClass` from `v.tier`, then a table keyed `(cWon, homeClass)`.
-   Every cell's DEFAULT is today's exact string (the coarse `cWon`/`vWon`/`beaconHeard` fold); the four cells
-   above carry the OVERRIDE to their declared new tier/text.
+### The two new pinned strings (golden expected outputs for the re-tiered cells)
+- **Cell 1 — `v.tier === "TOO LATE"`**, tier **"A WORLD, AND AN EMPTY SKY"** (win):
+  `"The colony stands and grows — and the ship did reach home space, only to find the sky where Earth was
+  gone utterly quiet: no domes, no beacons, no answer at all. The crossing was made; there was simply no one
+  left to make it to. What you built out here is no longer humanity's newest thread — it is the only one. "
+  + c.cause`
+- **Cell 2 — `v.tier === "A SILENT SHORE"`**, tier **"A WORLD, AND A SILENT SHORE"** (win):
+  `"The colony stands and grows — and the ship did reach home space, only to find Earth still there and
+  answering nothing, every receiver dark. The news arrived; the silence kept it. Whatever became of the
+  cradle became of it without a word. The world you built out here is the only one still speaking. "
+  + c.cause`
 
 ## Golden-lock — characterization harness `/tmp/endings_golden.js` (replaces the md5 gate)
-A **declared-output-match** harness (not a "no change" gate). Reuses the jsdom boot + brink-save pattern of the
-existing harnesses (`/tmp/earthm4.js`, `/tmp/homehaz.js`), driving each ending to the live end screen and
-scraping `{tier: #app h2 text, won: h2 win/loss class, cause: .small.dim text}`.
-- **Enumerate the full reachable tuple space** `(colony ∈ {SETTLED, WITHERED, LIFE SUPPORT LOST}) × (home ∈
-  {6 voyage tiers} ∪ {none}) × (beacon ∈ {heard, not})`, plus the colony-only (B) and voyage-only (C) rows.
-  Two-world brink: preset `game.colonyDone = {won,tier,cause}` and `game.colony.beaconHeard`, set the voyage at
-  the brink (`distance = total`, hull and `earth.truth` chosen to yield each `v.tier`), drive one
-  `voyage:continue` → `voyageArrive → finishVoyage → tryCompose → composeEnding → endGame`.
-- **HEAD snapshot:** run ON HEAD `22e600c` (pre-change), capture every tuple's `{won,tier,cause}` into
-  `EXPECTED_HEAD` and pin it into the harness.
-- **The CLOSED change set** = the six declared strings of cells #1–#4 (with the two beacon variants of #2/#3),
-  pinned as `EXPECTED_NEW`.
-- **Assertion both ways:** every tuple **NOT** in the change set → `{won,tier,cause}` byte-identical to
-  `EXPECTED_HEAD`; every tuple **ON** the change set → equals its declared `EXPECTED_NEW` string. Net: only the
-  four named cells change, and the change set is a closed, verifiable list.
-- **No-orphan check:** every legacy tier (TWO WORLDS, A WORLD AND WORD, A WORLD AT LEAST, THE MESSENGER, THE
-  WORD GOT THROUGH, EXTINCT, SETTLED, WITHERED, LIFE SUPPORT LOST, and the 6 voyage tiers) still appears for ≥1
-  non-override tuple.
+A **declared-output-match** harness, not a "no change" gate.
+- **Tuple snapshot method (deterministic, no RNG):** for every reachable `(colony × voyage × beacon)` input
+  tuple, directly seed the three inputs `composeEnding` reads — `game.colonyDone = {won,tier,cause}`,
+  `game.voyageDone = {won,tier,cause}`, `game.colony.beaconHeard` — set `game.ended = false`, call
+  `composeEnding()`, then read back `{won: game.won, tier: game.outcomeTier, cause: game.cause}` (set by
+  `endGame` at game.js:2868-2870). Reset and repeat. Enumerate: colony ∈ {SETTLED(win), WITHERED(loss),
+  LIFE SUPPORT LOST(loss)} × voyage ∈ {the 6 tiers as `{won,tier,cause}` objects, plus `none`} × beacon ∈
+  {true, false}, plus the colony-only (B) and voyage-only (C) single-world rows.
+- **HEAD snapshot:** run the enumeration against HEAD (pre-change), pin every tuple's `{won,tier,cause}` into
+  `EXPECTED_HEAD`.
+- **The closed change set** = the two cells `(SETTLED, TOO LATE)` and `(SETTLED, A SILENT SHORE)` — both
+  beacon values of each map to the one beacon-independent pinned string above, so **2 distinct new strings
+  across 4 input tuples**. Pin these as `EXPECTED_NEW`.
+- **Assertion both ways:** every tuple **NOT** in the change set → `{won,tier,cause}` **byte-identical** to
+  `EXPECTED_HEAD`; every tuple **IN** the change set → equals its declared `EXPECTED_NEW` string. Net:
+  exactly two cells change, and the change-set is a closed, named list.
+- **No-orphan check:** A WORLD, AND WORD / A WORLD, AT LEAST still appear (via SETTLED + LOST WITH ALL
+  HANDS); TWO WORLDS, THE MESSENGER, THE WORD GOT THROUGH, EXTINCT, and all single-world tiers still appear.
 
 ## Scope boundary
 Endings composition ONLY. NOT the bidirectional focus toggle (**M-INT1b**). NOT balance / hazard / Earth-doom
-probability tuning (**M-INT2**). `resolveActTwo` and the direct-`endGame` paths are untouched.
+tuning (**M-INT2**). `resolveActTwo` and the direct-`endGame` paths are untouched.
 
 ## Verification the build will commit to
 - `node --check game.js audio.js`.
-- **Golden characterization (`/tmp/endings_golden.js`):** off-list tuples byte-identical to HEAD; the four
-  on-list cells emit their declared new text; full new-combo coverage (all four × applicable beacon variants);
-  no legacy tier orphaned.
-- **Narrowed zero-diff gate:** `applyOutcome` / `resolveCheck` / `tryCompose` stay md5-identical to HEAD — the
-  gate shrinks from four functions to three; `composeEnding` is now covered by the golden harness instead.
+- **Golden characterization (`/tmp/endings_golden.js`):** off-list tuples byte-identical to HEAD; the two
+  on-list cells equal their declared pinned text; no legacy tier orphaned.
+- **Narrowed zero-diff gate:** `applyOutcome` / `resolveCheck` / `tryCompose` stay md5-identical to HEAD —
+  the gate shrinks from four functions to three; `composeEnding` is now covered by the golden harness.
 - **Regression (all must stay green):** `crossingm2` + `homehaz` + `homesmoke` + `earthm4` + `colonyskel` +
   `colonym2..m6` + `colonyfix` + `decisionm1` + `arrivalfix` + `feattest` + `fuzz`.
-- **Winnability:** a settled colony + a live-Earth arrival still composes a WIN (TWO WORLDS / TWO WORLDS, AND A
-  WAKING EARTH); the re-tiering makes no timely run unwinnable.
+- **Winnability:** unchanged — the two re-tiered cells were already wins (`cWon`, `won = true`) and stay
+  wins; a timely live-Earth arrival still reaches its winning tier.
 
 ## STOP
-The two-world arc reads true: a colony that holds while Earth mends, holds while Earth falls silent, or holds
-while the sky has gone empty, each end in their own words — and every ending that was already right is frozen,
-byte-for-byte, by the golden harness that now stands in for the md5 gate.
+The one false line is gone: a settled colony whose ark crossed the whole dark to a dead or silent Earth no
+longer claims the ship "never made it home" — it says the truer thing, that the world you built is now the
+only thread left — while every other ending stays byte-for-byte what it was, locked by the golden harness
+that now stands in for the md5 gate.
