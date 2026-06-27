@@ -438,3 +438,86 @@ turn loop is P3-M2, after Tom reconfirms.
 ## STOP
 The crossing is live: launching a split crew flies the ark home on the existing loop, the colony runs in
 parallel, and settling mid-crossing composes TWO WORLDS. P3-M3 (home content/hazards) awaits Tom's reconfirm.
+
+# ============================================================
+# P3-M3 — SAMPLED-SEVERITY HOME_HAZARDS (BUILT)
+# The home crossing gains a clean→catastrophic hazard spectrum via
+# a SIBLING of the outbound HAZARDS layer — never a reuse of the
+# frozen/outbound machinery. Built + verified on branch
+# claude/intelligent-galileo-y2siqb.
+# ============================================================
+
+## Why
+The home crossing (P3-M2) already runs events, scavenging, pursuer, and fold — but its hazards
+(debris/vflare/micromet) resolved on a single fixed success/failure check. The outbound journey, by
+contrast, has clean→catastrophic "crossings" (`HAZARDS` → `resolveHazard` → `applyHazardSeverity`). P3-M3
+gives the home front the same scaling spectrum, so a **wounded** ark on the long road home faces genuine,
+hull-sensitive death risk — while a sound, careful crossing stays survivable.
+
+## Why a SIBLING, not a reuse (the constraint that shaped the build)
+The outbound `resolveHazard`/`applyHazardSeverity` read `game.ship.hull`, `awake()`/`game.crew`,
+`game.power.allocation.sensors`, `game.autopilot`, `game.distance`, and call the **frozen** `applyOutcome`
+plus a **bare** `endGame`. Reusing them on the home front would corrupt outbound state or hard-end a run
+that should compose. So the home front gets a sibling that operates on `game.voyage` via `voyageOutcome`
+and ends the VOYAGE (not the game). **Zero-diff gate held:** `applyOutcome` / `resolveCheck` /
+`composeEnding` / `tryCompose` AND the outbound `applyHazardSeverity` / `resolveHazard` / `HAZARDS` table
+are all byte-identical to HEAD; the only `game.js` change beyond the new sibling block is the one-line
+voyageTurn hook and removing three entries from `VOYAGE_EVENTS`.
+
+## DECISION 1 — resolved: separate `HOME_HAZARDS` pool; the three crossings migrated into it
+A separate `HOME_HAZARDS` table, and debris / vflare / micromet **moved out of `VOYAGE_EVENTS`** and recast
+as sampled crossings (they are the canonical "crossing" perils; keeping them binary while new hazards
+sampled would be incoherent and would duplicate debris/flare mechanics). The narrative/economy/navigation
+beats — derelict, cache, fold, pursuer, lost, word, longdark, newlife, calm, sick — **stay** as
+`VOYAGE_EVENTS` choice-events, untouched.
+
+## What was built (`game.js`, sibling-local)
+- **`HOME_HAZARDS`** table (debris field / stellar flare / micrometeoroid swarm), each `{ id, w, title,
+  noun, art, text, deathText, options:[{ label, risk, role?, cost? }] }`.
+- **`voyageHazardDanger(op)`** — sibling sampler: `op.risk + (100−v.ship.hull)/240 −
+  (role==="Pilot"?pilot:pilot*0.4)/320` with `pilot = skillAwake("Pilot", v.crew)`; `+0.12` on
+  `voyPower().brownout` (replaces the outbound sensors-off term); `+ max(0,−caution)/500 +
+  max(0,aggress)/800 − (potential−50)*0.0025`; `*= DIFFICULTY.harsh`; `clamp(0.03, 0.95)`. **No
+  sensors-allocation / no autopilot term.** Same `sampleWeighted` spectrum/weights as the outbound.
+- **`voyageHazardSeverity(hz, sev, op)`** — sibling of `applyHazardSeverity`, every mutation via
+  `voyageOutcome` on `game.voyage`: clean (influence) · graze (hull) · serious (hull + injure/afflict
+  `v.crew`) · casualty (hull + `killCrew(…, v.crew)`, chance of a second) · crippling (hull + fuel/oxygen +
+  distance setback) · **catastrophic → `finishVoyage(false, "LOST WITH ALL HANDS", …)` → `tryCompose`**
+  (never a bare `endGame`).
+- **`rollHomeHazard` / `presentHomeHazard` / `resolveHomeHazard`** — orchestrate pick → (modal or
+  auto-safe option) → cost → danger → sample → apply. Auto (off-front) resolves INLINE with no modal.
+- **voyageTurn hook:** `var peril = Math.random(); if (peril < HOME_HAZARD_P) rollHomeHazard(auto); else if
+  (peril < HOME_HAZARD_P + HOME_EVENT_P) rollVoyageEvent(auto);` (`HOME_HAZARD_P = 0.18`, `HOME_EVENT_P =
+  0.34` — tune in M-INT2).
+
+## How it composes when the ark is lost
+A catastrophe sets `voyageDone = {won:false, tier:"LOST WITH ALL HANDS"}` and calls `tryCompose`. With the
+colony still ACTIVE, `tryCompose` waits — no hard-end, the colony fights on. With a SETTLED colony, it
+composes `composeEnding`'s `cWon && !vWon` branch → **A WORLD, AT LEAST** (or **A WORLD, AND WORD** with a
+heard beacon).
+
+## Out of scope (deferred, named)
+- Earth-signal ARC + visible Years-Since-Exodus dread clock + generations payoff = **P3-M4** (the
+  `TOO LATE` Earth-silence outcome that dominates a long sound crossing is this clock, not a hazard).
+- `composeEnding` generalization = **M-INT1**; full focus toggle = **M-INT1b**.
+- Hazard probability / severity-weight tuning = **M-INT2**.
+
+## Verification (all green)
+- `node --check game.js audio.js`; zero-diff gate (four frozen + outbound `applyHazardSeverity` /
+  `resolveHazard` / `HAZARDS` byte-identical); migrated ids appear only in `HOME_HAZARDS`.
+- **`/tmp/homehaz.js` (new, 24 assertions):** full clean→catastrophic spectrum reachable with scaling
+  effects (no harm on clean; injure at serious; kill at casualty; distance setback at crippling);
+  catastrophic finishes the VOYAGE (LOST WITH ALL HANDS), waits with an active colony, and composes
+  **A WORLD, AT LEAST** with a settled one; a wounded ark (low hull + brownout) samples a worse severity
+  than a sound one at the same roll; a hazard never touches outbound `game.ship`/`game.crew`; the headless
+  off-front (auto) hazard resolves with no modal and no error.
+- **`/tmp/homesmoke.js` (new, 120 full crossings):** SOUND ark (Pioneer) → **98% survive**, wins occur
+  (winnable); WOUNDED ark (Voyager, hull 26 → brownout) → **40% LOST WITH ALL HANDS vs 2%** for the sound
+  ark — real, hull-sensitive death risk, not an unwinnable deathtrap. Zero JS errors.
+- **Regression:** `crossingm2` + `colonyskel` + `colonym2..m6` + `colonyfix` + `decisionm1` + `feattest` +
+  `fuzz` + `arrivalfix` all green.
+
+## STOP
+The home crossing now has teeth: a wounded ark can be torn apart mid-spectrum (and, if the colony already
+stands, the game still composes A WORLD, AT LEAST rather than hard-ending). Next is **P3-M4** — the
+Earth-signal arc, the Years-Since-Exodus dread clock, and the generations payoff.

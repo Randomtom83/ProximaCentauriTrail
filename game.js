@@ -2344,17 +2344,15 @@
     // arrival?
     if (v.distance >= v.total) { voyageArrive(); return; }
     if (alive(v.crew).length === 0) { finishVoyage(false, "LOST WITH ALL HANDS", "Somewhere on the long road home, the last of them stops answering. The ship coasts on, a tomb with good news no one will ever read."); return; }
-    // event
-    if (chance(0.5)) rollVoyageEvent(auto);
+    // One peril per homeward turn — a sampled-severity crossing OR a choice-event
+    // (mirrors the colony's hazard/event split; auto = the off-front resolves it with no modal).
+    var peril = Math.random();
+    if (peril < HOME_HAZARD_P) rollHomeHazard(auto);
+    else if (peril < HOME_HAZARD_P + HOME_EVENT_P) rollVoyageEvent(auto);
   }
 
   /* Homeward events — weighted, most with real skill-check choices. */
   var VOYAGE_EVENTS = [
-    { id: "debris", w: 8, title: "Debris Field", text: "Old wreckage tumbles across the homeward lane — some of it moving fast.",
-      choices: [
-        { label: "Thread it", role: "Pilot", diff: 58, success: { text: "Deft flying — you slip the field clean.", type: "good" }, failure: { hull: -16, text: "A shard punches the hull before you clear it.", type: "bad" } },
-        { label: "Shields up, bull through", outcome: { hull: -9, text: "You take the hits behind the screens and push on.", type: "warn" } }
-      ] },
     { id: "derelict", w: 6, title: "Drifting Hulk", text: "A dead ship hangs in your path — fuel and parts for the taking, if it's truly dead.",
       choices: [
         { label: "Board and strip it", role: "Engineer", diff: 56, success: { fuel: +12, parts: +1, text: "A clean salvage — fuel and a spare to spare.", type: "good" }, failure: { health: -16, text: "Something gives way as you board; a crewmate is hurt.", type: "bad", target: "one" } },
@@ -2378,11 +2376,6 @@
       choices: [{ label: "Let them rest", outcome: { morale: +6, text: "Spirits hold. Home is a long way, but they believe in it.", type: "good" } }] },
     { id: "cache", w: 5, title: "Relief Cache", text: "A tumbling container on the old lane — a relief drop from the voyage out.",
       choices: [{ label: "Scoop it up", outcome: { food: +12, fuel: +5, text: "Food and fuel — a good day on a hard road.", type: "good" } }] },
-    { id: "vflare", w: 6, title: "Stellar Flare", text: "A distant sun coughs a sheet of radiation across the homeward lane. It's coming, and there's no going around it.",
-      choices: [
-        { label: "Angle the hull and ride it out", role: "Pilot", diff: 60, success: { text: "You turn the ship edge-on; the storm washes past and you hold your line.", type: "good" }, failure: { hull: -14, ailment: true, text: "It catches you broadside — scorched plating and radiation sickness aboard.", type: "bad" } },
-        { label: "Power everything down and coast through", outcome: { fuel: -4, morale: -2, text: "Dark and silent, you let it pass. Nerves fray, but the ship comes through.", type: "warn" } }
-      ] },
     { id: "lost", w: 5, title: "Lost in the Deep", text: "The stars don't match the old charts. Somewhere back there, you drifted off the line.",
       choices: [
         { label: "Re-localize from first principles", role: "Xenobiologist", diff: 58, success: { inf: { knowledge: +3 }, text: "You fix your position against the deep-field galaxies and correct course. Barely a day lost.", type: "good" }, failure: { distance: -28, text: "The fix comes slowly, and the ship wanders far off the lane before you catch it.", type: "bad" } },
@@ -2395,11 +2388,6 @@
       choices: [
         { label: "Sit with them (Commander)", role: "Commander", diff: 50, success: { morale: +7, text: "You talk them back from the edge. The crew closes ranks around their own.", type: "good" }, failure: { morale: -4, text: "Words aren't enough tonight. The silence wins this round.", type: "warn" } },
         { label: "Let them be", outcome: { morale: -3, text: "You give them room. The dark gives nothing back.", type: "warn" } }
-      ] },
-    { id: "micromet", w: 6, title: "Micrometeoroid Swarm", text: "A glittering veil ahead — beautiful, and moving fast enough to core the ship.",
-      choices: [
-        { label: "Thread the gaps", role: "Pilot", diff: 56, success: { text: "You pick a path through the sparkle untouched.", type: "good" }, failure: { hull: -12, text: "A dozen pinprick punctures; you patch what you can.", type: "bad" } },
-        { label: "Hold position and wait for a gap (costs time)", outcome: { food: -6, oxygen: -6, text: "You drift and wait. It costs stores, but the hull stays whole.", type: "warn" } }
       ] },
     { id: "newlife", w: 3, cond: function () { return awake(game.voyage.crew).filter(function (c) { return !c.child && c.age < 50; }).length >= 2 && alive(game.voyage.crew).length < MAX_CREW; }, title: "New Life on the Long Road",
       text: "On a crossing measured in decades, life insists on itself: a child is coming, born to the dark between stars.",
@@ -2460,6 +2448,124 @@
     }
     if (o.inf) influence(o.inf);
     if (o.text) log("Homeward: " + (recruitFull ? "there's no berth left aboard for another soul — the crew is already at its limit." : o.text), recruitFull ? "warn" : (o.type || "info"));
+  }
+
+  /* ---------------------------------------------------------
+     Homeward sampled-severity HAZARDS (P3-M3)
+     A SIBLING of the outbound HAZARDS / resolveHazard / applyHazardSeverity layer — NOT a
+     reuse: it operates on game.voyage (voyage.ship.hull, awake(v.crew), v.distance) through
+     voyageOutcome (never the frozen applyOutcome), and a catastrophe ends the VOYAGE via
+     finishVoyage → tryCompose (never a bare endGame), so a live colony still composes.
+     debris/vflare/micromet migrated out of VOYAGE_EVENTS so the home front's crossings sample
+     a clean→catastrophic spectrum instead of resolving on a single binary check.
+     --------------------------------------------------------- */
+  var HOME_HAZARD_P = 0.18, HOME_EVENT_P = 0.34;   // per-turn split (hazard / event / else quiet); tune via smoke
+  var HOME_HAZARDS = [
+    { id: "debris", w: 8, title: "CROSSING: Debris Field", noun: "the debris field",
+      art: "  ·  o   .  O  ·\n .   O  ·  o   .",
+      text: "Old wreckage tumbles across the homeward lane — some of it moving fast enough to gut the ship. There is no clean way through, only ways less likely to kill you.",
+      deathText: "A wall of tumbling iron you never saw fills the screen. The ship is opened to the dark, and the long road home ends here.",
+      options: [
+        { label: "Thread it at the helm", role: "Pilot", risk: 0.42 },
+        { label: "Shields up, bull through", risk: 0.30, cost: { hull: -8 } }
+      ] },
+    { id: "vflare", w: 6, title: "CROSSING: Stellar Flare", noun: "the flare",
+      art: "(((( ★ ))))  rad",
+      text: "A distant sun coughs a sheet of hard radiation across the homeward lane. It's coming, and there's no going around it.",
+      deathText: "The flare peaks just as you commit. The hull lights up from within, and the crew with it. Home was so close you could read its old light.",
+      options: [
+        { label: "Angle the hull and ride it out", role: "Pilot", risk: 0.40 },
+        { label: "Power down and coast through it dark", risk: 0.26, cost: { fuel: -4, morale: -2 } }
+      ] },
+    { id: "micromet", w: 6, title: "CROSSING: Micrometeoroid Swarm", noun: "the swarm",
+      art: "· ˙ * ˙ · ˙ * · ˙",
+      text: "A glittering veil ahead — beautiful, and moving fast enough to core the ship.",
+      deathText: "The swarm finds everything at once. A thousand pinpricks become one long tear, and the ship comes apart in the sparkle.",
+      options: [
+        { label: "Thread the gaps", role: "Pilot", risk: 0.40 },
+        { label: "Hold and wait for a gap (costs stores)", risk: 0.22, cost: { food: -6, oxygen: -6 } }
+      ] }
+  ];
+  // The danger sampler — sibling of resolveHazard's math, voyage-scoped: voyage hull + brownout +
+  // awake Pilot of the voyage crew + global posture/potential, no sensors-allocation / no autopilot term.
+  function voyageHazardDanger(op) {
+    var v = game.voyage, pilot = skillAwake("Pilot", v.crew);
+    var danger = op.risk;
+    danger += (100 - v.ship.hull) / 240;                      // a wounded ark is in more peril
+    danger -= (op.role === "Pilot" ? pilot : pilot * 0.4) / 320;
+    if (voyPower().brownout) danger += 0.12;                  // a browned-out ship flies half-blind
+    danger += Math.max(0, -game.posture.caution) / 500;       // recklessness courts catastrophe
+    danger += Math.max(0, game.posture.aggress) / 800;
+    danger -= (game.potential - 50) * 0.0025;                 // momentum bleeds into peril, too
+    danger *= DIFFICULTY[game.difficulty].harsh;
+    return clamp(danger, 0.03, 0.95);
+  }
+  function rollHomeHazard(auto) {
+    var v = game.voyage;
+    var total = HOME_HAZARDS.reduce(function (s, h) { return s + h.w; }, 0);
+    var r = Math.random() * total, acc = 0, hz = HOME_HAZARDS[0];
+    for (var i = 0; i < HOME_HAZARDS.length; i++) { acc += HOME_HAZARDS[i].w; if (r <= acc) { hz = HOME_HAZARDS[i]; break; } }
+    if (auto) {
+      // unattended off-front: take the safe/non-role option, resolve INLINE with no modal
+      var op = hz.options.find(function (o) { return !o.role; }) || hz.options[0];
+      resolveHomeHazard(hz, op);
+    } else presentHomeHazard(hz);
+  }
+  function presentHomeHazard(hz) {
+    var v = game.voyage;
+    var choices = hz.options.map(function (op) {
+      var noOne = op.role && !hasAwakeSpecialist(op.role, v.crew);
+      var anyOther = hz.options.some(function (o2) { return !o2.role || hasAwakeSpecialist(o2.role, v.crew); });
+      return {
+        label: op.label + (op.role ? "  [" + op.role + (noOne ? " — none aboard" : "") + "]" : ""),
+        disabled: noOne && anyOther,
+        onClick: function () { closeModal(); resolveHomeHazard(hz, op); voyageAfterTurn(false); }
+      };
+    });
+    openModal({ title: "⚠ " + hz.title, art: hz.art || "", body: hz.text, choices: choices });
+  }
+  function resolveHomeHazard(hz, op) {
+    if (op.cost) voyageOutcome(op.cost);                       // the chosen approach's up-front price
+    var d = voyageHazardDanger(op);
+    var sev = sampleWeighted({
+      clean:        Math.max(0.03, (1 - d) * 1.5),
+      graze:        0.45 + d * 0.6,
+      serious:      d * 1.0,
+      casualty:     Math.max(0, d - 0.34) * 1.25,
+      crippling:    Math.max(0, d - 0.58) * 1.15,
+      catastrophic: Math.max(0, d - 0.80) * 1.0
+    });
+    voyageHazardSeverity(hz, sev, op);
+    sfx(sev === "clean" || sev === "graze" ? "select" : "bad");
+  }
+  // Sibling of applyHazardSeverity — same spectrum, but every mutation lands on game.voyage via
+  // voyageOutcome, and catastrophic ends the VOYAGE (not the game) so a live colony composes.
+  function voyageHazardSeverity(hz, sev, op) {
+    var v = game.voyage, n = hz.noun || "the hazard";
+    if (sev === "clean") {
+      influence({ potential: +1, persist: +1 });
+      log("Homeward: you slip through " + n + " clean — not a scratch. The crew breathes again.", "good");
+    } else if (sev === "graze") {
+      voyageOutcome({ hull: -rint(8, 14), text: "you take a few hits crossing " + n + ". Plating scarred, nothing vital.", type: "warn" });
+    } else if (sev === "serious") {
+      voyageOutcome({ hull: -rint(16, 26) });
+      if (chance(0.5)) afflict(null, v.crew);
+      else { var c = pick(awake(v.crew)); if (c) { c.health = clamp(c.health - rint(18, 30), 0, 100); if (c.health <= 0) killCrew(c, "was lost crossing " + n, false, v.crew); else c.status = "Injured"; } }
+      log("Homeward: a bad crossing of " + n + ". Real damage, and someone is hurt.", "bad");
+    } else if (sev === "casualty") {
+      voyageOutcome({ hull: -rint(14, 24) });
+      var vic = pick(awake(v.crew)); if (vic) killCrew(vic, "was killed crossing " + n, false, v.crew);
+      if (chance(0.25)) { var v2 = pick(awake(v.crew)); if (v2) killCrew(v2, "died in the same disaster", false, v.crew); }
+      influence({ potential: -3 });
+      log("Homeward: " + n + " takes a life. The ship limps onward, quieter than before.", "bad");
+    } else if (sev === "crippling") {
+      voyageOutcome({ hull: -rint(30, 45), fuel: -rint(8, 16), oxygen: -rint(6, 12) });
+      influence({ potential: -5 });
+      var back = rint(8, 20); v.distance = Math.max(0, v.distance - back);
+      log("Homeward: you come out of " + n + " crippled, and flung " + back + " back off course.", "bad");
+    } else { // catastrophic — the ark is lost, but a live colony still gets its ending
+      finishVoyage(false, "LOST WITH ALL HANDS", hz.deathText || ("The ship is torn apart in " + n + ". The long road home ends here, in silence."));
+    }
   }
 
   function voyageArrive() {
