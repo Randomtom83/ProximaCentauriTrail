@@ -521,3 +521,171 @@ heard beacon).
 The home crossing now has teeth: a wounded ark can be torn apart mid-spectrum (and, if the colony already
 stands, the game still composes A WORLD, AT LEAST rather than hard-ending). Next is **P3-M4** — the
 Earth-signal arc, the Years-Since-Exodus dread clock, and the generations payoff.
+
+
+# ============================================================
+# P3-M4 — EARTH'S FATE (bounded divergence) + Years-Since-Exodus
+# clock + voyage generations (PLAN)
+# The home-front Earth arc resolves a HIDDEN TRUTH while the crew act
+# on a BOUNDED BELIEF; a single cumulative exodus clock drives the
+# dread; voyage crew finally age. All three land as SIBLINGS of the
+# outbound machinery — never a rewrite of the outbound path.
+# ============================================================
+
+## Re-anchor — what already exists at HEAD de06dd7 (verified by grep; do NOT rebuild)
+- **Earth (model):** `game.earth = { status:"live", heard:0 }` (init ~248). `earthSignal()` (~543) is
+  OUTBOUND-COUPLED — reads `game.distance / TOTAL_DIST` and `game.turn`, flips `status -> "silent"` on a
+  rare late roll (`prog>0.5`), drips banded messages every 9 turns. It is the ONLY writer of status, and it
+  only ever writes `"silent"` — so in practice `status ∈ {"live","silent"}`; **`"faint"` is never stored**
+  (the HUD "faint" at ~4173 is a `distance>0.6` display band, and the `"faint"` reader branches at ~1414 /
+  ~4411 are effectively dead today). Called on BOTH fronts: ~903 (outbound, after `ageCrew`) and ~2342
+  (voyageTurn) — **on the voyage it fires off STALE outbound globals, not the voyage clock.** Status readers:
+  544/548 (outbound earthSignal self), 556, 1120, 1156, 1414, 1823 (writes `beaconHeard` from status), 2384
+  (`word` event cond), 2573 (`voyageArrive` earthGone), 4173 (outbound HUD), 4411 (voyage HUD). SHOWN == TRUTH
+  today (no belief field). `voyageArrive` (~2571) is binary on Earth: silent → TOO LATE, else MESSENGER (hull
+  ≥55) / THE LONG WAY HOME.
+- **Clock:** `shipYears` (~245, advanced only in `ageCrew` by `AGE_PER_TURN`=0.40). Colony `elapsedYears`
+  (~1289/1335) = `round(_exodusYear + col.year*CYCLE_YEARS)`, `_exodusYear` fixed at landfall = `round(shipYears)`;
+  shown **"Years since exodus"** on the colony HUD (~4343). Voyage HUD shows `"...· Year " +
+  (round(shipYears)+v.turn)` (~4414) — unlabeled, and adds raw `v.turn` (not a year-scaled amount). **No single
+  cumulative cross-front clock; Earth's fade is per-front PROGRESS only, never time-driven.**
+- **Generations:** `ageCrew` (~426) is coupled to `game.crew`/`awake()`/`game._pregnancy`/`game.shipYears`;
+  called only at ~888 (outbound). The colony already has its SIBLING — `colonyAgeDrift` (~1286): ages
+  `game.crew` by `CYCLE_YEARS`, COME_OF_AGE → Colonist, OLD_AGE mortality, no pregnancy (the project precedent
+  for a per-front aging sibling). **The voyage has NO aging sibling:** `v.crew` never ages; the `newlife`
+  VOYAGE_EVENT (~2392) can insta-BIRTH a child into `v.crew` (`recruit:true` → push Child at ~2446), but no
+  maturation/old-age ever runs, so **a transit-born child never grows up.**
+
+## Zero-diff gate (unchanged from P3-M3)
+`applyOutcome` / `resolveCheck` / `composeEnding` / `tryCompose` stay **md5-identical** to HEAD. The OUTBOUND
+`earthSignal` and `ageCrew` keep their **byte-identical** bodies — the outbound journey must play identically.
+The home/voyage front gets **SIBLINGS** (precedent: `colonyAgeDrift`, `voyageHazard*`), never a rewrite.
+
+## DECISION 1 (locked by Tom) — Earth = bounded divergence: hidden TRUTH + shown BELIEF
+A hidden truth spectrum the crew cannot see directly, plus a shown estimate they hold from fragmentary
+signals. The estimate drifts toward truth with **lag + noise** but is **bounded — never more than one band
+from truth**, so belief may lag and jitter but can never flip to the opposite extreme. Truth resolves at
+arrival and CAN differ from the shown estimate within that bound ("you believed *faint*; you arrive to
+*silence* — or to a *recovered* world").
+
+**Bands (index 0 best → 4 worst):**
+`EARTH_BANDS = ["thriving","recovered","changed","silent","gone"]`.
+
+**New fields on `game.earth` (added to the init at ~248 — additive only, outbound ignores them):**
+`{ status:"live", heard:0, truth:2, estimate:2 }` — start at `2 = "changed"` (a stressed-but-living Earth at
+exodus, consistent with the existing early "evacuation lotteries grind on" beat).
+
+**Truth step — `earthTruthStep()` (time-pressured; cadence = once per voyage Earth tick):**
+```
+var pressure = clamp(exodusYears() / EARTH_DOOM_YEARS, 0, 1);   // EARTH_DOOM_YEARS ≈ 220 (tune M-INT2)
+var worse  = 0.10 + pressure * 0.50;
+var better = 0.10 * (1 - pressure);
+if (chance(worse))       earth.truth = Math.min(4, earth.truth + 1);
+else if (chance(better)) earth.truth = Math.max(0, earth.truth - 1);   // a short/young endeavor can RECOVER
+```
+A long endeavor trends worse (higher `worse`, vanishing `better`); a fast one can still land *recovered*/*thriving*.
+
+**Bounded-divergence rule — exact (run each voyage Earth tick, after the truth step):**
+```
+earth.estimate = clamp(earth.estimate + Math.sign(earth.truth - earth.estimate), 0, 4); // LAG: 1 step toward truth
+if (chance(EARTH_NOISE_P)) earth.estimate = clamp(earth.estimate + (chance(0.5)?1:-1), 0, 4); // NOISE jitter
+earth.estimate = clamp(earth.estimate, earth.truth - 1, earth.truth + 1);               // BOUND: |est−truth| ≤ 1
+```
+Provably `|estimate − truth| ≤ 1` after every tick. Belief trails rapid truth changes (lag), wobbles (noise),
+but never reaches the opposite pole.
+
+**Resolution at arrival:** `voyageArrive` reads `earth.truth` (the resolved truth), NOT the belief. The shown
+estimate up to that moment can differ within the bound — that is the divergence payoff.
+
+## DECISION 2 — backward-compat: `status` becomes a DERIVED view of the BELIEF
+Keep `game.earth.status` as a **stored, recomputed** field so **no reader migrates**. A single mapping helper
+writes it from the estimate every voyage Earth tick:
+```
+function deriveEarthStatus(est){ return ["live","live","faint","silent","silent"][est]; }
+// voyage Earth tick: game.earth.status = deriveEarthStatus(game.earth.estimate);
+```
+This finally makes `"faint"` a *reachable* status (band 2 = "changed") — the dead branches at ~1414/~4411 come
+alive for free. **Every existing reader keeps working unchanged**, reading belief-derived status:
+- Outbound `earthSignal` 544/548 — **untouched** (outbound stays old-model: live→silent on its own roll; it
+  never touches truth/estimate, so outbound plays byte-identically).
+- 556 (`heard++`) · 1120 · 1156 · 1414 · 1823 (`beaconHeard` writer) · 2384 (`word` cond) · 4173 (outbound HUD)
+  · 4411 (voyage HUD) — all read `.status`, all keep working.
+- **One reader migrated by design:** `voyageArrive` (2573) moves from `status==="silent"` to `earth.truth`,
+  to resolve on TRUTH (in-scope enrichment of voyageArrive's own Earth tiers — see Decision 5b).
+
+## DECISION 3 (+recommend) — one cumulative Years-Since-Exodus clock
+**Single source of truth, computed on read (no stored duplicate to desync):**
+```
+function exodusYears(){
+  var y = game.shipYears || 0;                                   // Phase-1 outbound leg
+  var colExtra = game.colony ? game.colony.year * CYCLE_YEARS : 0;
+  var voyExtra = game.voyage  ? game.voyage.turn * VOY_YEARS_PER_TURN : 0;  // VOY_YEARS_PER_TURN ≈ 1.6 (tune M-INT2)
+  return Math.round(y + Math.max(colExtra, voyExtra));           // colony+voyage are ONE wall-clock → max, not sum
+}
+```
+Lives beside the `round1`/`clamp` utilities. Colony's stored `col.elapsedYears` stays as-is for its HUD; this
+helper generalizes it across fronts. **Surfaced on the VOYAGE HUD:** swap the title clock at ~4414 from
+`round(shipYears)+v.turn` to `exodusYears()`, and add a **"Years since exodus"** stat line mirroring the
+colony's ~4343. **Drives Earth:** `earthTruthStep()` and `voyageEarthSignal()` read `exodusYears()` for
+`pressure` — the longer the whole endeavor, the worse Earth trends and the higher the silence odds.
+
+## DECISION 4 (+recommend) — voyage Earth arc = `voyageEarthSignal()` SIBLING
+**Recommend the sibling** (project precedent; leaves outbound `earthSignal` byte-identical). It runs off the
+VOYAGE clock — `prog = v.distance / v.total`, `v.turn`, `exodusYears()` for time pressure — and each tick:
+steps truth (`earthTruthStep`), steps the bounded estimate, writes derived `status`, drips a message banded by
+**belief** (not stale outbound bands), and adjusts voyage-crew morale via `adjustMoraleAll(..., v.crew)`. The
+**one-line swap**: the voyageTurn call at ~2342 `earthSignal()` → `voyageEarthSignal()`; the outbound call at
+~903 stays `earthSignal()`. *(Rejected: parameterizing `earthSignal(front)` would touch the frozen outbound
+body and risk the byte-identical guarantee.)*
+
+## DECISION 5a (+recommend) — voyage generations = `voyageAgeCrew()` SIBLING
+**Recommend the sibling** of `ageCrew` (mirrors `colonyAgeDrift`), called from voyageTurn (beside the Earth
+tick), leaving outbound `ageCrew` (888) untouched. It operates entirely on `v.crew`:
+- **Aging:** `+VOY_YEARS_PER_TURN`/turn; `Hibernating → AGE_HIB` (cold sleep pauses aging); children 2× rate.
+- **COME_OF_AGE → mans a station (the concrete payoff):** a transit-born child reaching `COME_OF_AGE` sets
+  `child=false`, takes a needed role over `v.crew` — **preferring Pilot when no Pilot is awake** (the most
+  load-bearing crossing role: `skillAwake("Pilot", v.crew)` feeds `voyageHazardDanger`), else `neededRole`-style
+  pick — `skill = rint(45,70)`, logs *"…comes of age and takes the Pilot station — a child of the dark now flies
+  the ark home."* A child born early in the crossing thus matures before arrival and measurably lowers hazard
+  danger.
+- **OLD_AGE:** age-scaled mortality via `killCrew(c, …, false, v.crew)`.
+- **`v._pregnancy`:** add the field; `voyageAgeCrew` gestates + births (into `v.crew` via an `addChild`-style
+  push) + organically conceives, mirroring `ageCrew`. The existing `newlife` event stays as a rare *scripted*
+  birth beat; two birth sources is acceptable and flagged for M-INT2 balance.
+- **Headless off-front (auto):** aging + Earth ticks never open a modal — they log only — so the voyage
+  auto-stepping under colony focus resolves inline with no modal and no error.
+
+## DECISION 5b — voyageArrive Earth tiers, resolved on TRUTH (in-scope enrichment)
+Replace the binary silent/else with a truth-banded resolution (still gated by hull/crew):
+`gone` → **TOO LATE** (no one to receive it); `silent` → **A SILENT SHORE** (you arrive, the air is dead — a
+darker TOO LATE variant); `changed` → **MESSENGER** / **THE LONG WAY HOME** by hull (today's live tiers);
+`recovered`/`thriving` → a brighter MESSENGER variant (**WORD WORTH CROSSING FOR** — Earth held, your news lands
+on a world still able to act). Because resolution is on truth while the HUD showed belief, the arrival can
+honestly surprise — within the one-band bound.
+
+## Scope boundary vs M-INT1 / M-INT1b
+P3-M4 **resolves** Earth's truth, **surfaces** the belief + cumulative clock, and **wires** voyage
+generations; it may enrich `voyageArrive`'s own Earth tiers (5b). It does **NOT** generalize `composeEnding`
+(that is **M-INT1** — which will READ `earth.truth`/`exodusYears()`) and does **NOT** add the bidirectional
+focus toggle (**M-INT1b**). Hazard/Earth probability + `EARTH_DOOM_YEARS`/`VOY_YEARS_PER_TURN`/`EARTH_NOISE_P`
+tuning = **M-INT2**.
+
+## Verification the build will commit to
+- `node --check game.js audio.js`; **zero-diff gate** — `applyOutcome`/`resolveCheck`/`composeEnding`/`tryCompose`
+  md5-identical; OUTBOUND `earthSignal` + `ageCrew` **byte-identical** (siblings used, so provably unchanged).
+- **New harness `/tmp/earthm4.js`:** (a) the shown estimate drifts but stays `|estimate−truth| ≤ 1` across a
+  long randomized run; (b) `exodusYears()` advances across fronts and worsens Earth's trend — a long endeavor
+  lands a worse truth-at-arrival than a fast one (statistical over N runs); (c) the estimate CAN diverge from
+  truth-at-arrival within the bound (observed both equal and ±1); (d) voyage crew age, and a `newlife`/pregnancy
+  child matures mid-crossing and mans a station (Pilot when vacant), lowering subsequent hazard danger; (e) every
+  existing `earth.status` reader still functions (status is always a valid string ∈ live/faint/silent); (f) the
+  headless off-front auto tick resolves with no modal and no error.
+- **Regression (all must stay green):** `crossingm2` + `homehaz` + `homesmoke` + `colonyskel` + `colonym2..m6`
+  + `colonyfix` + `decisionm1` + `arrivalfix` + `feattest` + `fuzz`. **Smoke:** the dread clock must NOT make the
+  home crossing unwinnable — a timely run can still reach a live-Earth ending (MESSENGER / WORD WORTH CROSSING FOR).
+
+## STOP
+P3-M4 closes the home front's emotional loop: Earth is no longer a coin-flip but a world the crew *believe* in
+on bounded, lagging evidence and *find out about* at the shore; one honest clock makes the long way home cost
+something; and a child born between stars can grow up to fly the ship that carries the news. The pieces M-INT1
+needs — `earth.truth`, the belief-derived `status`, and `exodusYears()` — are now set.
