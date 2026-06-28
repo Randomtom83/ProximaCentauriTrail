@@ -30,6 +30,7 @@ MOVES = [
     ("dashboard.html", "docs/dashboard.html"),
     ("consequence-ledger.md", "docs/consequence-ledger.md"),
     ("ui-inventory.md", "docs/ui-inventory.md"),
+    ("session-log-2026-06-28.md", "docs/session-log-2026-06-28.md"),
     ("screenshots", "docs/screenshots"),
 ]
 
