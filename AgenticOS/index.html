@@ -1,0 +1,507 @@
+<!doctype html>
+<!--
+  file:    AgenticOS/index.html
+  project: Prompt Writing
+  chat:    Proxima Centauri Trail
+  date:    2026-06-28
+
+  AgenticOS — visual graph of the Proxima Trail agent pipeline + remediation web.
+  Self-contained, vanilla, zero-dependency. Opens via file:// or any static server.
+
+  The graphify pipeline step OWNS the data between the GRAPH-DATA markers below.
+  It rewrites that block each loop (flipping node state, stamping SHAs). Do not
+  hand-edit graph state you expect the pipeline to manage; edit the roadmap instead.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgenticOS — Proxima Trail</title>
+<style>
+  :root{
+    --bg:#04070f; --bg2:#070d1c; --panel:rgba(18,30,56,0.55); --panel-solid:#0a1530;
+    --line:#1d3a66; --line-2:#102444;
+    --cyan:#5fd8ff; --blue:#3f86e0; --amber:#ffb14e; --gold:#ffd166;
+    --purple:#b58cff; --red:#ff4d5e; --green:#46f0a6;
+    --text:#d8e6ff; --dim:#8197c4; --faint:#46588a;
+    --ui:"Helvetica Neue","Segoe UI",Arial,sans-serif;
+    --mono:"Courier New","DejaVu Sans Mono","Lucida Console",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:#000; color:var(--text); font-family:var(--ui);
+    background:radial-gradient(1200px 700px at 50% -10%, #0a1836 0%, #04070f 55%, #000 100%);
+    overflow:hidden;
+  }
+  /* faint holographic scanlines, like the game CRT */
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.35;
+    background:repeating-linear-gradient(to bottom, rgba(95,216,255,0.025) 0 1px, transparent 1px 3px);
+  }
+  #topbar{
+    position:fixed; top:0; left:0; right:0; height:46px; z-index:30;
+    display:flex; align-items:center; gap:16px; padding:0 16px;
+    background:linear-gradient(180deg, rgba(7,13,28,0.92), rgba(7,13,28,0.55));
+    border-bottom:1px solid var(--line);
+  }
+  #topbar .brand{font-family:var(--mono); color:var(--cyan); letter-spacing:2px; font-size:13px; text-transform:uppercase}
+  #topbar .brand b{color:var(--text); font-weight:600}
+  #topbar .sub{font-family:var(--mono); color:var(--dim); font-size:11px}
+  #topbar .spacer{flex:1}
+  #progress{font-family:var(--mono); font-size:12px; color:var(--green)}
+  #progress .bar{display:inline-block; width:120px; height:6px; vertical-align:middle;
+    background:var(--line-2); border:1px solid var(--line); border-radius:4px; overflow:hidden; margin:0 8px}
+  #progress .bar > i{display:block; height:100%; background:var(--green); width:0%}
+  .btn{
+    background:transparent; color:var(--dim); border:1px solid var(--line);
+    font-family:var(--ui); font-size:11px; padding:4px 10px; cursor:pointer; border-radius:3px;
+    transition:background .1s,color .1s,box-shadow .1s; letter-spacing:.4px;
+  }
+  .btn:hover{background:var(--cyan); color:#04101c; border-color:var(--cyan); box-shadow:0 0 12px rgba(95,216,255,.35)}
+
+  #stage{position:fixed; inset:46px 0 0 0}
+  svg{width:100%; height:100%; display:block; cursor:grab}
+  svg.panning{cursor:grabbing}
+
+  .edge{stroke:var(--line); stroke-width:1.4; fill:none; opacity:.55}
+  .edge.dep{stroke:var(--blue); stroke-dasharray:none; opacity:.6}
+  .edge.same{stroke:var(--purple); stroke-dasharray:5 4; opacity:.7}
+  .edge.flow{stroke:var(--cyan); stroke-width:1.8; opacity:.65}
+  .edge.loop{stroke:var(--cyan); stroke-dasharray:3 5; opacity:.5}
+  .edge.hot{opacity:1; stroke-width:2.4}
+  .edge.dim{opacity:.08}
+
+  .node{cursor:pointer}
+  .node .ring{fill:var(--panel-solid); stroke-width:2}
+  .node text{font-family:var(--mono); font-size:11px; fill:var(--text); pointer-events:none;
+    text-anchor:middle; dominant-baseline:middle}
+  .node .sub{font-size:8.5px; fill:var(--dim)}
+  .node.agent .ring{stroke:var(--cyan); fill:rgba(95,216,255,0.10)}
+  .node.agent text{fill:var(--cyan)}
+  .node.dim{opacity:.18}
+  .node.hot .ring{filter:drop-shadow(0 0 6px currentColor)}
+
+  /* state colors applied via JS to .ring stroke + a status dot */
+  #panel{
+    position:fixed; top:62px; right:14px; width:300px; z-index:25;
+    background:var(--panel); backdrop-filter:blur(6px);
+    border:1px solid var(--line); border-radius:6px; padding:14px 14px 16px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5); display:none;
+  }
+  #panel.show{display:block}
+  #panel h2{margin:0 0 2px; font-family:var(--mono); font-size:14px; color:var(--cyan); letter-spacing:.5px}
+  #panel .id{font-family:var(--mono); font-size:11px; color:var(--gold); margin-bottom:10px}
+  #panel .row{display:flex; gap:8px; font-size:12px; margin:5px 0; line-height:1.35}
+  #panel .row .k{color:var(--faint); width:64px; flex:0 0 64px; font-family:var(--mono); font-size:11px}
+  #panel .row .v{color:var(--text)}
+  #panel .pill{display:inline-block; font-family:var(--mono); font-size:10px; padding:2px 8px;
+    border-radius:10px; border:1px solid currentColor}
+  #panel .note{margin-top:10px; font-size:12px; color:var(--dim); line-height:1.45; border-top:1px solid var(--line-2); padding-top:9px}
+  #panel .close{position:absolute; top:8px; right:10px; cursor:pointer; color:var(--faint); font-family:var(--mono)}
+  #panel .close:hover{color:var(--red)}
+
+  #legend{
+    position:fixed; left:14px; bottom:14px; z-index:25;
+    background:var(--panel); backdrop-filter:blur(6px); border:1px solid var(--line);
+    border-radius:6px; padding:10px 12px; font-size:11px; color:var(--dim);
+  }
+  #legend .row{display:flex; align-items:center; gap:7px; margin:3px 0; cursor:pointer; user-select:none}
+  #legend .row.off{opacity:.35}
+  #legend .dot{width:11px; height:11px; border-radius:50%; border:2px solid; flex:0 0 11px}
+  #legend .hint{margin-top:8px; color:var(--faint); font-family:var(--mono); font-size:10px; line-height:1.4}
+  #seedwarn{
+    position:fixed; left:14px; top:60px; z-index:24; max-width:300px;
+    font-family:var(--mono); font-size:10.5px; color:var(--amber); line-height:1.45;
+    background:rgba(255,177,78,0.07); border:1px solid rgba(255,177,78,0.35);
+    border-radius:5px; padding:8px 10px;
+  }
+</style>
+</head>
+<body>
+  <div id="topbar">
+    <span class="brand"><b>AgenticOS</b> · proxima trail</span>
+    <span class="sub">graphify web</span>
+    <span class="spacer"></span>
+    <span id="progress">items <span class="bar"><i></i></span><span class="pct">0/0</span></span>
+    <button class="btn" id="reset">reset view</button>
+    <button class="btn" id="relayout">re-layout</button>
+  </div>
+
+  <div id="seedwarn"></div>
+
+  <div id="stage">
+    <svg id="svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--blue)"/>
+        </marker>
+        <marker id="arrowc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--cyan)"/>
+        </marker>
+      </defs>
+      <g id="edges"></g>
+      <g id="nodes"></g>
+    </svg>
+  </div>
+
+  <div id="panel">
+    <span class="close" id="panelClose">[x]</span>
+    <h2 id="pTitle">—</h2>
+    <div class="id" id="pId">—</div>
+    <div class="row"><span class="k">state</span><span class="v"><span class="pill" id="pState">—</span></span></div>
+    <div class="row"><span class="k">track</span><span class="v" id="pTrack">—</span></div>
+    <div class="row"><span class="k">owner</span><span class="v" id="pOwner">—</span></div>
+    <div class="row"><span class="k">sha</span><span class="v" id="pSha" style="font-family:var(--mono);font-size:11px">—</span></div>
+    <div class="row"><span class="k">links</span><span class="v" id="pDeps">—</span></div>
+    <div class="note" id="pNote">—</div>
+  </div>
+
+  <div id="legend"></div>
+
+<script>
+/* ============================================================================
+   GRAPH-DATA-START   (owned by the graphify pipeline step — rewritten each loop)
+   ----------------------------------------------------------------------------
+   SEED data below is partial and honest: the agent pipeline, M-INT1 / M-INT1b,
+   the verified cross-ref items, the fenced set, and the deferred item. The full
+   Track A/B/C item list is injected here by graphify from the committed roadmap
+   (docs/proxima-trail-implementation-plan.md + the remediation roadmap).
+   state ∈ done | active | pending | fenced | deferred ;  kind ∈ agent | item
+   ============================================================================ */
+const GRAPH = {
+  meta:{ generated:"2026-06-28 (seed, pre-pipeline)", branch:"claude/intelligent-galileo-y2siqb" },
+  nodes:[
+    // --- pipeline lane (agents) ---
+    {id:"planner", label:"PLANNER", kind:"agent", track:"PIPE", state:"active",
+      owner:"CC subagent", note:"Read-only. Reads HEAD → exact edit spec citing committed lines. Fences FENCED items."},
+    {id:"builder", label:"BUILDER", kind:"agent", track:"PIPE", state:"active",
+      owner:"CC subagent", note:"Implements ONLY the spec. Commit-first, then self-audit vs committed bytes. Runs scripts/verify.sh (exit code, not stdout)."},
+    {id:"gate", label:"GATE", kind:"agent", track:"PIPE", state:"active",
+      owner:"scripts/verify.sh", note:"Deterministic. set -euo pipefail, MIN_TESTS guard, frozen-three md5 + composeEnding golden. Refuses vacuous pass."},
+    {id:"auditor", label:"AUDITOR", kind:"agent", track:"PIPE", state:"active",
+      owner:"CC subagent", note:"Read-only, NO Write/Edit. Receives only {spec, SHA, gate results}; reads committed bytes itself. Can block even if gate is green."},
+
+    // --- milestones ---
+    {id:"M-INT1", label:"M-INT1", kind:"item", track:"INT", state:"done", owner:"shipped",
+      sha:"", note:"Endings re-tier. composeEnding golden-locked (NOT md5-frozen)."},
+    {id:"M-INT1b-plan", label:"M-INT1b plan", kind:"item", track:"INT", state:"done", owner:"Planner / CC",
+      sha:"2123d1e*", note:"938-line plan section committed (+135, pure append). *SHA self-reported, not host-verified."},
+    {id:"M-INT1b-code", label:"M-INT1b build", kind:"item", track:"INT", state:"pending", owner:"Builder",
+      sha:"", note:"Legibility wrapper: [2a] both-fronts strip, [3a] single canonical clock (repoint col.elapsedYears→exodusYears()), [1c] read-only off-front digest. Build prompt ready."},
+
+    // --- Track A (code) ---
+    {id:"S1-1", label:"S1-1 CI gate", kind:"item", track:"A", state:"done", owner:"Builder",
+      sha:"", note:"ci.yml runs the deterministic gate on push/PR. No '|| true'."},
+    {id:"S2-3", label:"S2-3", kind:"item", track:"A", state:"pending", owner:"—",
+      sha:"", note:"Shared seam with U3-4 — same underlying fix."},
+    {id:"S2-2", label:"S2-2", kind:"item", track:"A", state:"fenced", owner:"needs Tom",
+      sha:"", note:"Seeded RNG — silent stream drift. Fenced: never auto-build."},
+    {id:"S2-4", label:"S2-4", kind:"item", track:"A", state:"fenced", owner:"needs Tom",
+      sha:"", note:"Save integrity. Fenced."},
+    {id:"S3-1", label:"S3-1", kind:"item", track:"A", state:"fenced", owner:"needs Tom",
+      sha:"", note:"Sibling-applier dedup — would break the zero-diff gate. Fenced."},
+    {id:"S3-3", label:"S3-3", kind:"item", track:"A", state:"fenced", owner:"needs Tom",
+      sha:"", note:"File split — silent reorder risk. Fenced."},
+    {id:"S4-1", label:"S4-1", kind:"item", track:"A", state:"deferred", owner:"M-INT2",
+      sha:"", note:"Tuning + balance sweep. Deferred to M-INT2 (numbers land at playtest)."},
+
+    // --- Track B (UX) ---
+    {id:"U1-2", label:"U1-2", kind:"item", track:"B", state:"pending", owner:"—",
+      sha:"", note:"Related to M-INT1b legibility wrapper."},
+    {id:"U3-4", label:"U3-4", kind:"item", track:"B", state:"pending", owner:"—",
+      sha:"", note:"Shared seam with S2-3."},
+    {id:"U4-1", label:"U4-1", kind:"item", track:"B", state:"pending", owner:"—",
+      sha:"", note:"Feeds M-INT1."},
+
+    // --- Track C (design) ---
+    {id:"D2-1", label:"D2-1", kind:"item", track:"C", state:"fenced", owner:"needs Tom",
+      sha:"", note:"Void-leg pacing. Fenced."},
+    {id:"D2-3", label:"D2-3", kind:"item", track:"C", state:"pending", owner:"—",
+      sha:"", note:"M-INT1b build depends on this."}
+  ],
+  edges:[
+    // pipeline flow
+    {s:"planner", t:"builder", type:"flow"},
+    {s:"builder", t:"gate",    type:"flow"},
+    {s:"gate",    t:"auditor", type:"flow"},
+    {s:"auditor", t:"planner", type:"loop"},
+    // dependency cross-refs (verified)
+    {s:"M-INT1b-code", t:"D2-3", type:"dep"},
+    {s:"M-INT1b-code", t:"U1-2", type:"same"},   // ↔ related
+    {s:"S2-3", t:"U3-4", type:"same"},            // = same seam
+    {s:"U4-1", t:"M-INT1", type:"dep"},
+    {s:"M-INT1b-code", t:"M-INT1b-plan", type:"dep"}
+  ]
+};
+/* GRAPH-DATA-END */
+
+/* ============================================================================
+   Renderer — hand-rolled SVG force layout. No libraries.
+   ============================================================================ */
+(function(){
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById("svg");
+  const gEdges = document.getElementById("edges");
+  const gNodes = document.getElementById("nodes");
+  const W = 1200, H = 800;
+
+  const STATE = {
+    done:    {color:"#46f0a6", label:"done"},
+    active:  {color:"#5fd8ff", label:"agent"},
+    pending: {color:"#3f86e0", label:"pending"},
+    fenced:  {color:"#ff4d5e", label:"fenced"},
+    deferred:{color:"#46588a", label:"deferred"}
+  };
+  // track anchor points (gentle clustering pull)
+  const ANCHOR = {
+    PIPE:{x:600, y:140}, INT:{x:600, y:380},
+    A:{x:300, y:560}, B:{x:600, y:640}, C:{x:900, y:560}
+  };
+
+  const nodes = GRAPH.nodes.map((n,i)=>{
+    const a = ANCHOR[n.track] || {x:W/2,y:H/2};
+    return Object.assign({}, n, {
+      x:a.x + (Math.random()*160-80),
+      y:a.y + (Math.random()*120-60),
+      vx:0, vy:0, fixed:false, r: n.kind==="agent"?34:24
+    });
+  });
+  const byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const edges = GRAPH.edges.filter(e=>byId[e.s]&&byId[e.t]);
+
+  // pin the agent lane horizontally so the pipeline reads left→right
+  const lane = ["planner","builder","gate","auditor"];
+  lane.forEach((id,i)=>{ const n=byId[id]; if(n){ n.x = 300 + i*200; n.y = 130; n.fixed=true; }});
+
+  // ---- build DOM ----
+  const edgeEls = edges.map(e=>{
+    const el = document.createElementNS(NS,"path");
+    el.setAttribute("class","edge "+e.type);
+    if(e.type==="dep")  el.setAttribute("marker-end","url(#arrow)");
+    if(e.type==="loop") el.setAttribute("marker-end","url(#arrowc)");
+    gEdges.appendChild(el);
+    return {e, el};
+  });
+
+  const nodeEls = nodes.map(n=>{
+    const g = document.createElementNS(NS,"g");
+    g.setAttribute("class","node "+(n.kind==="agent"?"agent":""));
+    g.dataset.id = n.id;
+    const ring = document.createElementNS(NS,"circle");
+    ring.setAttribute("class","ring");
+    ring.setAttribute("r", n.r);
+    const col = (STATE[n.state]||STATE.pending).color;
+    ring.setAttribute("stroke", n.kind==="agent" ? "#5fd8ff" : col);
+    g.appendChild(ring);
+    // status dot for items (top-right of ring)
+    if(n.kind!=="agent"){
+      const dot = document.createElementNS(NS,"circle");
+      dot.setAttribute("r","4.5"); dot.setAttribute("cx", n.r*0.62); dot.setAttribute("cy", -n.r*0.62);
+      dot.setAttribute("fill", col); dot.setAttribute("class","dot");
+      g.appendChild(dot);
+    }
+    const label = document.createElementNS(NS,"text");
+    label.textContent = n.label;
+    label.setAttribute("y", n.kind==="agent"?0:-2);
+    g.appendChild(label);
+    if(n.kind!=="agent"){
+      const sub = document.createElementNS(NS,"text");
+      sub.setAttribute("class","sub"); sub.setAttribute("y", 10);
+      sub.textContent = (STATE[n.state]||{}).label||n.state;
+      g.appendChild(sub);
+    }
+    gNodes.appendChild(g);
+    return {n, g, ring};
+  });
+  const elById = Object.fromEntries(nodeEls.map(o=>[o.n.id,o]));
+
+  // neighbor map for hover highlight
+  const nbr = {}; nodes.forEach(n=>nbr[n.id]=new Set());
+  edges.forEach(e=>{ nbr[e.s].add(e.t); nbr[e.t].add(e.s); });
+
+  // ---- force sim ----
+  let alpha = 1;
+  function tick(){
+    // repulsion
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const a=nodes[i], b=nodes[j];
+        let dx=a.x-b.x, dy=a.y-b.y; let d2=dx*dx+dy*dy||0.01;
+        const f = 9000/d2; const d=Math.sqrt(d2);
+        const fx=dx/d*f, fy=dy/d*f;
+        a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+      }
+    }
+    // springs
+    edges.forEach(e=>{
+      const a=byId[e.s], b=byId[e.t];
+      let dx=b.x-a.x, dy=b.y-a.y; let d=Math.sqrt(dx*dx+dy*dy)||0.01;
+      const rest = (a.kind==="agent"||b.kind==="agent")?200:150;
+      const f=(d-rest)*0.02;
+      const fx=dx/d*f, fy=dy/d*f;
+      a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+    });
+    // anchor gravity (cluster by track)
+    nodes.forEach(n=>{
+      const a=ANCHOR[n.track]; if(!a) return;
+      n.vx += (a.x-n.x)*0.012; n.vy += (a.y-n.y)*0.012;
+    });
+    // integrate
+    nodes.forEach(n=>{
+      if(n.fixed||n.drag) { n.vx=0; n.vy=0; return; }
+      n.vx*=0.86; n.vy*=0.86;
+      n.x += n.vx*alpha; n.y += n.vy*alpha;
+      n.x = Math.max(40, Math.min(W-40, n.x));
+      n.y = Math.max(40, Math.min(H-40, n.y));
+    });
+    alpha *= 0.985;
+    draw();
+    if(alpha>0.02) requestAnimationFrame(tick);
+  }
+  function draw(){
+    nodeEls.forEach(o=> o.g.setAttribute("transform",`translate(${o.n.x.toFixed(1)},${o.n.y.toFixed(1)})`));
+    edgeEls.forEach(o=>{
+      const a=byId[o.e.s], b=byId[o.e.t];
+      // shorten to ring edge so arrowheads sit nicely
+      let dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      const ax=a.x+dx/d*a.r, ay=a.y+dy/d*a.r, bx=b.x-dx/d*b.r, by=b.y-dy/d*b.r;
+      o.el.setAttribute("d",`M${ax.toFixed(1)},${ay.toFixed(1)} L${bx.toFixed(1)},${by.toFixed(1)}`);
+    });
+  }
+  function relayout(){ nodes.forEach(n=>{ if(!n.fixed){const a=ANCHOR[n.track]||{x:W/2,y:H/2}; n.x=a.x+(Math.random()*160-80); n.y=a.y+(Math.random()*120-60); n.vx=n.vy=0;} }); alpha=1; requestAnimationFrame(tick); }
+
+  // ---- pan / zoom via viewBox ----
+  let vb={x:0,y:0,w:W,h:H};
+  function setVB(){ svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+  svg.addEventListener("wheel", ev=>{
+    ev.preventDefault();
+    const pt = clientToSvg(ev.clientX, ev.clientY);
+    const k = ev.deltaY>0 ? 1.1 : 0.9;
+    const nw=Math.max(300,Math.min(3000, vb.w*k)), nh=nw*(vb.h/vb.w);
+    vb.x = pt.x - (pt.x-vb.x)*(nw/vb.w);
+    vb.y = pt.y - (pt.y-vb.y)*(nh/vb.h);
+    vb.w=nw; vb.h=nh; setVB();
+  },{passive:false});
+
+  let pan=null;
+  svg.addEventListener("pointerdown", ev=>{
+    if(ev.target.closest(".node")) return; // node drag handled separately
+    pan={x:ev.clientX,y:ev.clientY,vx:vb.x,vy:vb.y}; svg.classList.add("panning");
+  });
+  window.addEventListener("pointermove", ev=>{
+    if(!pan) return;
+    const scale = vb.w / svg.clientWidth;
+    vb.x = pan.vx - (ev.clientX-pan.x)*scale;
+    vb.y = pan.vy - (ev.clientY-pan.y)*scale; setVB();
+  });
+  window.addEventListener("pointerup", ()=>{ pan=null; svg.classList.remove("panning"); });
+
+  function clientToSvg(cx,cy){
+    const r=svg.getBoundingClientRect();
+    return { x: vb.x + (cx-r.left)/r.width*vb.w, y: vb.y + (cy-r.top)/r.height*vb.h };
+  }
+
+  // ---- node drag + click ----
+  let drag=null, moved=false;
+  gNodes.addEventListener("pointerdown", ev=>{
+    const g = ev.target.closest(".node"); if(!g) return;
+    ev.stopPropagation();
+    const n = byId[g.dataset.id]; n.drag=true; moved=false;
+    drag={n, sx:ev.clientX, sy:ev.clientY};
+    g.setPointerCapture(ev.pointerId);
+  });
+  gNodes.addEventListener("pointermove", ev=>{
+    if(!drag) return;
+    if(Math.abs(ev.clientX-drag.sx)+Math.abs(ev.clientY-drag.sy)>3) moved=true;
+    const p=clientToSvg(ev.clientX,ev.clientY); drag.n.x=p.x; drag.n.y=p.y; draw();
+  });
+  gNodes.addEventListener("pointerup", ev=>{
+    if(!drag) return;
+    drag.n.drag=false;
+    if(!moved) openPanel(drag.n); else { alpha=Math.max(alpha,0.3); requestAnimationFrame(tick); }
+    drag=null;
+  });
+
+  // hover highlight
+  gNodes.addEventListener("pointerover", ev=>{
+    const g=ev.target.closest(".node"); if(!g) return; highlight(g.dataset.id);
+  });
+  gNodes.addEventListener("pointerout", ev=>{
+    const g=ev.target.closest(".node"); if(!g) return; clearHL();
+  });
+  function highlight(id){
+    const keep=new Set([id,...nbr[id]]);
+    nodeEls.forEach(o=> o.g.classList.toggle("dim", !keep.has(o.n.id)));
+    nodeEls.forEach(o=> o.g.classList.toggle("hot", o.n.id===id));
+    edgeEls.forEach(o=>{
+      const on = o.e.s===id||o.e.t===id;
+      o.el.classList.toggle("hot", on); o.el.classList.toggle("dim", !on);
+    });
+  }
+  function clearHL(){
+    nodeEls.forEach(o=>o.g.classList.remove("dim","hot"));
+    edgeEls.forEach(o=>o.el.classList.remove("hot","dim"));
+  }
+
+  // ---- detail panel ----
+  const panel=document.getElementById("panel");
+  function openPanel(n){
+    document.getElementById("pTitle").textContent = n.label;
+    document.getElementById("pId").textContent = n.id + (n.kind==="agent"?"  ·  agent":"");
+    const st = STATE[n.state]||STATE.pending;
+    const ps=document.getElementById("pState");
+    ps.textContent = st.label.toUpperCase(); ps.style.color = st.color;
+    document.getElementById("pTrack").textContent =
+      ({PIPE:"pipeline",INT:"milestone",A:"Track A · code",B:"Track B · UX",C:"Track C · design"})[n.track]||n.track;
+    document.getElementById("pOwner").textContent = n.owner||"—";
+    document.getElementById("pSha").textContent = n.sha||"—";
+    const deps = edges.filter(e=>e.s===n.id||e.t===n.id)
+      .map(e=> (e.s===n.id?"→ ":"← ") + (e.s===n.id?e.t:e.s));
+    document.getElementById("pDeps").textContent = deps.length?deps.join("   "):"—";
+    document.getElementById("pNote").textContent = n.note||"—";
+    panel.classList.add("show");
+    highlight(n.id);
+  }
+  document.getElementById("panelClose").onclick=()=>{ panel.classList.remove("show"); clearHL(); };
+
+  // ---- legend + state filter ----
+  const legend=document.getElementById("legend");
+  const filterOff=new Set();
+  Object.entries(STATE).forEach(([k,v])=>{
+    const row=document.createElement("div"); row.className="row"; row.dataset.state=k;
+    row.innerHTML=`<span class="dot" style="border-color:${v.color}"></span><span>${v.label}</span>`;
+    row.onclick=()=>{ row.classList.toggle("off"); filterOff.has(k)?filterOff.delete(k):filterOff.add(k); applyFilter(); };
+    legend.appendChild(row);
+  });
+  const hint=document.createElement("div"); hint.className="hint";
+  hint.textContent="drag bg = pan · wheel = zoom · drag node = move · click = details";
+  legend.appendChild(hint);
+  function applyFilter(){
+    nodeEls.forEach(o=> o.g.style.display = (o.n.kind!=="agent" && filterOff.has(o.n.state))?"none":"");
+  }
+
+  // ---- progress readout ----
+  (function(){
+    const items=nodes.filter(n=>n.kind==="item");
+    const done=items.filter(n=>n.state==="done").length;
+    const total=items.filter(n=>n.state!=="deferred").length;
+    document.querySelector("#progress .pct").textContent = `${done}/${total}`;
+    document.querySelector("#progress .bar > i").style.width = total? (done/total*100).toFixed(0)+"%" : "0%";
+  })();
+
+  // ---- seed warning banner ----
+  document.getElementById("seedwarn").textContent =
+    "SEED VIEW — partial item set ("+GRAPH.meta.generated+"). "+
+    "graphify replaces the GRAPH-DATA block from the committed roadmap; full Track A/B/C nodes appear once the pipeline runs.";
+
+  // ---- controls ----
+  document.getElementById("reset").onclick=()=>{ vb={x:0,y:0,w:W,h:H}; setVB(); };
+  document.getElementById("relayout").onclick=relayout;
+
+  setVB();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
