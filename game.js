@@ -1981,7 +1981,7 @@
     if (auto) return;                          // off-front: caller renders
     // Player drove the colony this turn — nudge the homebound ship along the shared clock (unless the ark
     // is launched-but-not-yet-flying: the crossing loop is P3-M2; this milestone parks the ship).
-    if (game.voyage && game.voyage.active && !game.voyageDone && game.voyage._flying !== false) { voyageTurn(true); save(); }
+    if (game.voyage && game.voyage.active && !game.voyageDone && game.voyage._flying !== false) { var _dn = game.log.length; voyageTurn(true); captureDigest("ship", _dn); save(); }  // [1c] read-only capture
     if (game.ended) return;
     // If the colony just secured/failed but the ship is still out there, follow the ship.
     if (game.colonyDone && game.voyage && game.voyage.active) game.screen = "voyage";
@@ -2730,7 +2730,7 @@
     save();
     if (game.ended || auto) return;
     // Player drove the ship this turn — nudge the colony along the shared clock.
-    if (game.colony && !game.colonyDone) colonyAutoStep();
+    if (game.colony && !game.colonyDone) { var _dn = game.log.length; colonyAutoStep(); captureDigest("colony", _dn); }  // [1c] read-only capture
     if (game.ended) return;
     // If the ship just arrived/was lost but the colony fights on, follow the colony.
     if (game.voyageDone && game.colony && !game.colonyDone) game.screen = "colony";
@@ -4462,6 +4462,68 @@
   }
 
   /* ---- Act II: Colony ---- */
+  /* ---- M-INT1b: parallel-fronts legibility layer (presentation only) -----------------------
+     Makes the unfocused front legible without touching the engine. captureDigest is READ-ONLY:
+     it reads game.log + appends to the transient game._offlog / game._offsnap buffers and writes
+     NO front state, so the off-front is byte-identical with vs without capture. offStripLine =
+     [2a] one slim headline line; digestBlock = [1c] adaptive digest of the off-tick's OWN log.
+     The single canonical clock [3a] is the existing renderColony "Years since exodus" stat,
+     repointed to exodusYears() — no new line, no relabel; col.elapsedYears stays computed. */
+  function offSnap(front) {                          // read-only headline snapshot for major-detection
+    if (front === "colony") {
+      var c = game.colony;
+      return { alive: c ? colHeads() : 0, stage: c ? c.stage : "", hope: c ? c.meters.hope : 0 };
+    }
+    var v = game.voyage;
+    return { alive: v ? alive(v.crew).length : 0, stage: game.earth ? game.earth.status : "", hope: v ? v.ship.hull : 0 };
+  }
+  function captureDigest(front, n) {                 // wraps an off-tick CALL SITE; never the tick body
+    var slice = game.log.slice(n);                   // the real entries this off-tick just produced
+    game._offlog = game._offlog || {};
+    var d = game._offlog[front] || { entries: [], major: false };
+    var majorNow = slice.some(function (e) { return e.type === "bad" || e.type === "good" || e.type === "sys"; });
+    var after = offSnap(front);                       // before/after delta catches a warn-logged death etc.
+    game._offsnap = game._offsnap || {};
+    var before = game._offsnap[front];
+    if (before) {
+      if (after.alive < before.alive) majorNow = true;                                                  // a death
+      if (after.stage !== before.stage) majorNow = true;                                                // a milestone
+      if ((before.hope >= 50) !== (after.hope >= 50) || (after.hope < 20 && before.hope >= 20)) majorNow = true; // hope-band cross
+    }
+    game._offsnap[front] = after;
+    d.entries = d.entries.concat(slice);
+    d.major = d.major || majorNow;
+    game._offlog[front] = d;
+  }
+  function offOneLiner(front) {                       // no-major beat: format current stored fields, no re-run
+    if (front === "colony") {
+      var c = game.colony; if (!c) return "The colony endured while your back was turned.";
+      return "The colony held steady — hope " + Math.round(c.meters.hope) + ", year " + c.elapsedYears + ".";
+    }
+    var v = game.voyage; if (!v) return "The crossing went on without you.";
+    return "The crossing pressed on — year " + exodusYears() + ", " + alive(v.crew).length + " aboard.";
+  }
+  function offStripLine(front) {                      // [2a] one inline .small dim line, stored fields only
+    if (front === "colony") {                         // colony headline — shown on the voyage HUD
+      if (!(game.colony && !game.colonyDone)) return "";
+      var c = game.colony;
+      return "<div class='small dim' style='margin-top:6px'>⇄ Colony — hope " + Math.round(c.meters.hope) + " · " + c.stage + " · yr " + c.elapsedYears + "</div>";
+    }
+    if (!(game.voyage && game.voyage.active && !game.voyageDone)) return "";   // ark headline — shown on the colony HUD
+    var v = game.voyage, est = game.earth ? game.earth.status : "live";
+    return "<div class='small dim' style='margin-top:6px'>⇄ Ark — " + Math.round(v.distance) + "/" + v.total + " home · " + alive(v.crew).length + " aboard · Earth " + est + "</div>";
+  }
+  function digestBlock(front) {                       // [1c] surface the off-front's captured log, then clear
+    var d = game._offlog && game._offlog[front];
+    if (!d || !d.entries || !d.entries.length) return "";
+    delete game._offlog[front];                       // show once on this render, then clear
+    var head = front === "colony" ? "While you were away — the colony" : "While you were away — the crossing";
+    var body = d.major
+      ? d.entries.map(function (e) { return "<div class='small'>" + e.msg + "</div>"; }).join("")
+      : "<div class='small dim'>" + offOneLiner(front) + "</div>";
+    return "<div class='panel'><div class='panel-title'>" + head + "</div>" + body + "</div>";
+  }
+
   function renderColony() {
     if (maybeSuccession(game.crew, renderColony)) return;   // if you fall on the ground, leadership passes
     var col = game.colony, m = col.meters, app = $("#app");
@@ -4478,7 +4540,9 @@
       "<div class='panel'><div class='panel-title'>The Colony · Cycle " + col.year + " · " + col.habit + " world · " + col.stage + "</div>" +
         "<div class='stat'><span class='label'>Hope</span><span class='val cyan'>" + Math.round(m.hope) + " / 100</span></div>" + bar(m.hope, 100, "power") +
         "<div class='small dim' style='margin-top:6px'>Survival, not yet a settlement. Air, water, food, warmth and medical care all drain — and there is never enough power and hands to run all five at full. Triage.</div>" +
+        offStripLine("ship") +                       // [2a] off-front (the ark) headline
       "</div>" +
+      digestBlock("ship") +                          // [1c] what the crossing did while you were here
       "<div class='cols'>" +
         "<div class='col panel'><div class='panel-title'>Life support</div><div class='hud-grid'>" +
           COL_SYS.map(svRow).join("") +
@@ -4486,7 +4550,7 @@
         "<div class='col panel'><div class='panel-title'>Settlement</div><div class='hud-grid'>" +
           stat("Colonists", colHeads()) + stat("Materials", Math.round(col.supplies.materials)) +
           stat("Infrastructure", col.infra) + stat("Tech", col.tech || 0) +
-          stat("Years since exodus", col.elapsedYears) +
+          stat("Years since exodus", exodusYears()) +     // [3a] REPOINT: one canonical clock, matches the voyage HUD (col.elapsedYears stays computed for colonyAgeDrift)
           (col.relations != null ? stat("Native stance", Math.round(col.relations), col.relations < 25 ? "red" : "") : stat("Ship home", (col.shipReadiness || 0) + "%")) +
           (col.relations != null ? stat("They", col.nativesGone ? "gone" : (col.nativeTrust >= 75 ? "trust you" : col.nativeTrust >= 25 ? "watch warily" : "hostile"), (col.nativeTrust < 25 && !col.nativesGone) ? "red" : "") : "") +
           (game.dest.inhabited === "settlers" && col.settlerStanding ? stat("Other camp", col.settlerStanding) : "") +
@@ -4560,7 +4624,9 @@
       "<div class='panel'><div class='panel-title'>The Long Way Home · Year " + exodusYears() + " since exodus</div>" +
         "<div class='track'><span class='ship' style='left:" + pct + "%'>◄</span><span class='dest' style='left:2px;right:auto'>EARTH ⊕</span></div>" +
         "<div class='small dim' style='margin-top:6px'>" + Math.round(v.distance) + " / " + v.total + " home · Signal from Earth: " + earthTxt + "</div>" +
+        offStripLine("colony") +                     // [2a] off-front (the colony) headline
       "</div>" +
+      digestBlock("colony") +                        // [1c] what the colony did while you were here
       "<div class='cols'>" +
         "<div class='col panel'><div class='panel-title'>Ship</div><div class='hud-grid'>" +
           stat("Fuel", Math.round(s.fuel), 100) + stat("Oxygen", Math.round(s.oxygen), 100) + stat("Food", Math.round(s.food), 100) +
@@ -4806,7 +4872,15 @@
   // window.__PROXIMA_TEST__ = true BEFORE this script loads, then drives composeEnding
   // over seeded (colonyDone × voyageDone × beaconHeard) inputs to characterize endings.
   if (typeof window !== "undefined" && window.__PROXIMA_TEST__) {
-    window.__proxima = { get game() { return game; }, composeEnding: composeEnding };
+    window.__proxima = {
+      get game() { return game; }, set game(g) { game = g; }, composeEnding: composeEnding,
+      // M-INT1b verification seam (inert in production): reach the parallel-fronts layer + constructors.
+      newGame: newGame, beginColony: beginColony, startVoyage: startVoyage,
+      renderColony: renderColony, renderVoyage: renderVoyage,
+      voyageAfterTurn: voyageAfterTurn, colonyAfterTurn: colonyAfterTurn,
+      captureDigest: captureDigest, offStripLine: offStripLine, digestBlock: digestBlock,
+      exodusYears: exodusYears, alive: alive, colHeads: colHeads
+    };
   }
 
   renderTitle();

@@ -546,7 +546,7 @@ Earth-signal arc, the Years-Since-Exodus dread clock, and the generations payoff
   ≥55) / THE LONG WAY HOME.
 - **Clock:** `shipYears` (~245, advanced only in `ageCrew` by `AGE_PER_TURN`=0.40). Colony `elapsedYears`
   (~1289/1335) = `round(_exodusYear + col.year*CYCLE_YEARS)`, `_exodusYear` fixed at landfall = `round(shipYears)`;
-  shown **"Years since exodus"** on the colony HUD (~4343). Voyage HUD shows `"...· Year " +
+  shown **"Years since exodus"** on the colony HUD (~4343) _(superseded by M-INT1b [3a] — colony stat repoints to exodusYears())_. Voyage HUD shows `"...· Year " +
   (round(shipYears)+v.turn)` (~4414) — unlabeled, and adds raw `v.turn` (not a year-scaled amount). **No single
   cumulative cross-front clock; Earth's fade is per-front PROGRESS only, never time-driven.**
 - **Generations:** `ageCrew` (~426) is coupled to `game.crew`/`awake()`/`game._pregnancy`/`game.shipYears`;
@@ -623,7 +623,7 @@ function exodusYears(){
   return Math.round(y + Math.max(colExtra, voyExtra));           // colony+voyage are ONE wall-clock → max, not sum
 }
 ```
-Lives beside the `round1`/`clamp` utilities. Colony's stored `col.elapsedYears` stays as-is for its HUD; this
+Lives beside the `round1`/`clamp` utilities. Colony's stored `col.elapsedYears` stays as-is for its HUD _(superseded by M-INT1b [3a])_; this
 helper generalizes it across fronts. **Surfaced on the VOYAGE HUD:** swap the title clock at ~4414 from
 `round(shipYears)+v.turn` to `exodusYears()`, and add a **"Years since exodus"** stat line mirroring the
 colony's ~4343. **Drives Earth:** `earthTruthStep()` and `voyageEarthSignal()` read `exodusYears()` for
