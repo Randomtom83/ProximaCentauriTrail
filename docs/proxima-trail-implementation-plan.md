@@ -801,3 +801,138 @@ The one false line is gone: a settled colony whose ark crossed the whole dark to
 longer claims the ship "never made it home" — it says the truer thing, that the world you built is now the
 only thread left — while every other ending stays byte-for-byte what it was, locked by the golden harness
 that now stands in for the md5 gate.
+
+---
+
+# M-INT1b — Parallel-fronts legibility layer (presentation-only wrapper over the live dual-front engine)
+
+## Context
+The dual-front machinery (run a colony on Proxima while a crewed ark crosses home) has been live and
+unchanged since P3-M2, but the *unfocused* front is blind: acting on one front auto-ticks the other
+silently, so the player can't see the off-front's state, can't tell what happened there, and can't feel the
+two timelines piling up. M-INT1b is a **presentation-only** layer that makes the already-running second
+front legible. It adds **no gameplay**, changes **no rate/odds/constant**, and leaves the engine
+byte-identical where the zero-diff gate applies.
+
+## Re-anchor — verified against committed source (the machinery is already there)
+- **Focus handler (live):** `case "focus": game.screen = arg; sfx("blip"); renderApp(); break;` (game.js
+  4709–4710). HUDs already carry a `⇄` toggle (voyage side 4558).
+- **Off-front auto-tick (live, already logs):** act on SHIP → `voyageStep`(2740) → `voyageAfterTurn(false)`
+  (2729) → `colonyAutoStep()`(2733, body 2824–2829) → `colonyTurn(action,true)`. Act on COLONY →
+  `finishColonyTurn`(1869) → `colonyAfterTurn(false)`(1976) → `voyageTurn(true)`(1984, body 2447–2485). Both
+  auto-ticks already write `game.log` via `log(msg,type)`(294–297; capped 220); major beats already log.
+  **The digest source already exists.**
+- **Both-fronts ending (unchanged):** `tryCompose`(2836) waits for both, then `composeEnding`(2844).
+- **Clocks (true relationship, read from source):** `VOY_YEARS_PER_TURN=1.6`(160) · `CYCLE_YEARS=0.5`(1341)
+  · `AGE_PER_TURN=0.40`(156) · `EARTH_DOOM_YEARS=220`(163, hidden). `exodusYears()`(26–31) =
+  `round(shipYears + max(colony.year×0.5, voyage.turn×1.6))`. After launch each turn advances the focused
+  front AND auto-ticks the off front exactly once, so the clocks advance together at different per-turn
+  rates; `exodusYears()` takes the `max()`. **No relativistic dilation, no hidden divergence** — voyage crew
+  age 1.6/turn vs colonists 0.5/turn (crew age *faster*, the opposite of dilation). The only honest
+  legibility move is to surface the single reconciled `exodusYears()` wall-clock the engine already
+  computes — not a two-clock juxtaposition.
+- **Hidden stays hidden:** `earth.truth`(0–4) and `EARTH_DOOM_YEARS` are never exposed; only
+  already-visible diegetic fields (`earth.status`, exodus year, crew-aboard) surface.
+- **Self-sufficiency is EMERGENT — no stored number** (1310–1314): the strip reports stored fields (hope,
+  stage, year), never a fabricated self-sufficiency value.
+- **`SAVE_KEY="proxima-trail-save-v7"`(15)**; `save()` stringifies the whole `game`(272).
+
+## The three locked features → exact render/edit points (presentation only)
+
+### [2a] Always-visible both-fronts status strip — ONE slim `.small dim` line per HUD
+- **Voyage HUD** (`renderVoyage` 4532–4584): insert a colony-headline line after 4562 (before the `</div>`
+  at 4563): `⇄ Colony — hope {round(colony.meters.hope)} · {colony.stage} · yr {col.elapsedYears}`. Render
+  only when `game.colony && !game.colonyDone`.
+- **Colony HUD** (`renderColony` 4465–4528): insert a ship-headline line after 4480 (before the `</div>` at
+  4481): `⇄ Ark — {round(v.distance)}/{v.total} home · {alive(v.crew).length} aboard · Earth {earth.status}`
+  (reuse `alive`(305) + status string at 4557). Render only when `game.voyage && game.voyage.active &&
+  !game.voyageDone`.
+- Each is a single inline `.small dim` line (the voyage compact pattern — short, `·`-separated, no new
+  panel). Reads existing state; computes nothing.
+
+### [3a] Single canonical shared-clock — REPOINT the existing colony stat (no new line, no relabel)
+- Show **ONE reconciled clock**, identical on both HUDs: `exodusYears()`(26–31) verbatim — no new
+  computation, no rate touched, hidden doom never exposed. **Retire all relativity framing** (the engine is
+  a generation-ship `max()` wall-clock; crew age *faster* than colonists, so a dual-year readout would be
+  both incoherent as "one clock" and emotionally inverted).
+- **Colony HUD — REPOINT, do not add.** In `renderColony`, change the existing
+  `stat("Years since exodus", col.elapsedYears)` to `stat("Years since exodus", exodusYears())`. ONE-line
+  edit. **Do NOT** add a second year line. **Do NOT** relabel anything "Colony cycles" — `col.elapsedYears`
+  is a YEARS value, not cycles.
+  - `exodusYears()` is voyage-safe (guards `game.colony`/`game.voyage` → 0), so in colony-only games it
+    renders and equals the old `col.elapsedYears` there; in dual-front games it shows the reconciled
+    `max()` wall-clock, matching the voyage HUD. Both HUDs then read an identical "Years since exodus".
+  - `col.elapsedYears` stays **computed** (`colonyAgeDrift` still uses it); it just stops being the
+    displayed stat. Colony cycle progress stays visible in the panel title (`"The Colony · Cycle " +
+    col.year`).
+- **Voyage HUD — unchanged.** Title (4560) + stat (4568) already read `exodusYears()`. 3a already
+  satisfied; add nothing.
+- **Field source: `exodusYears()` ONLY.**
+
+### [1c] Adaptive off-front digest — captured from the auto-tick's OWN log, never recomputed/re-rolled
+- **Capture (read-only) at the two existing call sites** — wrap, do not modify the tick:
+  - `voyageAfterTurn`:2733 → `var _n = game.log.length; colonyAutoStep(); captureDigest("colony", _n);`
+  - `colonyAfterTurn`:1984 → `var _n = game.log.length; voyageTurn(true); captureDigest("ship", _n);
+    save();` (preserve the existing `save()`).
+  - `captureDigest(front,n)` appends `game.log.slice(n)` (the real entries the tick just produced) onto a
+    transient `game._offlog` buffer tagged by front, and records a tiny read-only headline snapshot
+    (off-crew alive, stage, hope band) for major-detection. It mutates no front state.
+- **Surface on toggle-back** in the now-focused HUD's render, then clear:
+  - **default (no major beat):** ONE synthesized line from stored fields (e.g. `The colony held steady —
+    hope 64, year 28.` / ship mirror `The crossing pressed on — yr 14, 2 aboard.`). Formatting of existing
+    state, not a re-run.
+  - **major beat:** render the captured log entries verbatim as the digest narrative.
+- **"Major" (read-only):** any captured entry `type ∈ {bad,good,sys}` OR off-front `alive` decreased OR
+  `colony.stage` changed OR a hope-band threshold cross (≥50 ⇄ <50, or <20). All from the snapshot + the
+  entries the tick already produced — no re-roll.
+
+## Enumerated deliverables (the build adds/edits ONLY these)
+1. **Render edits:** `renderColony` (off-front strip + **repoint** the existing `Years since exodus` stat
+   from `col.elapsedYears` to `exodusYears()` + digest block) and `renderVoyage` (off-front strip + digest
+   block; clock already present, no clock line added). Small pure helpers `offStripLine(side)`,
+   `digestBlock(side)` near the renderers. **No `twoClockLine` helper; no new colony year line; no "Colony
+   cycles" relabel.**
+2. **Capture wrappers:** 2 lines each at `voyageAfterTurn`:2733 and `colonyAfterTurn`:1984 + the
+   `captureDigest()` helper. **No edit to `colonyAutoStep`/`voyageTurn`/`colonyTurn`.**
+3. **Digest data source:** the `game.log` slice the existing auto-tick produced (capture only reads
+   `game.log.length` + slices; appends to `_offlog`, never writes front state, so the off-front is
+   byte-identical with vs without capture — asserted by harness (a)).
+4. **Canonical-clock data source:** `exodusYears()`(26–31) ONLY — one reconciled value, shown verbatim on
+   both HUDs; no per-front year-juxtaposition is rendered.
+5. **New state + SAVE posture:** only transient `game._offlog` (+ snapshot scalars); rides the existing
+   whole-`game` `save()`; old v7 saves lack it → treated as empty. **Stay on v7, no migration.**
+6. **Layout (390×844):** nothing added to `#topbar`; the +1 short strip line keeps the voyage action row
+   above the 844px fold; the colony HUD adds ≤1 short strip line under its header (the clock stat is a
+   repoint, not an addition); the digest block shows only on toggle-back (a few short lines).
+
+## Zero-diff gate (must hold)
+- **md5-identical to HEAD:** `applyOutcome`, `resolveCheck`, `tryCompose`; **`composeEnding` unchanged.**
+- **No change** to `colonyAutoStep`/`voyageTurn`/`colonyTurn` bodies, any auto-tick rate/odds, any
+  `DIFFICULTY`/scoring/tuning constant, or any sampled-outcome path. Hidden meters stay hidden (no
+  `earth.truth`/`EARTH_DOOM_YEARS` exposure). Anything requiring a touch above is OUT OF SCOPE.
+
+## Verification the build will commit to (all pass before STOP)
+- `node --check game.js audio.js`.
+- **Zero-diff:** md5 of `applyOutcome`/`resolveCheck`/`tryCompose` identical to HEAD; `composeEnding`
+  unchanged (reuse the M-INT1 md5 harness method).
+- **New `/tmp/mint1b.js`:**
+  - (a) **read-only proof** — run a dual-front sequence twice (capture on vs a capture-off flag); assert the
+    off-front `JSON.stringify({colony, voyage, crew, log})` is byte-identical (capture changes nothing but
+    `_offlog`).
+  - (b) **canonical-clock equality (UPDATED)** — both HUDs' "Years since exodus" == `exodusYears()` exactly.
+    Assert: **no stat labeled "Colony cycles"; no second year line on the colony HUD; `col.elapsedYears`
+    no longer rendered as a stat; no per-front year-juxtaposition anywhere.**
+  - (c) **adaptive digest** — a seeded no-major tick yields the one-liner; a seeded death/hazard/stage
+    milestone yields the full captured narrative (the real log entries).
+  - (d) **save posture** — a v7 save WITH `_offlog` round-trips (load → render → no error); a v7 save
+    WITHOUT it loads to an empty digest. (No v8.)
+- **Regression:** existing colony + voyage harnesses green; endings unchanged incl. the M-INT1 two-world
+  cells (rerun `/tmp/endings_golden.js`).
+- **Mobile (390×844):** screenshot voyage + colony HUDs — no topbar overflow introduced; the per-turn
+  action row stays above the fold on the voyage HUD; strip + repointed clock render as compact lines.
+
+## STOP
+With M-INT1b the second front stops being invisible: a slim both-fronts strip, one honest `exodusYears()`
+clock shared identically by both HUDs (the colony stat repointed, never duplicated), and an adaptive digest
+that replays whatever the off-front auto-tick actually logged — all pure presentation, the engine
+byte-identical everywhere the zero-diff gate holds.

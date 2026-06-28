@@ -20,3 +20,27 @@ So each milestone commit = **code + `dashboard.html` log/status + plan Addendum*
 The user's canonical path is their local `…\Proxima Trail\docs`; this remote sandbox cannot
 write there, so the repo's `docs/` folder is the synced mirror. The implementation plan and
 any future design docs live in `docs/`, not just the agent plan file.
+
+## PLAN-FILE DISCIPLINE (standing policy — applies every session)
+The canonical plan is the COMMITTED file `docs/proxima-trail-implementation-plan.md`, NOT the
+copy in chat / the context window. The context copy is a working draft and drifts; the
+committed file is the source of truth.
+
+Before planning OR building any milestone:
+1. **READ** the committed file fresh from HEAD (re-open it from the repo; never rely on a
+   remembered or pasted copy). Confirm it is complete and current.
+2. **RECONCILE:** if a milestone was "planned" only in chat, it is NOT done — write that
+   section INTO the committed file so file and agreed plan match.
+3. **UPDATE on change:** whenever a milestone's plan is amended, edit the committed file (not
+   just chat) so the repo always reflects the latest decision.
+
+Edit discipline (preserve, don't clobber):
+- Append/replace ONLY within that milestone's section (its `# ====`/`---` banner block).
+- Sections not being changed stay byte-identical — do not reorder, re-summarize, or drop
+  existing committed content. Keep doc structure intact.
+
+Verification (self-reports don't count — check the committed file):
+- After writing, RE-FETCH the committed file and confirm the target section's banner + key
+  lines are present and the line count grew by roughly the section size. State the new line
+  count and the markers found. If the count didn't move, the write didn't land — fix before
+  reporting done.
