@@ -1,1 +1,8 @@
 node_modules/
+
+# graphify: local-only runtime state (interpreter path, scan root, extraction cache).
+# The committed knowledge graph is graphify-out/graph.json + GRAPH_REPORT.md + graph.html + obsidian/.
+graphify-out/cache/
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/.graphify_labels.json
