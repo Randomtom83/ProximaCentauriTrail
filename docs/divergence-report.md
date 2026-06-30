@@ -94,8 +94,26 @@ These intent contracts were checked and **hold** in the committed code:
 | # | Divergence | Severity | Fix-safety | Disposition |
 |---|------------|----------|-----------|-------------|
 | 0 | Hibernation sickness on awake crew | HIGH | SAFE-CORRECTNESS | **Fixed** (AILMENTS:168) |
-| 1 | `trauma` payoff-only (no continuous readers) | MEDIUM | NEEDS-TOM | Escalate / confirm M-INT2 deferral |
-| 2 | `contamination` payoff-only (no continuous readers) | MEDIUM | NEEDS-TOM | Escalate / confirm M-INT2 deferral |
+| 1 | `trauma` payoff-only (no continuous readers) | MEDIUM | ~~NEEDS-TOM~~ | **Resolved** (Tom-approved) — wired skill-check + breakdown readers |
+| 2 | `contamination` payoff-only (no continuous readers) | MEDIUM | ~~NEEDS-TOM~~ | **Resolved** (Tom-approved) — wired ailment-frequency + harvest readers |
+
+## Resolution (2026-06-30) — #1 & #2 readers wired (Tom-approved balance change)
+
+The two payoff-only meters now bite continuously, per consequence-ledger §2, scaled by `DIFFICULTY.harsh`:
+
+- **trauma → skill-check reliability** — `resolveColonyCheck` adds `+round(trauma × 0.10 × harsh)` to the
+  check difficulty (frayed minds make worse calls).
+- **trauma → colony breakdown** — `colonyTurn` adds a per-cycle crack roll when hope is low:
+  `hope < 35 && chance(trauma/800 × harsh)` cracks a colonist (−4 hope), mirroring the existing `o.crack`.
+- **contamination → ailment frequency** — `colonyTurn` adds a per-cycle `chance(contamination/700 × harsh)`
+  → `afflict(null, game.crew)` (the hibernation-free pool).
+- **contamination → failed harvest** — in the survival loop, the food axis can blight:
+  `food && chance(contamination/350 × harsh)` cuts that cycle's food production to 40%.
+- **trauma → homeward "long dark"** — **dropped** (cross-front: `col.trauma` is colony-side and the ark has
+  left; the ark's own crew morale already models its hardship).
+
+Zero-diff gate stays green (none of these touch the frozen-three or `composeEnding`); these are deliberate
+odds changes, signed off. Numbers are tunable — see the per-meter coefficients above.
 
 **Bottom line:** the codebase reconciles **well** against documented intent — one genuine
 narrative-incoherence bug (fixed), and two ledger meters under-implemented relative to §2's continuous-

@@ -1839,6 +1839,10 @@
     var inCrisis = false;
     COL_SYS.forEach(function (k) {
       var prod = p.on.indexOf(k) >= 0 ? Math.round((8 + (col.sysLvl[k] || 0) * 3) * p.factor) : 0;
+      if (k === "food" && prod > 0 && chance((col.contamination || 0) / 350 * DIFFICULTY[game.difficulty].harsh)) {
+        prod = Math.round(prod * 0.4);                    // contamination READER (ledger §2): crop-disease spoils the harvest
+        log("Cycle " + col.year + ": a blight runs through the crop — the harvest comes in thin.", "warn");
+      }
       var use = Math.round(heads * drain * techEase);
       col.surv[k] = clamp(col.surv[k] + prod - use, 0, 100);
       if (col.surv[k] <= 0) {
@@ -1856,6 +1860,13 @@
     colonyRecovery();                      // colony auto-medbay: a little healing on safe cycles
     colonyDecay();
     if (col._safe && col.meters.hope < 100) col.meters.hope = clamp(col.meters.hope + 1, 0, 100);
+    // contamination READER (ledger §2): accumulated hazard load drives per-cycle sickness.
+    if (chance((col.contamination || 0) / 700 * DIFFICULTY[game.difficulty].harsh)) afflict(null, game.crew);
+    // trauma READER (ledger §2): a frayed colony in low spirits cracks — a mind gives way.
+    if (col.meters.hope < 35 && chance((col.trauma || 0) / 800 * DIFFICULTY[game.difficulty].harsh)) {
+      var _cc = pick(awake(game.crew).filter(function (c) { return c.status !== "Cracked" && !c.child; }));
+      if (_cc) { _cc.status = "Cracked"; col.meters.hope = clamp(col.meters.hope - 4, 0, 100); log(_cc.name + " is not the same after this — the long years out here have worn through.", "bad"); }
+    }
     // Something stirs: a woken thing presses on morale every season until it's reckoned with (P2-M5).
     if (col.woke) col.meters.hope = clamp(col.meters.hope - 1, 0, 100);
     // Natives (P2-M5): relations is the fast surface stance; nativeTrust the slow anchor it gravitates
@@ -2040,6 +2051,7 @@
     var diff = baseDiff + Math.round((DIFFICULTY[game.difficulty].harsh - 1) * 40);
     diff -= Math.round((game.potential - 50) * 0.15);
     diff -= aiAssist();
+    diff += Math.round((game.colony.trauma || 0) * 0.10 * DIFFICULTY[game.difficulty].harsh);  // trauma READER (ledger §2): frayed minds make worse calls
     var roll = skillAwake(role) + rint(0, 40);
     var ok = roll >= diff;
     if (!ok && hasAwakeCommander() && (diff - roll) <= TIE_BAND) { ok = true; log("The Commander steadies them — the call holds.", "good"); }
