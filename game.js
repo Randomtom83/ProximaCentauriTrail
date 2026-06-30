@@ -165,7 +165,11 @@
   var AI_NAME = "ATLAS";       // the ship's mind
   var AI_DECAY = 0.9;          // integrity lost per turn — loneliness accelerates it
 
-  var AILMENTS = ["radiation sickness", "hypoxia", "hibernation sickness",
+  // Generic random-illness pool sampled by afflict() for an AWAKE crewmate. NOTE:
+  // "hibernation sickness" is deliberately NOT in this pool — it is a cold-sleep
+  // affliction assigned ONLY by the pod / pod-wake paths (a crewmate who never
+  // hibernated can't catch it). Keep it out of the generic sample. See afflict().
+  var AILMENTS = ["radiation sickness", "hypoxia",
                   "void fever", "decompression trauma"];
 
   var RANKS = [
