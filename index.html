@@ -22,13 +22,18 @@
       </span>
     </header>
 
-    <!-- Everything renders into here -->
-    <main id="app" aria-live="polite"></main>
+    <!-- Everything renders into here. NOTE: no aria-live here — the whole screen must
+         not re-announce every turn. Live announcements are scoped to #sr-live below. -->
+    <main id="app"></main>
 
     <footer id="botbar">
       <span id="botbar-hint"> All hands · humanity's last ark · heading 0-1-1 mark Proxima</span>
       <span class="cursor" aria-hidden="true">█</span>
     </footer>
+
+    <!-- Scoped screen-reader announcer: only NEW log/status lines land here, so the
+         whole #app no longer re-announces every turn. Visually hidden (.sr-only). -->
+    <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   </div>
 
   <!-- Between-scene transit animation (cruise / dock / hazard / land) -->
@@ -46,7 +51,7 @@
 
   <!-- Generic modal overlay (events / hazards / choices / load-shed) -->
   <div id="modal" class="overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal-box">
+    <div class="modal-box" tabindex="-1">
       <div id="modal-title" class="modal-title"></div>
       <div id="modal-art" class="modal-art"></div>
       <div id="modal-body" class="modal-body"></div>

@@ -298,6 +298,9 @@
   function log(msg, type) {
     game.log.push({ msg: msg, type: type || "info", day: game.day });
     if (game.log.length > 220) game.log.shift();
+    // a11y: announce ONLY the newest line via the scoped #sr-live region (index.html),
+    // so a screen reader hears new events without the whole #app re-announcing each turn.
+    if (typeof document !== "undefined") { var _live = document.getElementById("sr-live"); if (_live) _live.textContent = msg; }
   }
 
   /* ---------------------------------------------------------
@@ -3984,7 +3987,13 @@
      15. Modal plumbing
      --------------------------------------------------------- */
   function modalOpen() { return !$("#modal").classList.contains("hidden"); }
+  // a11y: modal focus management — trap Tab within the dialog, restore focus on close.
+  var _modalPrevFocus = null, _modalTrap = null;
+  function modalFocusables() {
+    return $("#modal").querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  }
   function openModal(opts) {
+    _modalPrevFocus = (document.activeElement && document.activeElement.blur) ? document.activeElement : null;
     $("#modal-title").innerHTML = opts.title || "";
     $("#modal-art").textContent = opts.art || "";
     $("#modal-art").style.display = opts.art ? "block" : "none";
@@ -3999,8 +4008,26 @@
     });
     $("#modal").classList.remove("hidden");
     if (opts.onBind) opts.onBind($("#modal"));
+    // a11y: move focus INTO the dialog, then trap Tab/Shift-Tab within it (wrap at both ends).
+    var _f = modalFocusables();
+    if (_f.length) _f[0].focus(); else { var _box = $("#modal .modal-box"); if (_box) _box.focus(); }
+    _modalTrap = function (e) {
+      if (e.key !== "Tab") return;
+      var f = modalFocusables(); if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
+      else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+    };
+    $("#modal").addEventListener("keydown", _modalTrap);
   }
-  function closeModal() { $("#modal").classList.add("hidden"); }
+  function closeModal() {
+    var m = $("#modal");
+    if (_modalTrap) { m.removeEventListener("keydown", _modalTrap); _modalTrap = null; }
+    m.classList.add("hidden");
+    // a11y: restore focus to whatever control opened the modal.
+    if (_modalPrevFocus && _modalPrevFocus.focus) _modalPrevFocus.focus();
+    _modalPrevFocus = null;
+  }
 
   function flashLog() {
     var box = $("#log"); if (!box) return;
@@ -4883,7 +4910,9 @@
       renderColony: renderColony, renderVoyage: renderVoyage,
       voyageAfterTurn: voyageAfterTurn, colonyAfterTurn: colonyAfterTurn,
       captureDigest: captureDigest, offStripLine: offStripLine, digestBlock: digestBlock,
-      exodusYears: exodusYears, alive: alive, colHeads: colHeads
+      exodusYears: exodusYears, alive: alive, colHeads: colHeads,
+      // a11y harness seam (inert in production): drive the modal + log announcer.
+      openModal: openModal, closeModal: closeModal, log: log
     };
   }
 

@@ -5,10 +5,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
-MIN_TESTS="${MIN_TESTS:-8}"          # vacuous-pass guard: fewer than this = FAIL
-                                     # reconciled to the 8 committed harnesses in test/*.js:
+MIN_TESTS="${MIN_TESTS:-9}"          # vacuous-pass guard: fewer than this = FAIL
+                                     # reconciled to the 9 committed harnesses in test/*.js:
                                      # smoke_full_run win_path loss_path brownout_hazard
                                      # colony_smoke voyage_smoke endings_golden mint1b
+                                     # a11y_focus_live
 fail(){ echo "GATE FAIL: $*" >&2; exit 1; }
 ok(){   echo "  ok  $*"; }
 
