@@ -1488,6 +1488,32 @@ to the complaint the outbound trail already gives, tuned to the crossing's own
 loneliness. Odds untouched; the structure did the work the AC4 sweep set out to prove.
 
 # ============================================================
+# M-UI3c — Homebound chart orientation fix (ADDENDUM, 2026-07-02)
+# Tom's play report: "the progress bar isn't accurate." Byte-check
+# showed every number consistent — the defect was READING DIRECTION:
+# M-UI3b put Earth at left:0%, so a 35%-home ark sat at 65% screen-x
+# with the lit trail on the right. Arithmetically right; convention-
+# ally wrong (progress reads left-to-right, everywhere).
+# ============================================================
+
+## What changed (presentation-only, renderReturnMap markup)
+- The homebound chart now matches the outbound grammar: you fly RIGHTWARD toward
+  what's ahead. Proxima (the world you left) at 0% `visited win`; landmarks at
+  `at*100` (Fold Seam 20 · Halfway Dark 50 · Last Beacon 80); EARTH at 100% as
+  the amber goal (`current`, no halo — the pulsing halo stays reserved for the
+  NEXT landmark, one pulse per chart); the ark un-mirrored, lit trail growing
+  left-to-right behind it via the standard rmChart direction (homeward=false).
+- Headless jsdom verification: at 35% home — ship left 34.9%, lit dasharray
+  34.9/100, node order Proxima 0 / Seam 20 (visited) / Dark 50 (current) /
+  Beacon 80 (future) / Earth 100. Position now equals progress at a glance.
+- `.rm-ship.home` CSS retained (harmless; unused until any future leftward chart).
+
+## Verification
+- GATE PASS — 11 harnesses green, frozen-three intact (run twice: after the flip
+  and after the halo refinement). homeleg's order assertion is orientation-blind
+  (it checks crossing indices, not screen x) — unaffected by design.
+
+# ============================================================
 # RE-VISION (2026-07-10) — Phase 0 (reconcile & guard) + Phase 1 (the on-ramp)
 # Tom's directive: "nothing is sacred" — darker, harder, slightly real, still funny.
 # Constitution replaces the sacred list (see CLAUDE.md); on-ramp lands FIRST.

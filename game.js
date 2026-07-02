@@ -4648,19 +4648,21 @@
   // flying leftward with the traversed arc lit from the Proxima end.
   function renderReturnMap(v) {
     var f = clamp(v.distance / v.total, 0, 1);       // fraction of the way HOME
+    // M-UI3c orientation fix (Tom's play report: "the progress bar isn't accurate"):
+    // the M-UI3b Earth-left layout put a 35%-home ark at 65% screen-x — arithmetically
+    // right, but it fights the universal left-to-right progress convention and reads WRONG.
+    // Now the chart matches the outbound grammar: you fly RIGHTWARD toward what's ahead —
+    // Proxima (behind you) at left:0%, EARTH (home, the goal, haloed) at right:100%, the
+    // lit trail growing left-to-right behind the ark. Landmark x = at*100. Presentation only.
     var overlays =
-      "<span class='rm-node visited' style='left:0%;top:" + rmCurveY(0).toFixed(1) + "%' title='Earth — the long way home'>" + rmGlyph({ kind: "start" }) + "</span>" +
-      "<span class='rm-node visited win' style='left:100%;top:" + rmCurveY(1).toFixed(1) + "%' title='Proxima Centauri b — the world you left'>" + rmGlyph({ kind: "win" }) + "</span>" +
-      "<span class='rm-label abv nxt' style='left:0%'>Earth</span>" +
-      "<span class='rm-label abv past' style='left:100%'>Proxima</span>";
-    // M-HOME1/T1.4: plot the interior HOME_WAYPOINTS landmarks between the two endpoints.
-    // Mirrors the homeward chart's convention (Earth at left:0%, Proxima at left:100%, ship
-    // flying leftward as f rises), so a landmark's screen position is left:(1-at)*100%.
-    // Presentation only — reuses rmChart/rmGlyph/rmCurveY (gate-pinned), no new map engine.
+      "<span class='rm-node visited win' style='left:0%;top:" + rmCurveY(0).toFixed(1) + "%' title='Proxima Centauri b — the world you left'>" + rmGlyph({ kind: "win" }) + "</span>" +
+      "<span class='rm-node current' style='left:100%;top:" + rmCurveY(1).toFixed(1) + "%' title='Earth — the long way home'>" + rmGlyph({ kind: "start" }) + "</span>" +
+      "<span class='rm-label abv past' style='left:0%'>Proxima</span>" +
+      "<span class='rm-label abv cur' style='left:100%'>Earth</span>";
     var vwi = v.waypointIndex == null ? 0 : v.waypointIndex;
     for (var i = 0; i < HOME_WAYPOINTS.length; i++) {
       var lm = HOME_WAYPOINTS[i];
-      var lf = 1 - lm.at;                    // homeward-mirrored x fraction
+      var lf = lm.at;                        // fraction of the way home = screen x fraction
       var lpct = lf * 100;
       var lstate = i < vwi ? "visited" : (i === vwi ? "current" : "future");
       overlays += "<span class='rm-node " + lstate + "' style='left:" + lpct + "%;top:" + rmCurveY(lf).toFixed(1) + "%' title='" +
@@ -4669,7 +4671,7 @@
       overlays += "<span class='rm-label " + (i % 2 ? "blw" : "abv") + " " + (lstate === "current" ? "cur" : lstate === "visited" ? "past" : "") +
         "' style='left:" + lpct + "%'>" + lm.name.replace("The ", "") + "</span>";
     }
-    return rmChart("M 0 74 Q 500 22 1000 52", f * 100, f, overlays, true);
+    return rmChart("M 0 74 Q 500 22 1000 52", f * 100, f, overlays, false);
   }
   /* ---- Travel (main) ---- */
   function setAlert(on) { var c = document.getElementById("crt"); if (c) c.classList.toggle("alert", !!on); }
