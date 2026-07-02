@@ -1000,28 +1000,46 @@ everywhere the zero-diff gate holds.
   `10px` fallback; `index.html`'s viewport meta gains the single token `, viewport-fit=cover`
   (required for non-zero `env()` insets on iOS — the only index.html byte change).
   `html,body` + `#app` gain `overflow-x:hidden` as the horizontal-scroll backstop.
-- **Desktop fit (M2, Fork A):** `.bridge` flex-column → `display:grid;
-  grid-template-rows: auto auto minmax(0,1fr); height:100%; min-height:0; gap:8px`. The
-  `minmax(0,1fr)` console row absorbs the leftover height instead of the log's intrinsic
-  size forcing overflow. `.viewscreen` `min-height:158px` → `min-height:0` +
-  `max-height:clamp(120px,22vh,200px)`; `.stations`/`.console`/`.log-wrap` gain
-  `min-height:0`; `.console .log` min-height 160px → 96px. The log's existing internal
+- **Desktop fit (M2, Fork A — corrected after live evidence):** `.bridge` flex-column →
+  `display:grid; grid-template-rows: auto auto minmax(min-content,1fr); height:100%;
+  min-height:0; gap:8px`, PAIRED with `contain:size` on `.console .log-wrap`. The console
+  row absorbs the leftover height but can never shrink below the COMMANDS stack's intrinsic
+  height: `contain:size` removes the log's unbounded scrollback from the row's min-content
+  floor, so the floor measures only the commands — structurally unclippable — while the log
+  stays the only slack absorber. `.console` carries NO `overflow:hidden` (an undersized row
+  must overflow visibly, never silently swallow buttons). `.viewscreen` `min-height:158px` →
+  `min-height:0` + `max-height:clamp(120px,22vh,200px)`; `.console`/`.log-wrap` gain
+  `min-height:0`; `.console .log` min-height 160px → 96px (desktop). A `@media
+  (max-height:800px)` block tightens `.viewscreen` (14vh) and caps `.stations .panel` at
+  30vh with internal scroll so the floored console fits a 720px desktop. The log's internal
   `overflow-y:auto` is where scrolling now lives — you scroll the log, never the page.
+  **Correction history:** the first cut (commit 7974884) used `minmax(0,1fr)` +
+  `.console{overflow:hidden}` per the original T2.1/T2.3 letter — the live-evidence run
+  caught it at 1280×720 clipping ATLAS + Abandon invisibly (page unscrollable, buttons gone:
+  the DoD-7 clipping masquerade). Coordinator-directed fix within Fork A's grid approach.
 - **Mobile fit (M3, Fork C):** in the ≤900px block — `.bridge { gap:6px }`, `.viewscreen`
-  capped at `clamp(96px,18vh,150px)`, and `.console` becomes
+  capped at `clamp(96px,16vh,140px)`, `.bridge .stations` bounded at
+  `clamp(140px,24vh,240px)` with `overflow-y:auto` (stacked to one column at 390px the two
+  panels run ~450px tall — the same budget-blowing failure mode as the desktop console, same
+  T2.2-style internal-scroll cure), `.console .log { min-height:0 }` (the 84px TRACK floor
+  governs; the desktop 96px floor bled behind the pinned commands), and `.console` becomes
   `grid-template-rows: minmax(84px,1fr) auto`: log scrolls in row 1, BOTH `.commands`
   variants (manual Continue+cmd-grid+ATLAS+Abandon AND autopilot Run/One-turn/Emergency-wake,
   game.js:4388–4408) pin to row 2 — pure CSS on the existing DOM order, no markup reorder.
   Touch targets: `.cmd-grid .btn`/`.commands .btn.small` ≥44px, `.btn.primary` ≥48px, and
   (Fork E, orchestrator-affirmed) a global `.menu.row .btn { min-height:44px }` floor that
   also reaches colony/voyage mobile action rows — monotonic, raise-only.
-- **Proof harness (M5, Fork F):** new `test/layout_onescreen.js` — plain node, no DOM; reads
-  committed `style.css`/`game.js` as text and FAILS LOUD (nonzero exit + printed reason) if
-  any fit-guaranteeing construct is missing: dvh height, safe-area padding, `.bridge` grid
-  with a `minmax(0,1fr)` row, bounded `.viewscreen` max-height, `.console`/`.log-wrap`
-  `min-height:0`, the ≤900px 44px floor, and frozen-three PRESENCE (presence only — the md5
-  gate, not this harness, proves zero-diff; a text-scan sacred-token claim would be vacuous).
-  It is the 10th harness counted by the gate (MIN_TESTS=9).
+- **Proof harness (M5, Fork F — hardened after the live-evidence failure):** new
+  `test/layout_onescreen.js` — plain node, no DOM; reads committed `style.css`/`game.js` as
+  text and FAILS LOUD (nonzero exit + printed reason) if any fit-guaranteeing construct is
+  missing: dvh height, safe-area padding, the `minmax(min-content,1fr)` + `contain:size`
+  never-clip pair, NO `overflow:hidden` on `.console`, bounded `.viewscreen` max-height,
+  `.console`/`.log-wrap` `min-height:0`, the ≤900px 44px floor + stations bound + log
+  min-height release, the short-viewport media, and frozen-three PRESENCE (presence only —
+  the md5 gate, not this harness, proves zero-diff; a text-scan sacred-token claim would be
+  vacuous). Its original assertions green-lit the clipped first cut, so every new assertion
+  was mutation-tested: construct deleted → exit 1 with printed reason, file restored
+  md5-identical. It is the 10th harness counted by the gate (MIN_TESTS=9).
 
 ## Scope boundary (held)
 - Diff = `style.css` + the exact single-token `index.html` viewport append +
@@ -1035,8 +1053,16 @@ everywhere the zero-diff gate holds.
 ## Verification
 - `scripts/verify.sh` **GATE PASS — 10 harnesses green** (9 existing + layout_onescreen),
   frozen-three (applyOutcome/resolveCheck/tryCompose) md5-identical to the unchanged
-  baseline, endings golden present. Harness fail-loud sanity-checked: deleting the
-  `.viewscreen` max-height locally made it exit 1 with the reason printed, then restored.
+  baseline, endings golden present. Harness fail-loud mutation-tested: `.viewscreen`
+  max-height, `contain:size`, re-added `overflow:hidden`, and the mobile stations bound
+  each deleted/injected locally → exit 1 with the reason printed, file restored
+  md5-identical each time.
+- Builder in-browser layout checks after the correction (diagnostic only — NOT the official
+  T5.3 evidence): 1280×720 → bridge rows 109/216/265, all 9 command buttons visible, zero
+  page/#app/horizontal scroll; 1920×1080 → log 455px, all visible; 390×844 manual AND
+  autopilot `.commands` states → all buttons visible at ≥44px, no log/command overlap, no
+  scroll; colony-replica `.menu.row` at 390×844 → 44px floor, no overlap, no right-edge clip,
+  `#app` scrolls normally.
 - Live three-viewport screenshot evidence (1280×720, 1920×1080, 390×844 in BOTH travel
   command states, plus colony+voyage at 390×844 under the Fork-E floor) is **T5.3
   orchestrator-run sign-off** — required by the DoD but captured outside this commit.

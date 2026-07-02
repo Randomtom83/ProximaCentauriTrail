@@ -43,15 +43,26 @@ try {
     ok("(b) body padding references env(safe-area-inset*)");
   }
 
-  // (c) .bridge uses grid-template-rows with a fractional/minmax(0,1fr) last row.
+  // (c) .bridge console row is floored at min-content AND .log-wrap carries contain:size.
+  //     This PAIR is the commands-never-clipped construct: minmax(min-content,1fr) means
+  //     the row cannot shrink below its content's intrinsic height, and contain:size makes
+  //     that intrinsic height the COMMANDS stack alone (the log's unbounded scrollback
+  //     contributes nothing, so the log stays the slack absorber). Lesson learned: plain
+  //     minmax(0,1fr) let the row shrink below the commands and the old .console
+  //     overflow:hidden clipped them invisibly (live-evidence FAIL at 1280x720).
   {
     const bridgeBlock = css.match(/\.bridge\s*\{[^}]*\}/);
     if (!bridgeBlock) fail("no .bridge rule found in style.css");
     if (!/display:\s*grid/.test(bridgeBlock[0])) fail(".bridge rule is not display:grid — " + bridgeBlock[0]);
-    if (!/grid-template-rows:[^;]*(minmax\(\s*0\s*,\s*1fr\s*\)|1fr)/.test(bridgeBlock[0])) {
-      fail(".bridge grid-template-rows has no fractional/minmax(0,1fr) row — " + bridgeBlock[0]);
+    if (!/grid-template-rows:[^;]*minmax\(\s*min-content\s*,\s*1fr\s*\)/.test(bridgeBlock[0])) {
+      fail(".bridge console row is not minmax(min-content,1fr) — the commands-never-clipped floor is missing — " + bridgeBlock[0]);
     }
-    ok("(c) .bridge is a grid with a fractional/minmax(0,1fr) row");
+    const lwBlock = css.match(/\.console\s+\.log-wrap\s*\{[^}]*\}/);
+    if (!lwBlock) fail("no .console .log-wrap rule found in style.css");
+    if (!/contain:\s*size/.test(lwBlock[0])) {
+      fail(".console .log-wrap lacks contain:size — the log's content would inflate the min-content floor and re-break the fit — " + lwBlock[0]);
+    }
+    ok("(c) .bridge row minmax(min-content,1fr) + .log-wrap contain:size (commands-never-clipped pair)");
   }
 
   // (d) .viewscreen has a bounded max-height.
@@ -62,16 +73,21 @@ try {
     ok("(d) .viewscreen has a bounded max-height");
   }
 
-  // (e) .console / .log-wrap carry min-height:0.
+  // (e) .console / .log-wrap carry min-height:0, and .console has NO overflow:hidden —
+  //     overflow:hidden on the console was the clipping accomplice at 1280x720: it turned
+  //     an undersized row into SILENT command loss instead of visible overflow.
   {
     const consoleBlock = css.match(/\.console\s*\{[^}]*\}/);
     if (!consoleBlock) fail("no .console rule found in style.css");
     if (!/min-height:\s*0/.test(consoleBlock[0])) fail(".console has no min-height:0 — " + consoleBlock[0]);
+    if (/overflow(-y)?:\s*hidden/.test(consoleBlock[0])) {
+      fail(".console has overflow:hidden — the silent-clipping accomplice is back — " + consoleBlock[0]);
+    }
 
     const logWrapBlock = css.match(/\.console\s+\.log-wrap\s*\{[^}]*\}/);
     if (!logWrapBlock) fail("no .console .log-wrap rule found in style.css");
     if (!/min-height:\s*0/.test(logWrapBlock[0])) fail(".console .log-wrap has no min-height:0 — " + logWrapBlock[0]);
-    ok("(e) .console and .console .log-wrap carry min-height:0");
+    ok("(e) .console/.log-wrap min-height:0 and .console free of overflow:hidden");
   }
 
   // (f) the <=900px block sets min-height:44px on .cmd-grid .btn.
@@ -84,6 +100,42 @@ try {
       fail("<=900px block has no min-height:44px on .cmd-grid .btn — block was:\n" + block);
     }
     ok("(f) <=900px block sets min-height:44px on .cmd-grid .btn");
+  }
+
+  // (h) the <=900px block bounds the stacked stations (max-height + internal scroll) and
+  //     releases the log's desktop min-height so the 84px TRACK floor governs — without
+  //     these, the ~450px stacked station panels blow the 844px budget and the 96px log
+  //     min-height bleeds behind the pinned commands.
+  {
+    const mediaMatch = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mediaMatch) fail("no @media (max-width:900px) block found in style.css");
+    const block = mediaMatch[1];
+    if (!/\.bridge\s+\.stations\s*\{[^}]*max-height/.test(block)) {
+      fail("<=900px block does not bound .bridge .stations with a max-height — stacked panels can blow the mobile height budget");
+    }
+    if (!/\.bridge\s+\.stations\s*\{[^}]*overflow-y:\s*auto/.test(block)) {
+      fail("<=900px block does not give .bridge .stations overflow-y:auto — a bounded row must scroll internally");
+    }
+    if (!/\.console\s+\.log\s*\{[^}]*min-height:\s*0/.test(block)) {
+      fail("<=900px block does not zero .console .log min-height — the 96px desktop floor overflows the 84px mobile row into the commands");
+    }
+    ok("(h) <=900px bounds .stations (max-height + overflow-y:auto) and zeroes the log min-height");
+  }
+
+  // (i) a short-viewport media block tightens the fixed rows (viewscreen cap + station-panel
+  //     cap with internal scroll) so the min-content-floored console still fits at 1280x720.
+  {
+    const shortMatch = css.match(/@media\s*\(max-height:\s*\d+px\)\s*\{([\s\S]*?)\n\}/);
+    if (!shortMatch) fail("no @media (max-height:...) short-viewport block found in style.css");
+    const block = shortMatch[1];
+    if (!/\.viewscreen\s*\{[^}]*max-height/.test(block)) {
+      fail("short-viewport block does not tighten .viewscreen max-height");
+    }
+    if (!/\.bridge\s+\.stations\s+\.panel\s*\{[^}]*max-height[^}]*\}/.test(block) ||
+        !/\.bridge\s+\.stations\s+\.panel\s*\{[^}]*overflow-y:\s*auto/.test(block)) {
+      fail("short-viewport block does not cap .bridge .stations .panel with max-height + overflow-y:auto");
+    }
+    ok("(i) short-viewport media tightens .viewscreen and caps station panels with internal scroll");
   }
 
   // (g) presence check only — game.js still contains the frozen-three function declarations.

@@ -274,15 +274,24 @@ button.btn:hover .key { color: #04101c; }
    BRIDGE LAYOUT — travel screen fills the height
    ============================================================ */
 .bridge {
-  display: grid; grid-template-rows: auto auto minmax(0,1fr); height: 100%;
+  display: grid; grid-template-rows: auto auto minmax(min-content,1fr); height: 100%;
   min-height: 0; gap: 8px;
 }
-.bridge .stations { display: flex; gap: 12px; flex-wrap: wrap; min-height: 0; }
+/* ^ minmax(min-content,1fr): the console row absorbs slack but can NEVER shrink below
+   its content's intrinsic height. Paired with contain:size on .log-wrap (below), that
+   intrinsic height is exactly the COMMANDS stack — so the commands are never clipped
+   and the LOG (internal overflow-y:auto) is the only slack absorber on the bridge. */
+.bridge .stations { display: flex; gap: 12px; flex-wrap: wrap; }
 .bridge .stations .panel { margin: 0 0 10px; flex: 1 1 300px; min-width: 0; }
 
-/* command console: log gets the room; actions form a command stack */
-.console { display: flex; gap: 12px; flex: 1 1 auto; min-height: 0; overflow: hidden; align-items: stretch; }
-.console .log-wrap { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* command console: log gets the room; actions form a command stack.
+   NO overflow:hidden here — with the min-content row floor above, commands can never
+   be invisibly clipped (worst case is visible overflow, never silent loss). */
+.console { display: flex; gap: 12px; flex: 1 1 auto; min-height: 0; align-items: stretch; }
+/* contain:size — the log-wrap contributes NOTHING to intrinsic sizing, so the console
+   row's min-content floor is the commands stack alone (the log's unbounded content can
+   no longer inflate the row); the wrap still stretches to the row and the log fills it. */
+.console .log-wrap { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; contain: size; }
 .console .log { flex: 1 1 auto; height: auto; min-height: 96px; }
 .commands { flex: 0 0 235px; display: flex; flex-direction: column; gap: 6px; }
 .btn.primary {
@@ -477,10 +486,19 @@ button.btn:hover .key { color: #04101c; }
   #crt { padding: 8px 10px 6px; height: calc(100vh - 20px); height: calc(100dvh - 20px); }
   #topbar { margin-left: 56px; } #botbar { margin-right: 56px; }
   .bridge { gap: 6px; }
-  .viewscreen { max-height: clamp(96px, 18vh, 150px); }
+  .viewscreen { max-height: clamp(96px, 16vh, 140px); }
+  /* Stacked to one column at phone widths the two station panels are far taller than
+     the height budget — bound the row and let IT scroll internally (same T2.2 pattern
+     as the viewscreen cap and the log: internal scroll, never page scroll, and the
+     console row's min-content floor keeps the commands unclipped below it). */
+  .bridge .stations { max-height: clamp(140px, 24vh, 240px); overflow-y: auto; scrollbar-width: thin; }
+  .bridge .stations .panel { margin: 0 0 6px; }
   /* commands pinned to the bottom of the bridge; log scrolls internally above them —
      no markup reorder, so keyboard/data-action wiring is untouched (Fork C). */
   .console { display: grid; grid-template-rows: minmax(84px,1fr) auto; gap: 6px; }
+  /* the TRACK's 84px floor governs on mobile — the log's own desktop min-height:96px
+     would overflow an 84px row and bleed behind the pinned commands. */
+  .console .log { min-height: 0; }
   .commands { flex: 0 0 auto; }
   .cmd-grid { grid-template-columns: repeat(4, 1fr); }
   .vs-planet { display: none; }
@@ -490,6 +508,19 @@ button.btn:hover .key { color: #04101c; }
   /* Fork E (E2, orchestrator-affirmed): global mobile touch-target floor — strict,
      monotonic improvement, cannot shrink colony/voyage's .menu.row layout. */
   .menu.row .btn { min-height: 44px; }
+}
+
+/* ---- short viewports (e.g. 1280×720 desktop): tighten the fixed rows so the
+   console row — floored at min-content, commands never clipped — still fits without
+   page scroll. Station panels cap and scroll internally (T2.2 pattern). ---- */
+@media (max-height: 800px) {
+  .bridge { gap: 6px; }
+  .viewscreen { max-height: clamp(96px, 14vh, 150px); margin-bottom: 6px; }
+  .bridge .stations .panel { max-height: 30vh; overflow-y: auto; scrollbar-width: thin; margin-bottom: 0; }
+  .commands { gap: 5px; }
+  .btn.primary { padding: 10px 12px; font-size: 15px; }
+  .cmd-grid .btn { padding: 6px 6px; }
+  .commands .danger { padding: 5px 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
