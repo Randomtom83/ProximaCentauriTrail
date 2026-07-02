@@ -1334,3 +1334,44 @@ actually visible beside it — without raising the cap or touching the log's 152
 ## STOP
 The ark finally looks like what the fiction says it is, and the nav bar reads as
 a plotted crossing — bright where you've survived it, faint where it's still dark.
+
+# ============================================================
+# M-UI3b — Colony-front artwork parity (ADDENDUM, built 2026-07-02)
+# Tom's catch: M-UI3 gave the ship side the new design language
+# but not the colony front. The voyage-home screen still ran the
+# LEGACY text rocket (◄ on a flat .track toward "EARTH ⊕") and the
+# colony screen had no visual identity at all.
+# ============================================================
+
+## What was built (presentation-only)
+- **Homebound starchart (`renderVoyage`):** the legacy `.track` bar is replaced by
+  the same starchart system via a shared `rmChart()` shell — Earth glyph left,
+  Proxima star glyph right, the traversed arc LIT FROM THE PROXIMA END (reversed
+  lit-path direction), and the ark marker MIRRORED (`.rm-ship.home`, scaleX(-1))
+  flying leftward toward home. `renderRouteMap` (outbound) now delegates to the
+  same shell — one chart implementation, two directions. Dead `.track` CSS removed.
+- **Colony vista (`renderColony` via `colonyVista()`):** a slim ground-truth strip
+  in the colony panel — Proxima's amber glow low on a starred sky (CSS layers, so
+  it survives any panel width), and a stretch-tolerant SVG settlement: horizon
+  ground, rock outcrops, three cyan-rimmed habitat domes with a lit door, comms
+  mast with a blinking beacon. Static composition, reads no game state.
+- Fix discovered in review: the first vista used `preserveAspectRatio: slice`,
+  which cropped the entire sky at desktop widths — sky moved to CSS background
+  layers and the SVG kept only shapes that stretch gracefully (`P.A.R. none`).
+
+## Scope boundary (held)
+- Diff: `game.js` render layer only (`rmChart`/`renderReturnMap`/`colonyVista` +
+  the one-line `.track` swap + vista insertion), `style.css`. Frozen-three and
+  baseline untouched; labels/media/gate-pinned constructs untouched; no state
+  reads added; `evidence.html` seam page added untracked (gitignored).
+
+## Verification (all green)
+- `scripts/verify.sh` GATE PASS — 10 harnesses, frozen-three intact.
+- Live browser: 1440×900 colony (vista renders: glow, domes, beacon) and voyage
+  (homebound chart: lit-from-Proxima arc, mirrored ark at 65% position for a 35%-
+  home state, Earth/Proxima glyph endpoints); 390×844 both screens — zero
+  horizontal overflow, Earth label survives the mobile label reduction, vista 66px.
+
+## STOP
+Both fronts now speak one design language: the ark you watch cross the dark is
+the ark on the chart — outbound toward Proxima, and mirrored, limping home.

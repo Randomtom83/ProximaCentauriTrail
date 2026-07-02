@@ -4316,8 +4316,15 @@
     // ship's fraction via pathLength/dash. Control-point x = midpoint keeps
     // x(t) linear, so node left% and the curve stay in registration.
     var arc = "M 0 74 Q 500 22 1000 52";
+    return rmChart(arc, shipPct, shipF, labels + nodes, false);
+  }
+  // Shared chart shell: outbound lights the arc from Earth's end; the homebound
+  // chart lights it from Proxima's end and mirrors the ark.
+  function rmChart(arc, litPct, shipF, overlays, homeward) {
+    var litArc = homeward ? "M 1000 52 Q 500 22 0 74" : arc;
+    var shipX = homeward ? (1 - shipF) * 100 : shipF * 100;
     var ship =
-      "<span class='rm-ship' style='left:" + shipPct + "%;top:" + rmCurveY(shipF).toFixed(1) + "%'>" +
+      "<span class='rm-ship" + (homeward ? " home" : "") + "' style='left:" + shipX.toFixed(1) + "%;top:" + rmCurveY(homeward ? 1 - shipF : shipF).toFixed(1) + "%'>" +
         "<svg viewBox='0 0 34 14' aria-hidden='true'>" +
           "<polygon points='1,7 8,5.4 8,8.6' class='ms-plume'/>" +
           "<rect x='8' y='5.6' width='14' height='2.8' rx='1' class='ms-spine'/>" +
@@ -4327,13 +4334,43 @@
     return "<div class='routemap'><div class='rm-rail'>" +
       "<svg class='rm-svg' viewBox='0 0 1000 100' preserveAspectRatio='none' aria-hidden='true'>" +
         "<path d='" + arc + "' class='rm-arc-base' vector-effect='non-scaling-stroke'/>" +
-        "<path d='" + arc + "' class='rm-arc-glow' vector-effect='non-scaling-stroke' pathLength='100' stroke-dasharray='" + shipPct.toFixed(1) + " 100'/>" +
-        "<path d='" + arc + "' class='rm-arc-lit' vector-effect='non-scaling-stroke' pathLength='100' stroke-dasharray='" + shipPct.toFixed(1) + " 100'/>" +
+        "<path d='" + litArc + "' class='rm-arc-glow' vector-effect='non-scaling-stroke' pathLength='100' stroke-dasharray='" + litPct.toFixed(1) + " 100'/>" +
+        "<path d='" + litArc + "' class='rm-arc-lit' vector-effect='non-scaling-stroke' pathLength='100' stroke-dasharray='" + litPct.toFixed(1) + " 100'/>" +
       "</svg>" +
-      labels + nodes + ship +
+      overlays + ship +
       "</div></div>";
   }
-
+  // The colony's vista: ground truth in the same design language — Proxima low
+  // on a dark sky, the settlement's domes lit, the comms mast blinking. Static
+  // composition (no game state read), pure presentation.
+  function colonyVista() {
+    // Sky (sun glow + stars) is CSS layers so it survives any width; the SVG
+    // carries only stretch-tolerant ground/settlement shapes (P.A.R. none).
+    return "<div class='colony-vista' aria-hidden='true'>" +
+      "<svg viewBox='0 0 420 64' preserveAspectRatio='none'>" +
+        "<path d='M 0 50 Q 110 40 210 46 Q 320 52 420 44 L 420 64 L 0 64 Z' class='cv-ground'/>" +
+        "<polygon points='330,47 344,41 356,48' class='cv-rock'/>" +
+        "<polygon points='38,52 50,47 60,53' class='cv-rock'/>" +
+        "<path d='M 150 48 A 14 14 0 0 1 178 48 Z' class='cv-dome'/>" +
+        "<path d='M 186 48 A 10 10 0 0 1 206 48 Z' class='cv-dome'/>" +
+        "<path d='M 122 49 A 9 9 0 0 1 140 49 Z' class='cv-dome'/>" +
+        "<rect x='162' y='44' width='4' height='4' class='cv-door'/>" +
+        "<line x1='214' y1='48' x2='214' y2='28' class='cv-mast'/>" +
+        "<line x1='208' y1='34' x2='220' y2='34' class='cv-mast'/>" +
+        "<polygon points='214,23 217,27 214,31 211,27' class='cv-beacon blink-a'/>" +
+      "</svg></div>";
+  }
+  // Homebound chart for the returning ark: Earth left, Proxima right, the ark
+  // flying leftward with the traversed arc lit from the Proxima end.
+  function renderReturnMap(v) {
+    var f = clamp(v.distance / v.total, 0, 1);       // fraction of the way HOME
+    var overlays =
+      "<span class='rm-node visited' style='left:0%;top:" + rmCurveY(0).toFixed(1) + "%' title='Earth — the long way home'>" + rmGlyph({ kind: "start" }) + "</span>" +
+      "<span class='rm-node visited win' style='left:100%;top:" + rmCurveY(1).toFixed(1) + "%' title='Proxima Centauri b — the world you left'>" + rmGlyph({ kind: "win" }) + "</span>" +
+      "<span class='rm-label abv nxt' style='left:0%'>Earth</span>" +
+      "<span class='rm-label abv past' style='left:100%'>Proxima</span>";
+    return rmChart("M 0 74 Q 500 22 1000 52", f * 100, f, overlays, true);
+  }
   /* ---- Travel (main) ---- */
   function setAlert(on) { var c = document.getElementById("crt"); if (c) c.classList.toggle("alert", !!on); }
 
@@ -4626,6 +4663,7 @@
     function stat(label, val, cls) { return "<div class='stat'><span class='label'>" + label + "</span><span class='val " + (cls || "") + "'>" + val + "</span></div>"; }
     var hud =
       "<div class='panel'><div class='panel-title'>The Colony · Cycle " + col.year + " · " + col.habit + " world · " + col.stage + "</div>" +
+        colonyVista() +
         "<div class='stat'><span class='label'>Hope</span><span class='val cyan'>" + Math.round(m.hope) + " / 100</span></div>" + bar(m.hope, 100, "power") +
         "<div class='small dim' style='margin-top:6px'>Survival, not yet a settlement. Air, water, food, warmth and medical care all drain — and there is never enough power and hands to run all five at full. Triage.</div>" +
         offStripLine("ship") +                       // [2a] off-front (the ark) headline
@@ -4710,7 +4748,7 @@
     var toggle = (game.colony && !game.colonyDone) ? "<button class='btn small' data-action='focus' data-arg='colony'>⇄ Tend the colony</button>" : "";
     var hud =
       "<div class='panel'><div class='panel-title'>The Long Way Home · Year " + exodusYears() + " since exodus</div>" +
-        "<div class='track'><span class='ship' style='left:" + pct + "%'>◄</span><span class='dest' style='left:2px;right:auto'>EARTH ⊕</span></div>" +
+        renderReturnMap(v) +
         "<div class='small dim' style='margin-top:6px'>" + Math.round(v.distance) + " / " + v.total + " home · Signal from Earth: " + earthTxt + "</div>" +
         offStripLine("colony") +                     // [2a] off-front (the colony) headline
       "</div>" +
