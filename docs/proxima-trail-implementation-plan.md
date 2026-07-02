@@ -1375,3 +1375,114 @@ a plotted crossing — bright where you've survived it, faint where it's still d
 ## STOP
 Both fronts now speak one design language: the ark you watch cross the dark is
 the ark on the chart — outbound toward Proxima, and mirrored, limping home.
+
+# ============================================================
+# M-HOME1 — Return-leg named structure (ADDENDUM, built 2026-07-02)
+# Tom's complaint: "the flight home — it includes none of the
+# excitement or detail or gameplay that the flight to Proxima
+# has." Phase 4 plan (docs/orchestration/plan-phase-4.md) locked
+# Decisions 1-5 before build; this addendum records what shipped.
+# ============================================================
+
+## Locks executed (Tom, 2026-07-02)
+- **Decision 1 = Option A:** named void landmarks — a new voyage-scoped
+  `HOME_WAYPOINTS` array (SIBLING of outbound `WAYPOINTS`), tracked via
+  `v.waypointIndex` (FORK P1a), positioned by fractional `at` (0->1) of `v.total`
+  (FORK P2a — robust to mid-run distance jumps from fold/crippling hazards, which
+  a baked absolute `CUM` could not survive). Structure/anchor ONLY: landmarks never
+  read `voyageHazardDanger`, never touch `HOME_HAZARD_P`/`HOME_EVENT_P`, never vary
+  odds by position.
+- **Decision 2 = Option B:** anchored decision-events at two of the three interior
+  landmarks, delivered by a landmark-gated dispatch reusing `VOYAGE_EVENTS` +
+  `presentVoyageEvent`/`rollVoyageEvent`/`resolveVoyageCheck` (FORK P3a) — zero new
+  resolver, zero frozen-three risk. All effects route through `voyageOutcome` only.
+- **Decision 3 = roster as proposed:** *The Fold Seam* (at≈0.20, narrative-only) ·
+  *The Halfway Dark* (at≈0.50, ANCHORED to the `longdark` VOYAGE_EVENTS entry — the
+  loneliest-point morale/hibernation decision) · *The Last Beacon* (at≈0.80,
+  ANCHORED to the `word` VOYAGE_EVENTS entry — broadcast-or-run-dark, cond-gated on
+  Earth not-silent). Void/deep-space fiction throughout — no reused Sol-station names
+  (fiction guard held).
+- **Decision 4 = Option A (NO-OP):** `HOME_HAZARD_P`/`HOME_EVENT_P` stay
+  byte-identical (`0.18`/`0.34`, game.js — both `var` declaration line untouched).
+  M-HOME2 is the documented no-op the plan prescribed: the quiet share drops via
+  landmark structure alone.
+- **Decision 5:** every remaining M-INT2 constant left byte-identical —
+  `EARTH_DOOM_YEARS=220`, `VOY_YEARS_PER_TURN=1.6`, `EARTH_NOISE_P=0.30`,
+  `LAUNCH_READY=100`. Dual-birth-source (transit pregnancy + `newlife` event) was
+  measured in the sweep (see below) — birth counts stayed modest per 200-crossing
+  arm; no change made per the "measure, don't tune" lock.
+
+## What was built
+- **`HOME_WAYPOINTS`** (game.js, voyage section, sibling of `VOYAGE_EVENTS`): 3
+  interior landmarks `{ name, at, kind, anchorEvent, blurb }`. `startVoyage` seeds
+  `v.waypointIndex = 0`.
+- **`voyageCrossLandmarks(auto)`** — called from `voyageTurn` between the
+  arrival/crew-death checks and the peril roll (mirrors the outbound advance
+  while-loop, game.js:724, but reads `game.voyage`, not `game`). While the next
+  landmark's `at` fraction is passed, marks it visited and dispatches
+  `voyageLandmarkBeat`, which logs the blurb and — for anchored landmarks — pulls
+  the matching `VOYAGE_EVENTS` entry by id and resolves it via the existing
+  choice-event chain (auto mode resolves inline with no modal, mirroring
+  `rollHomeHazard(auto)`/`rollVoyageEvent(auto)`).
+- **`renderReturnMap(v)`** now plots the 3 interior landmarks as `rm-node`/`rm-label`
+  overlays between the Earth/Proxima endpoints (visited/current/future state,
+  screen position mirrored to the homebound chart's existing `left:(1-f)*100%`
+  convention) — reuses `rmChart`/`rmGlyph`/`rmCurveY` verbatim; no new map engine.
+- **Test seam additions** (inert in production, game.js's `window.__proxima` block):
+  `voyageTurn`, `HOME_WAYPOINTS`, a `HOME_EVENT_P` get/set accessor pair (for the
+  B-preview harness-runtime-only override), `HOME_HAZARD_P` getter.
+- **`test/homeleg.js`** (new, 11th harness): a distributional sweep, n=200 full
+  return crossings per arm, over THREE arms — sound-ark, wounded-ark, and a
+  B-preview arm (sound-ark config with `HOME_EVENT_P` runtime-monkey-patched to
+  0.40 via the seam accessor, restored after the arm — zero shipped-byte change).
+  Installs the global error trap, asserts every crossing reaches a real terminal
+  state, asserts landmark structure (>=1 crossed; arrivals pass all 3 in order),
+  and a coupling-drift guard confirming the anchored dispatch fires the intended
+  event at its landmark.
+
+## Scope boundary (held)
+- Diff confined to: `startVoyage` (added `waypointIndex: 0` field), `voyageTurn`
+  (inserted the landmark-crossing call + a guard line), two new functions
+  (`voyageCrossLandmarks`, `voyageLandmarkBeat`) + the `HOME_WAYPOINTS` array,
+  `renderReturnMap` (added the interior-node loop), and the test seam block.
+- **Zero diff** to `WAYPOINTS`, `CUM`, `TOTAL_DIST`, `renderRouteMap`, the outbound
+  advance while-loop (game.js:724), `ageCrew`/outbound `earthSignal`, `HAZARDS`,
+  `applyHazardSeverity` — confirmed via `git diff a4158f3 -- game.js` hunk ranges.
+- Frozen-three (`applyOutcome`/`resolveCheck`/`tryCompose`) md5-identical;
+  `test/frozen-baseline.json` byte-identical; `composeEnding` untouched
+  (golden-locked, not in scope this phase).
+- `HOME_HAZARD_P=0.18`/`HOME_EVENT_P=0.34` declaration line byte-identical to HEAD
+  — only comments near it were added; the constants themselves did not change.
+
+## Verification (all green)
+- `scripts/verify.sh` -> **GATE PASS — 11 harnesses green**, frozen-three intact,
+  endings golden present, `test/homeleg.js` counted (MIN_TESTS=9, 11 present).
+- **`test/homeleg.js` measured rates** (n=200 per arm, one representative run —
+  values vary turn-to-turn within the locked AC4 windows across repeat runs):
+  - **Sound-ark** (Pioneer, hull 100, no brownout): **survival 99.5%** (window
+    [94%,100%]), **32/200 winning arrival tiers**, quiet-turn share **32.4%**,
+    transit births **13**.
+  - **Wounded-ark** (Voyager, hull 25, brownout): **LOST WITH ALL HANDS 35.5%**
+    (window [28%,52%]), quiet-turn share **31%**, transit births **18**.
+  - **B-preview** (sound-ark config, `HOME_EVENT_P` harness-overridden 0.34->0.40,
+    data-only per ORCHESTRATOR RIDER 1): survival **99.5%**, quiet-turn share
+    **28.2%** (down from the 4A baseline's ~32%, as expected from more
+    choice-events per turn), transit births **13**. Constant restored after the
+    arm; shipped `HOME_EVENT_P` unchanged.
+  - **AC1 landmark structure:** every arrival across all 3 arms (n=600 crossings)
+    passed all 3 interior landmarks in order (`The Fold Seam -> The Halfway Dark
+    -> The Last Beacon`); >=1 landmark crossed confirmed.
+  - **RIDER 3 coupling-drift guard:** an isolated clean crossing confirmed The
+    Halfway Dark logs and its anchored `longdark` beat resolves at that landmark;
+    The Last Beacon logs (its `word` beat is `cond`-gated on Earth not-silent, so
+    it fires only when that condition holds at the time of crossing — observed
+    absent in that particular isolated run, not a defect).
+  - Repeat runs (6x local) held sound-ark in [96.5%,100%] and wounded-ark in
+    [29.5%,39.5%] — comfortably inside both DoD windows with margin.
+- `node scripts/frozen.js --check test/frozen-baseline.json` -> frozen-three intact.
+
+## STOP
+The flight home now has a named trail: three void landmarks the ark passes and
+can see coming on the chart, two of them real decisions — same structural answer
+to the complaint the outbound trail already gives, tuned to the crossing's own
+loneliness. Odds untouched; the structure did the work the AC4 sweep set out to prove.

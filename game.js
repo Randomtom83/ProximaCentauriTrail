@@ -2437,7 +2437,8 @@
       thrust: "cruise", rations: "full",
       // The way home is shorter than the way out — you've already mapped the trail (and can lean on
       // the fold/known shortcuts), so a live-Earth arrival is achievable before the signal dies.
-      distance: 0, total: Math.round(TOTAL_DIST * 0.62), turn: 0, _starve: 0, _anoxia: 0
+      distance: 0, total: Math.round(TOTAL_DIST * 0.62), turn: 0, _starve: 0, _anoxia: 0,
+      waypointIndex: 0   // M-HOME1/FORK P1a: index into HOME_WAYPOINTS (sibling of game.waypointIndex)
     };
     // P3-M4 handoff seam: reconcile Earth's hidden truth/belief FROM the OBSERVED outbound status,
     // so an Earth that went silent on the way out can never be "revived" to faint by the first
@@ -2496,11 +2497,63 @@
     // arrival?
     if (v.distance >= v.total) { voyageArrive(); return; }
     if (alive(v.crew).length === 0) { finishVoyage(false, "LOST WITH ALL HANDS", "Somewhere on the long road home, the last of them stops answering. The ship coasts on, a tomb with good news no one will ever read."); return; }
+    // Landmark crossing (M-HOME1, Decision 1A/P1a/P2a): the named void trail home, a SIBLING
+    // of the outbound waypoint-advance while-loop (cf. game.js:724), but voyage-scoped and
+    // fraction-of-v.total keyed (robust to mid-run distance jumps like the fold/crippling
+    // hazards, which the fixed outbound CUM would not survive — FORK P2a). Structure/anchor
+    // ONLY: never reads into voyageHazardDanger, never touches HOME_HAZARD_P/HOME_EVENT_P,
+    // never varies odds by position (Decision 1 lock-boundary statement).
+    voyageCrossLandmarks(auto);
+    if (game.ended || modalOpen()) return;   // an anchored landmark event may have ended/opened a modal turn
     // One peril per homeward turn — a sampled-severity crossing OR a choice-event
     // (mirrors the colony's hazard/event split; auto = the off-front resolves it with no modal).
     var peril = Math.random();
     if (peril < HOME_HAZARD_P) rollHomeHazard(auto);
     else if (peril < HOME_HAZARD_P + HOME_EVENT_P) rollVoyageEvent(auto);
+  }
+
+  // Named void landmarks on the way home (Decision 1A/3): a SIBLING of the outbound WAYPOINTS —
+  // never edited, never reused by name (fiction guard: these are the empty BETWEEN, not
+  // re-transited Sol ports). `at` is a fraction (0->1) of v.total (FORK P2a). Decision 2/3:
+  // The Fold Seam is narrative-only; The Halfway Dark and The Last Beacon are ANCHORED —
+  // they guarantee a specific VOYAGE_EVENTS entry via a landmark-gated dispatch (FORK P3a),
+  // never a new resolver, so all effects still land through voyageOutcome.
+  var HOME_WAYPOINTS = [
+    { name: "The Fold Seam", at: 0.20, kind: "waypoint", anchorEvent: null,
+      blurb: "Space feels thin here — the kind of seam a fold might open in, if the strangers' charts are to be believed. You don't take it. You just feel it, passing." },
+    { name: "The Halfway Dark", at: 0.50, kind: "void", anchorEvent: "longdark",
+      blurb: "The loneliest point on the whole crossing: as far from Proxima as from Earth, and nothing either way but old light." },
+    { name: "The Last Beacon", at: 0.80, kind: "waypoint", anchorEvent: "word",
+      blurb: "The edge of the old relay lane — the last place a signal from home has any real chance of finding you before Sol's glare drowns it out." }
+  ];
+  // Crossing check (Decision 1A/FORK P1a): while the next landmark's fractional `at` position
+  // is passed, mark it visited via v.waypointIndex and dispatch its beat. Mirrors the outbound
+  // advance while-loop (game.js:724) but reads game.voyage, not game — a sibling, not a reuse.
+  function voyageCrossLandmarks(auto) {
+    var v = game.voyage; if (!v) return;
+    if (v.waypointIndex == null) v.waypointIndex = 0;
+    var f = v.distance / v.total;
+    while (v.waypointIndex < HOME_WAYPOINTS.length && f >= HOME_WAYPOINTS[v.waypointIndex].at) {
+      var lm = HOME_WAYPOINTS[v.waypointIndex];
+      v.waypointIndex++;
+      voyageLandmarkBeat(lm, auto);
+      if (game.ended || modalOpen()) return;   // an anchored event may have ended the voyage or opened a modal
+    }
+  }
+  // Dispatch one landmark's arrival beat. Narrative landmarks (anchorEvent: null) just log the
+  // blurb. Anchored landmarks (Decision 2B) guarantee a specific VOYAGE_EVENTS entry by id,
+  // reusing the committed presentVoyageEvent/rollVoyageEvent/resolveVoyageCheck/voyageOutcome
+  // chain (FORK P3a) — no new resolver, no frozen-three risk. auto (off-front) resolves inline
+  // with no modal, mirroring rollHomeHazard(auto)/rollVoyageEvent(auto).
+  function voyageLandmarkBeat(lm, auto) {
+    log("◆ " + lm.name + ". " + lm.blurb, "info");
+    if (!lm.anchorEvent) return;
+    var ev = VOYAGE_EVENTS.filter(function (e) { return e.id === lm.anchorEvent; })[0];
+    if (!ev || (ev.cond && !ev.cond())) return;   // cond-gated (e.g. 'word' needs Earth not-silent) — skip quietly if ungated
+    if (auto) {
+      var ch = ev.choices.find(function (c) { return !c.role; }) || ev.choices[0];
+      if (ch.role) resolveVoyageCheck(ch.role, ch.diff, ch.success, ch.failure); else voyageOutcome(ch.outcome);
+    } else presentVoyageEvent(ev);
   }
 
   /* Homeward events — weighted, most with real skill-check choices. */
@@ -4369,6 +4422,22 @@
       "<span class='rm-node visited win' style='left:100%;top:" + rmCurveY(1).toFixed(1) + "%' title='Proxima Centauri b — the world you left'>" + rmGlyph({ kind: "win" }) + "</span>" +
       "<span class='rm-label abv nxt' style='left:0%'>Earth</span>" +
       "<span class='rm-label abv past' style='left:100%'>Proxima</span>";
+    // M-HOME1/T1.4: plot the interior HOME_WAYPOINTS landmarks between the two endpoints.
+    // Mirrors the homeward chart's convention (Earth at left:0%, Proxima at left:100%, ship
+    // flying leftward as f rises), so a landmark's screen position is left:(1-at)*100%.
+    // Presentation only — reuses rmChart/rmGlyph/rmCurveY (gate-pinned), no new map engine.
+    var vwi = v.waypointIndex == null ? 0 : v.waypointIndex;
+    for (var i = 0; i < HOME_WAYPOINTS.length; i++) {
+      var lm = HOME_WAYPOINTS[i];
+      var lf = 1 - lm.at;                    // homeward-mirrored x fraction
+      var lpct = lf * 100;
+      var lstate = i < vwi ? "visited" : (i === vwi ? "current" : "future");
+      overlays += "<span class='rm-node " + lstate + "' style='left:" + lpct + "%;top:" + rmCurveY(lf).toFixed(1) + "%' title='" +
+        lm.name + " — " + lm.blurb.replace(/'/g, "") + "'>" +
+        (lstate === "current" ? "<i class='rm-halo'></i>" : "") + rmGlyph(lm) + "</span>";
+      overlays += "<span class='rm-label " + (i % 2 ? "blw" : "abv") + " " + (lstate === "current" ? "cur" : lstate === "visited" ? "past" : "") +
+        "' style='left:" + lpct + "%'>" + lm.name.replace("The ", "") + "</span>";
+    }
     return rmChart("M 0 74 Q 500 22 1000 52", f * 100, f, overlays, true);
   }
   /* ---- Travel (main) ---- */
@@ -5007,7 +5076,12 @@
       captureDigest: captureDigest, offStripLine: offStripLine, digestBlock: digestBlock,
       exodusYears: exodusYears, alive: alive, colHeads: colHeads,
       // a11y harness seam (inert in production): drive the modal + log announcer.
-      openModal: openModal, closeModal: closeModal, log: log
+      openModal: openModal, closeModal: closeModal, log: log,
+      // M-HOME1 verification seam (inert in production): drive the return-leg turn loop directly
+      // and read the landmark trail for the homeleg distributional sweep + coupling-drift guard.
+      voyageTurn: voyageTurn, HOME_WAYPOINTS: HOME_WAYPOINTS,
+      get HOME_EVENT_P() { return HOME_EVENT_P; }, set HOME_EVENT_P(p) { HOME_EVENT_P = p; },
+      get HOME_HAZARD_P() { return HOME_HAZARD_P; }
     };
   }
 
