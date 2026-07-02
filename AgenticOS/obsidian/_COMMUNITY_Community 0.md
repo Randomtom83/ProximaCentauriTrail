@@ -1,0 +1,157 @@
+---
+type: community
+members: 140
+---
+
+# Community 0
+
+**Members:** 140 nodes
+
+## Members
+- [[unnamed_1]] - code - webapp/game.js
+- [[addChild()_1]] - code - webapp/game.js
+- [[addCrewMember()_1]] - code - webapp/game.js
+- [[adjustHealthAll()_1]] - code - webapp/game.js
+- [[adjustMoraleAll()_1]] - code - webapp/game.js
+- [[afflict()_1]] - code - webapp/game.js
+- [[ageCrew()_1]] - code - webapp/game.js
+- [[aiAssist()_1]] - code - webapp/game.js
+- [[aiDiagnostics()_1]] - code - webapp/game.js
+- [[aiGlitch()_1]] - code - webapp/game.js
+- [[aiHostile()_1]] - code - webapp/game.js
+- [[aiPurge()_1]] - code - webapp/game.js
+- [[aiState()_1]] - code - webapp/game.js
+- [[aiTurn()_1]] - code - webapp/game.js
+- [[ailing()_1]] - code - webapp/game.js
+- [[alive()_1]] - code - webapp/game.js
+- [[animationsOn()_1]] - code - webapp/game.js
+- [[applyHazardSeverity()_1]] - code - webapp/game.js
+- [[applyOutcome()_1]] - code - webapp/game.js
+- [[arrivalChoices()_1]] - code - webapp/game.js
+- [[arriveAtProxima()_1]] - code - webapp/game.js
+- [[autoResolveHazard()_1]] - code - webapp/game.js
+- [[autopilotTurn()_1]] - code - webapp/game.js
+- [[awake()_1]] - code - webapp/game.js
+- [[beginColony()_1]] - code - webapp/game.js
+- [[beginReturn()_1]] - code - webapp/game.js
+- [[bindSetter()_1]] - code - webapp/game.js
+- [[byName()_1]] - code - webapp/game.js
+- [[cargoSpace()_1]] - code - webapp/game.js
+- [[cargoUsed()_1]] - code - webapp/game.js
+- [[chance()_1]] - code - webapp/game.js
+- [[checkArrival()_1]] - code - webapp/game.js
+- [[checkBreakdowns()_1]] - code - webapp/game.js
+- [[checkEnd()_1]] - code - webapp/game.js
+- [[clamp()_1]] - code - webapp/game.js
+- [[clearSave()_1]] - code - webapp/game.js
+- [[closeMinigame()_1]] - code - webapp/game.js
+- [[closeModal()_1]] - code - webapp/game.js
+- [[colonyAction()]] - code - webapp/game.js
+- [[colonyEvent()]] - code - webapp/game.js
+- [[computePower()_1]] - code - webapp/game.js
+- [[computeScore()_1]] - code - webapp/game.js
+- [[confirmSelfPod()_1]] - code - webapp/game.js
+- [[consumeUnits()_1]] - code - webapp/game.js
+- [[crewStrip()_1]] - code - webapp/game.js
+- [[currentZone()_1]] - code - webapp/game.js
+- [[dispositionText()_1]] - code - webapp/game.js
+- [[doBuy()_1]] - code - webapp/game.js
+- [[doRestRepair()_1]] - code - webapp/game.js
+- [[earthSignal()_1]] - code - webapp/game.js
+- [[el()_1]] - code - webapp/game.js
+- [[endColonyCheck()_1]] - code - webapp/game.js
+- [[endGame()_1]] - code - webapp/game.js
+- [[endMining()_1]] - code - webapp/game.js
+- [[endReturn()]] - code - webapp/game.js
+- [[enterAutopilot()_1]] - code - webapp/game.js
+- [[eventWeight()_1]] - code - webapp/game.js
+- [[flashLog()_1]] - code - webapp/game.js
+- [[flushQueues()_1]] - code - webapp/game.js
+- [[foodUnits()_1]] - code - webapp/game.js
+- [[genJobs()_1]] - code - webapp/game.js
+- [[habMult()_1]] - code - webapp/game.js
+- [[handle()_1]] - code - webapp/game.js
+- [[hasAwakeSpecialist()_1]] - code - webapp/game.js
+- [[influence()_1]] - code - webapp/game.js
+- [[killCrew()_1]] - code - webapp/game.js
+- [[label()_1]] - code - webapp/game.js
+- [[loadMeta()_1]] - code - webapp/game.js
+- [[loadSave()_1]] - code - webapp/game.js
+- [[log()_1]] - code - webapp/game.js
+- [[manifestMini()_1]] - code - webapp/game.js
+- [[modalOpen()_1]] - code - webapp/game.js
+- [[neededRole()_1]] - code - webapp/game.js
+- [[newGame()_1]] - code - webapp/game.js
+- [[odds()_1]] - code - webapp/game.js
+- [[onContinue()_1]] - code - webapp/game.js
+- [[openAI()_1]] - code - webapp/game.js
+- [[openAllocate()_1]] - code - webapp/game.js
+- [[openBrownout()_1]] - code - webapp/game.js
+- [[openHibernation()_1]] - code - webapp/game.js
+- [[openJobs()_1]] - code - webapp/game.js
+- [[openMining()_1]] - code - webapp/game.js
+- [[openModal()_1]] - code - webapp/game.js
+- [[openRations()_1]] - code - webapp/game.js
+- [[openThrust()_1]] - code - webapp/game.js
+- [[openTrade()_1]] - code - webapp/game.js
+- [[pick()_1]] - code - webapp/game.js
+- [[playTransit()_1]] - code - webapp/game.js
+- [[playerChar()_1]] - code - webapp/game.js
+- [[presentEvent()_1]] - code - webapp/game.js
+- [[presentFirstContact()_1]] - code - webapp/game.js
+- [[presentHazard()_1]] - code - webapp/game.js
+- [[presentStation()_1]] - code - webapp/game.js
+- [[presentVoid()_1]] - code - webapp/game.js
+- [[presentWormhole()_1]] - code - webapp/game.js
+- [[priceAt()_1]] - code - webapp/game.js
+- [[queueHazard()_1]] - code - webapp/game.js
+- [[queueStation()_1]] - code - webapp/game.js
+- [[queueVoid()_1]] - code - webapp/game.js
+- [[rankFor()_1]] - code - webapp/game.js
+- [[renderApp()_1]] - code - webapp/game.js
+- [[renderColony()_1]] - code - webapp/game.js
+- [[renderEnd()_1]] - code - webapp/game.js
+- [[renderLog()_1]] - code - webapp/game.js
+- [[renderMiningHud()_1]] - code - webapp/game.js
+- [[renderReturn()]] - code - webapp/game.js
+- [[renderRole()_1]] - code - webapp/game.js
+- [[renderRoleScreen()_1]] - code - webapp/game.js
+- [[renderRouteMap()_1]] - code - webapp/game.js
+- [[renderStore()_1]] - code - webapp/game.js
+- [[renderTitle()_1]] - code - webapp/game.js
+- [[renderTravel()_1]] - code - webapp/game.js
+- [[rerollNames()_1]] - code - webapp/game.js
+- [[resolveActTwo()_1]] - code - webapp/game.js
+- [[resolveCheck()_1]] - code - webapp/game.js
+- [[resolveContact()_1]] - code - webapp/game.js
+- [[resolveHazard()_1]] - code - webapp/game.js
+- [[resolveJob()_1]] - code - webapp/game.js
+- [[resolveTurn()_1]] - code - webapp/game.js
+- [[resolveWormhole()_1]] - code - webapp/game.js
+- [[returnAction()]] - code - webapp/game.js
+- [[returnEvent()]] - code - webapp/game.js
+- [[rint()_1]] - code - webapp/game.js
+- [[rollEvent()_1]] - code - webapp/game.js
+- [[round1()_1]] - code - webapp/game.js
+- [[sampleWeighted()_1]] - code - webapp/game.js
+- [[save()_1]] - code - webapp/game.js
+- [[saveMeta()_1]] - code - webapp/game.js
+- [[setAlert()_1]] - code - webapp/game.js
+- [[sfx()_1]] - code - webapp/game.js
+- [[showHowTo()_1]] - code - webapp/game.js
+- [[showLogbook()_1]] - code - webapp/game.js
+- [[skillFor()_1]] - code - webapp/game.js
+- [[sleepers()_1]] - code - webapp/game.js
+- [[spawnLoop()_1]] - code - webapp/game.js
+- [[spawnRock()_1]] - code - webapp/game.js
+- [[updateTopbar()_1]] - code - webapp/game.js
+- [[wakeSelf()_1]] - code - webapp/game.js
+- [[winGame()_1]] - code - webapp/game.js
+- [[wpIndexOf()_1]] - code - webapp/game.js
+
+## Live Query (requires Dataview plugin)
+
+```dataview
+TABLE source_file, type FROM #community/Community_0
+SORT file.name ASC
+```

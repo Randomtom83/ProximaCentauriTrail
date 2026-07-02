@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROXIMA TRAIL :: bridge of the ark-ship Proxima</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- CRT frame -->
+  <div id="crt">
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="flicker" aria-hidden="true"></div>
+
+    <!-- Top status bar (always present) -->
+    <header id="topbar">
+      <span class="brand">▣ A.S.&nbsp;PROXIMA · BRIDGE</span>
+      <span id="topbar-status"></span>
+      <span class="topbar-btns">
+        <button id="anim-btn" type="button" title="Toggle animations">▦ ANIM: ON</button>
+        <button id="mute-btn" type="button" title="Toggle sound">♪ SND: ON</button>
+      </span>
+    </header>
+
+    <!-- Everything renders into here -->
+    <main id="app" aria-live="polite"></main>
+
+    <footer id="botbar">
+      <span id="botbar-hint"> All hands · humanity's last ark · heading 0-1-1 mark Proxima</span>
+      <span class="cursor" aria-hidden="true">█</span>
+    </footer>
+  </div>
+
+  <!-- Between-scene transit animation (cruise / dock / hazard / land) -->
+  <div id="transit" class="overlay hidden" aria-hidden="true">
+    <div class="transit-scene">
+      <div class="stars s1"></div>
+      <div class="stars s2"></div>
+      <div class="stars s3"></div>
+      <div id="transit-dest" class="transit-dest"></div>
+      <div id="transit-ship" class="transit-ship">⊳—■▣</div>
+      <div id="transit-cap" class="transit-cap"></div>
+      <div class="transit-skip">SKIP ▸ (click / space)</div>
+    </div>
+  </div>
+
+  <!-- Generic modal overlay (events / hazards / choices / load-shed) -->
+  <div id="modal" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div id="modal-title" class="modal-title"></div>
+      <div id="modal-art" class="modal-art"></div>
+      <div id="modal-body" class="modal-body"></div>
+      <div id="modal-choices" class="modal-choices"></div>
+    </div>
+  </div>
+
+  <!-- Mining mini-game overlay -->
+  <div id="minigame" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box wide">
+      <div class="modal-title">⛏ ASTEROID MINING</div>
+      <div id="mg-hud" class="mg-hud"></div>
+      <div id="mg-field" class="mg-field"></div>
+      <div id="mg-footer" class="mg-footer"></div>
+    </div>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

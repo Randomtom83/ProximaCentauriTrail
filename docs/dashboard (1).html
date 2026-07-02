@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Proxima Trail — Project Dashboard</title>
+<style>
+  :root{
+    --bg:#050805;--bg2:#020302;--green:#33ff66;--dim:#1f8c3c;--faint:#0e431d;
+    --amber:#ffcf4d;--red:#ff5a4d;--cyan:#5ad7ff;--paper:#c9ffd6;
+    --mono:"Courier New","DejaVu Sans Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(ellipse at center,#0a140a,#000 75%);color:var(--green);
+       font-family:var(--mono);text-shadow:0 0 4px rgba(51,255,102,.4);padding:24px;line-height:1.5}
+  .wrap{max-width:1040px;margin:0 auto;border:2px solid var(--faint);border-radius:14px;background:var(--bg);
+        padding:20px 26px;box-shadow:0 0 38px rgba(51,255,102,.15),inset 0 0 80px rgba(0,0,0,.8)}
+  h1{letter-spacing:2px;margin:0 0 2px}
+  h2{letter-spacing:1px;color:var(--amber);border-bottom:1px solid var(--faint);padding-bottom:6px;margin:28px 0 12px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:4px}
+  .stamp{color:var(--cyan);font-size:12px}
+  .tabs{display:flex;gap:8px;margin:18px 0}
+  .tab{background:transparent;color:var(--dim);border:1px solid var(--faint);font-family:var(--mono);
+       padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;letter-spacing:1px}
+  .tab.active{color:var(--bg2);background:var(--green);border-color:var(--green)}
+  .panel{display:none}.panel.active{display:block}
+  .overall{border:1px solid var(--faint);border-radius:8px;padding:12px 14px;margin:8px 0 4px}
+  .bar{height:14px;background:var(--bg2);border:1px solid var(--faint);border-radius:4px;overflow:hidden;margin-top:6px}
+  .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--dim),var(--green));transition:width .4s}
+  .bar.mini{height:9px}
+  .sprint{border:1px solid var(--faint);border-radius:8px;margin:12px 0;overflow:hidden}
+  .sprint h3{margin:0;padding:10px 14px;background:rgba(51,255,102,.05);font-size:15px;letter-spacing:1px;
+             display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+  .sprint h3 .pct{font-size:12px;color:var(--cyan)}
+  .sprint .body{padding:6px 14px 12px}
+  .task{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px dotted var(--faint);font-size:13.5px;cursor:pointer}
+  .task:last-child{border-bottom:none}
+  .box{width:18px;height:18px;border:1px solid var(--dim);border-radius:4px;flex:0 0 auto;text-align:center;line-height:16px;font-size:12px}
+  .task.done .box{background:var(--green);color:var(--bg2);border-color:var(--green)}
+  .task.doing .box{border-color:var(--amber);color:var(--amber)}
+  .task.done .label{color:var(--dim);text-decoration:line-through}
+  .task.doing .label{color:var(--amber)}
+  .badge{font-size:10px;border:1px solid currentColor;border-radius:3px;padding:0 5px;margin-left:auto}
+  .b-done{color:var(--green)}.b-doing{color:var(--amber)}.b-todo{color:var(--dim)}
+  .log-entry{border-left:2px solid var(--faint);padding:4px 0 10px 14px;margin:0 0 4px 4px;position:relative}
+  .log-entry::before{content:"";position:absolute;left:-5px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--green)}
+  .log-entry.decision::before{background:var(--amber)}
+  .log-entry.fix::before{background:var(--cyan)}
+  .log-date{color:var(--cyan);font-size:12px}
+  .log-tag{font-size:10px;border:1px solid currentColor;border-radius:3px;padding:0 5px;margin-left:6px}
+  .t-decision{color:var(--amber)}.t-feature{color:var(--green)}.t-fix{color:var(--cyan)}.t-build{color:var(--paper)}
+  .log-title{font-weight:bold;color:var(--paper)}
+  .log-body{font-size:13px;color:var(--green)}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px}
+  .card{border:1px solid var(--faint);border-radius:8px;padding:10px 12px}
+  .card .k{color:var(--dim);font-size:11px;letter-spacing:1px;text-transform:uppercase}
+  .card .v{color:var(--paper);font-size:20px}
+  a{color:var(--cyan)}
+  .hint{color:var(--dim);font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>▓ PROXIMA TRAIL — PROJECT DASHBOARD</h1>
+  <div class="sub">The Oregon Trail, in space · dying-Earth survival voyage to Proxima Centauri b</div>
+  <div class="stamp" id="stamp"></div>
+
+  <div class="meta" id="meta"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="tasks">▣ Tasks &amp; Sprints</button>
+    <button class="tab" data-tab="log">≣ Changelog &amp; Decisions</button>
+  </div>
+
+  <div class="panel active" id="panel-tasks">
+    <div class="overall">
+      <div style="display:flex;justify-content:space-between"><b>Overall progress</b><span id="overall-pct" class="stamp"></span></div>
+      <div class="bar"><span id="overall-bar" style="width:0%"></span></div>
+    </div>
+    <div id="sprints"></div>
+    <div class="hint">Click a task to cycle todo → in-progress → done. Progress persists in this browser.</div>
+  </div>
+
+  <div class="panel" id="panel-log">
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Project data. Tasks and log entries live here, edited each
+   sprint as the build progresses. Statuses: "todo"|"doing"|"done".
+   ============================================================ */
+var LAST_UPDATED = "2026-06-19";
+
+var SPRINTS = [
+  { id:"s0", name:"Sprint 0 — Scaffold", tasks:[
+    ["Create repo files (index.html, style.css, game.js, audio.js, README)","done"],
+    ["Create docs/ folder with implementation plan","done"],
+    ["Retro CRT terminal theme (phosphor green, scanlines, cursor)","done"],
+    ["Screen router + top/bottom status bars + HUD shell","done"],
+    ["Project dashboard (this page) with task + changelog tracking","done"]
+  ]},
+  { id:"s1", name:"Sprint 1 — Core loop", tasks:[
+    ["Game state object + new-game initialization","done"],
+    ["WAYPOINTS fixed trail (Earth → Proxima, 10 stops)","done"],
+    ["Title → role/difficulty select → outfitting store flow","done"],
+    ["Travel screen: HUD, journey track, action menu, ship's log","done"],
+    ["advance() turn loop with day/distance progression","done"],
+    ["Resource consumption (fuel / O₂ / food) per turn","done"],
+    ["Win / loss condition checks","done"]
+  ]},
+  { id:"s2", name:"Sprint 2 — Power &amp; interdependence", tasks:[
+    ["Reactor output scales with hull integrity","done"],
+    ["Power allocation across 5 systems","done"],
+    ["Brownout detection + load-shed modal","done"],
+    ["Scrubber O₂ math (net-drain when awake/underpowered)","done"],
+    ["Hibernation: low O₂/food, pod power cost, risk","done"]
+  ]},
+  { id:"s3", name:"Sprint 3 — Crew &amp; narrative", tasks:[
+    ["Crew model (health, morale, status, skill, bonds)","done"],
+    ["5 roles with skill specialties + scoring multipliers","done"],
+    ["Morale system + ration/event effects","done"],
+    ["Bonds: grief cascades morale on death/injury","done"],
+    ["Breakdown / Crack at low morale","done"],
+    ["Ailments that progress and are treated in medbay","done"]
+  ]},
+  { id:"s4", name:"Sprint 4 — Events &amp; hazards", tasks:[
+    ["~16 weighted random events with skill-check choices","done"],
+    ["Hazard 'crossings' (asteroid belt, flare, nebula)","done"],
+    ["Station trade + rest &amp; repair","done"],
+    ["Interstellar Void forced-hibernation leg","done"],
+    ["Asteroid mining mini-game (charges + fuel, timed)","done"]
+  ]},
+  { id:"s5", name:"Sprint 5 — Meta systems", tasks:[
+    ["Single-slot autosave + resume","done"],
+    ["Permadeath: clear save, log run to history","done"],
+    ["Score breakdown + rank ladder (Castaway → Founder)","done"],
+    ["Persistent best score + logbook of past runs","done"],
+    ["Web Audio synthesized SFX + mute toggle","done"]
+  ]},
+  { id:"s6", name:"Sprint 6 — Polish &amp; ship", tasks:[
+    ["Keyboard shortcuts (continue/thrust/rations/power/mine)","done"],
+    ["node --check syntax verification (both scripts)","done"],
+    ["jsdom playthrough smoke test (win + loss paths)","done"],
+    ["Balance pass (reactor base, hull wear)","done"],
+    ["README with run + play instructions","done"],
+    ["Commit, push branch, open pull request","done"]
+  ]},
+  { id:"s7", name:"Sprint 7 — Route map, animation &amp; first contact", tasks:[
+    ["Multi-waypoint route map (nodes, icons, ship position, visited/current state)","done"],
+    ["Between-scene transit animation engine (cruise/dock/hazard/land, skippable)","done"],
+    ["Per-turn flyby + arrival vignettes wired into the turn loop","done"],
+    ["Animations settings toggle + reduced-motion respect","done"],
+    ["Gate all alien content behind a first-contact flag","done"],
+    ["Scripted, unpredictably-timed FIRST CONTACT reveal in deep space","done"],
+    ["Pre-contact foreshadowing events (no confirmation of life)","done"],
+    ["Post-contact alien parley/trade unlock","done"],
+    ["jsdom tests: route map, contact gating, anim skip; commit + open PR to main","doing"]
+  ]}
+];
+
+var LOG = [
+  { date:"2026-06-19", tag:"decision", title:"Locked 7 design decisions",
+    body:"Tone = comedic-with-gut-punch; crew = personalities/morale/bonds; length = long roguelike permadeath; astronomy = semi-plausible; audio = retro SFX only; route = fixed trail with roguelike feel; resources = Out-There-style interdependence." },
+  { date:"2026-06-19", tag:"decision", title:"Power as the hub resource",
+    body:"Reactor output = base × (hull/100). Every system draws power; demand over output triggers a brownout/load-shed decision. This makes earlier hull damage cascade into later oxygen crises — the core depth engine." },
+  { date:"2026-06-19", tag:"decision", title:"Tech: split vanilla files, no build, retro terminal",
+    body:"index.html + style.css + game.js + audio.js. Opens directly in a browser; no bundler. Green-phosphor CRT homage to the original Oregon Trail." },
+  { date:"2026-06-19", tag:"build", title:"Scaffolded all files + CRT theme",
+    body:"HTML screen containers, full retro stylesheet (scanlines, flicker, blinking cursor), Web Audio SFX module." },
+  { date:"2026-06-19", tag:"feature", title:"Core loop + power + crew + events + meta",
+    body:"Implemented the full Oregon-Trail-in-space loop: outfitting store, 10-stop trail, turn loop with resource interdependence, 5-role crew with morale/bonds/breakdowns, ~16 events, 3 hazard crossings, hibernation, asteroid-mining mini-game, autosave/permadeath, scoring + rank ladder." },
+  { date:"2026-06-19", tag:"fix", title:"updateTopbar crash on role/store screens",
+    body:"Topbar read waypoint data before waypointIndex existed. Restricted the nav readout to the travel screen." },
+  { date:"2026-06-19", tag:"decision", title:"Balance: reactor base 16 → 20, hull wear 0–2 → 0–1",
+    body:"Early playtests showed a guaranteed late-game brownout death spiral. Eased reactor pressure so careful play is winnable while careless play still dies — verified by automated playthroughs." },
+  { date:"2026-06-19", tag:"build", title:"Verification: syntax + jsdom playthroughs",
+    body:"node --check on both scripts; jsdom harness drives full runs. Win-aware run wins 6/6 (up to FOUNDER OF PROXIMA); careless runs produce a healthy win/loss mix with zero JS errors." },
+  { date:"2026-06-19", tag:"build", title:"Initial import landed on main",
+    body:"Repo was created empty with no base branch; pushing an empty main was blocked by policy. Per user decision, the first import was placed directly on main via the GitHub API. Future changes branch off main and open a reviewable PR." },
+  { date:"2026-06-19", tag:"decision", title:"Animations: per-turn transit + arrival vignettes",
+    body:"User asked for Oregon-Trail-style between-scene motion and a visible waypoint map. Chosen: a short, skippable starfield flyby on every Continue, richer docking/hazard/landing vignettes at waypoints, plus a multi-waypoint route map. Includes an ANIM toggle and reduced-motion respect; animations resolve synchronously when off so tests/a11y are unaffected." },
+  { date:"2026-06-19", tag:"decision", title:"Alien life is now a scripted surprise",
+    body:"Previously an 'Alien Probe' event fired casually, implying we already knew we weren't alone. Now ALL alien content is gated behind a one-time, unpredictably-timed FIRST CONTACT reveal in deep space (the Interstellar Void), preceded only by ambiguous foreshadowing that never confirms life. Human station trade is unchanged." },
+  { date:"2026-06-19", tag:"feature", title:"Route map + transit animation engine",
+    body:"renderRouteMap() draws all 10 waypoints as icon nodes with visited/current/future state and a live ship marker. playTransit() runs skippable cruise/dock/hazard/land scenes (parallax starfields), wired into onContinue and waypoint arrivals; idempotent finish, overlap guard, synchronous when disabled." },
+  { date:"2026-06-19", tag:"feature", title:"First contact + alien parley/trade",
+    body:"Scripted FIRST CONTACT modal (Hail / Observe / Run dark, each with consequences) flips a contact flag; events carry req:preContact|postContact so foreshadowing stops and alien encounters + a risky alien trade event unlock only after the reveal. Kept undocumented in the README to preserve the surprise." },
+  { date:"2026-06-19", tag:"build", title:"Verification: feature + animation tests",
+    body:"jsdom checks confirm the route map renders 10 nodes + ship, FIRST CONTACT fires once in deep space, no alien content appears before it (6/6), post-contact alien events unlock (5/6), and the animation overlay shows + a Space-skip advances exactly one turn. Win/loss playthroughs still pass with zero JS errors." }
+];
+
+/* ---- rendering + interactivity ---- */
+var KEY = "proxima-dashboard-progress-v1";
+function loadProg(){ try{ return JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ return {}; } }
+function saveProg(p){ try{ localStorage.setItem(KEY, JSON.stringify(p)); }catch(e){} }
+var prog = loadProg();
+
+function statusOf(sid, idx, def){ var k=sid+":"+idx; return (k in prog)?prog[k]:def; }
+function cycle(s){ return s==="todo"?"doing":s==="doing"?"done":"todo"; }
+
+function badge(s){ var m={done:["b-done","DONE"],doing:["b-doing","IN PROGRESS"],todo:["b-todo","TODO"]}; return "<span class='badge "+m[s][0]+"'>"+m[s][1]+"</span>"; }
+function boxChar(s){ return s==="done"?"✓":s==="doing"?"▸":""; }
+
+function render(){
+  document.getElementById("stamp").textContent = "Last updated: "+LAST_UPDATED;
+  var totalT=0, doneT=0;
+  var html="";
+  SPRINTS.forEach(function(sp){
+    var n=sp.tasks.length, done=0, doing=0;
+    var rows = sp.tasks.map(function(t,i){
+      var st=statusOf(sp.id,i,t[1]);
+      if(st==="done")done++; if(st==="doing")doing++;
+      return "<div class='task "+st+"' data-s='"+sp.id+"' data-i='"+i+"'>"+
+        "<span class='box'>"+boxChar(st)+"</span>"+
+        "<span class='label'>"+t[0]+"</span>"+badge(st)+"</div>";
+    }).join("");
+    totalT+=n; doneT+=done;
+    var pct=Math.round(done/n*100);
+    html+="<div class='sprint'><h3 data-toggle='"+sp.id+"'><span>"+sp.name+"</span>"+
+      "<span class='pct'>"+done+"/"+n+" · "+pct+"%</span></h3>"+
+      "<div class='body'><div class='bar mini'><span style='width:"+pct+"%'></span></div>"+rows+"</div></div>";
+  });
+  document.getElementById("sprints").innerHTML=html;
+  var opct=Math.round(doneT/totalT*100);
+  document.getElementById("overall-bar").style.width=opct+"%";
+  document.getElementById("overall-pct").textContent=doneT+"/"+totalT+" tasks · "+opct+"%";
+
+  // meta cards
+  document.getElementById("meta").innerHTML=
+    card("Overall",opct+"%")+card("Sprints",SPRINTS.length)+card("Tasks",totalT)+
+    card("Log entries",LOG.length)+card("Status", opct===100?"SHIPPED":"BUILDING");
+
+  // log
+  document.getElementById("log").innerHTML = LOG.slice().reverse().map(function(e){
+    var cls = e.tag==="decision"?"decision":e.tag==="fix"?"fix":"";
+    return "<div class='log-entry "+cls+"'><span class='log-date'>"+e.date+
+      "</span><span class='log-tag t-"+e.tag+"'>"+e.tag.toUpperCase()+"</span><br>"+
+      "<span class='log-title'>"+e.title+"</span><div class='log-body'>"+e.body+"</div></div>";
+  }).join("");
+}
+function card(k,v){ return "<div class='card'><div class='k'>"+k+"</div><div class='v'>"+v+"</div></div>"; }
+
+document.addEventListener("click",function(ev){
+  var task=ev.target.closest(".task");
+  if(task){ var s=task.getAttribute("data-s"),i=+task.getAttribute("data-i");
+    var sp=SPRINTS.find(function(x){return x.id===s;});
+    var cur=statusOf(s,i,sp.tasks[i][1]); prog[s+":"+i]=cycle(cur); saveProg(prog); render(); return; }
+  var tab=ev.target.closest(".tab");
+  if(tab){ var t=tab.getAttribute("data-tab");
+    document.querySelectorAll(".tab").forEach(function(x){x.classList.toggle("active",x===tab);});
+    document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("active",p.id==="panel-"+t);}); }
+});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Project Dashboard</title><style>
+body{background:#111;color:#e8e8e8;font-family:system-ui,sans-serif;max-width:860px;margin:0 auto;padding:2rem 1rem;line-height:1.5}
+h1{font-size:19px}.muted{color:#888;font-size:13px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px 16px;margin:10px 0}
+.bar{height:5px;background:#222;border-radius:3px;overflow:hidden}.fill{height:100%;background:#1D9E75}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;margin-left:8px;text-transform:uppercase;letter-spacing:.06em}
+.b-merged{background:#0d3d2a;color:#1D9E75}.b-executing{background:#1a2d3d;color:#378ADD}.b-escalated{background:#3d1a1a;color:#e06050}
+.b-planned{background:#2a2a2a;color:#999}.b-auditing{background:#3d2a14;color:#BA7517}.b-gated{background:#2d1a3d;color:#9a8fe0}
+details{margin:6px 0}summary{cursor:pointer;font-weight:500}
+.task{font-size:13px;padding:2px 0 2px 1.2em}.done{color:#555;text-decoration:line-through}
+.note{border-bottom:1px dashed #333;padding:8px 0}.note-date{font-size:11px;color:#BA7517}
+.tag{font-size:9px;padding:1px 6px;border-radius:4px;margin-left:6px;text-transform:uppercase}
+.t-decision{background:#1a2d3d;color:#378ADD}.t-process{background:#2d1a3d;color:#9a8fe0}.t-gotcha{background:#3d2a14;color:#BA7517}
+.t-rescope{background:#3d1a2d;color:#D85A30}.t-shipped{background:#0d3d2a;color:#1D9E75}.t-divergence{background:#3d1a1a;color:#e06050}
+.stale{background:#3d1a1a;color:#ff8070;padding:8px 12px;border-radius:8px;font-weight:600}
+.dod{font-size:12px;color:#888;margin:4px 0 8px 1.2em}
+.fork{font-size:13px;border-left:3px solid #378ADD;padding-left:10px;margin:8px 0}
+.overturn{border-left-color:#D85A30}
+</style></head><body>
+<h1>Project Dashboard</h1><div class="muted">rendered 2026-07-01T22:36:50-04:00 · view of docs/plan-events.jsonl — the log is the truth</div>
+<div class="card"><b>NORTH STAR</b><div>Proxima Trail plays comfortably on one screen — desktop or phone — with the story log and the controls both always in view.</div>
+<div class="muted">Guardrails: Sacred list: permadeath, sampled outcomes, hidden meters, brutal economy, resource interdependence, emergent bonds, Settler/Pioneer/Voyager tiers — no odds/difficulty/scarcity/hidden-meter change ever · Zero-diff gate: frozen-three md5 (applyOutcome/resolveCheck/tryCompose) + endings_golden harness; scripts/verify.sh must pass · Presentation-only: UI work touches style.css + render markup, never game logic · Docs pair rule: dashboard.html + implementation-plan Addendum travel with every build commit</div>
+<div class="muted">Done means: AC1 desktop &gt;=1280x720: travel screen shows ship log AND all action buttons simultaneously, zero page scroll · AC2 mobile web 390x844 portrait: recent log entries readable and Continue + station actions reachable without scrolling; no horizontal scroll · AC3 all screens remain functional; scripts/verify.sh GATE PASS; frozen-three untouched · AC4 presentation-only, sacred list untouched</div>
+</div>
+<div class="card"><b>0/17 tasks · 0%</b><div class="bar"><div class="fill" style="width:0%"></div></div>
+<div class="muted">Next up: <b style="color:#e8e8e8">100dvh with 100vh fallback on #crt/body</b> — One-Screen Bridge (no-scroll travel, desktop + mobile) · M1 Global viewport plumbing (dvh + safe-area + no-x-scroll)</div>
+</div>
+<div class="card"><details open><summary>One-Screen Bridge (no-scroll travel, desktop + mobile) <span class="badge b-executing">executing</span> <span class="muted">0/17</span></summary>
+<details><summary class="muted">M1 Global viewport plumbing (dvh + safe-area + no-x-scroll)</summary>
+<div class="dod">DoD: dvh+fallback present · index.html diff = one token · overflow-x rule present</div>
+<div class="task">○ 100dvh with 100vh fallback on #crt/body</div>
+<div class="task">○ viewport-fit=cover single-token append + env(safe-area-inset) padding</div>
+<div class="task">○ html,body overflow-x:hidden</div>
+</details>
+<details><summary class="muted">M2 Desktop fit — bridge grid with flexible console</summary>
+<div class="dod">DoD: grid+minmax(0,1fr) present · .log internal scroll preserved</div>
+<div class="task">○ .bridge becomes grid, console row minmax(0,1fr)</div>
+<div class="task">○ cap .viewscreen/.stations so they cannot eat the console</div>
+<div class="task">○ .console/.log-wrap/.log min-height:0 chain; log scrolls internally</div>
+<div class="task">○ static fit-construct proxy for AC1</div>
+</details>
+<details><summary class="muted">M3 Mobile fit — commands pinned reachable</summary>
+<div class="dod">DoD: &lt;=900px block contains pin + 44px constructs</div>
+<div class="task">○ same height budget at &lt;=900px</div>
+<div class="task">○ console order override: commands pinned bottom row, log scrolls above (both command variants)</div>
+<div class="task">○ 44px touch floor at &lt;=900px (global per Fork E ruling)</div>
+<div class="task">○ static &lt;=900px media-block assertions</div>
+</details>
+<details><summary class="muted">M4 Colony/voyage non-regression</summary>
+<div class="dod">DoD: zero diff hunks in renderColony/renderVoyage function bounds</div>
+<div class="task">○ both screens render top-to-bottom unchanged</div>
+<div class="task">○ no shared selector narrowed</div>
+</details>
+<details><summary class="muted">M5 Proof — harness, gate, evidence, docs pair</summary>
+<div class="dod">DoD: harness committed and green · GATE PASS · frozen-baseline byte-identical · docs pair in commit</div>
+<div class="task">○ new test/layout_onescreen.js static-CSS harness (loud, count&gt;=10)</div>
+<div class="task">○ bash scripts/verify.sh GATE PASS</div>
+<div class="task">○ live screenshots: 1280x720 + 390x844 travel manual+autopilot + colony + voyage &lt;=900px, no-clipping assertions</div>
+<div class="task">○ docs pair: dashboard.html + implementation-plan Addendum in same commit</div>
+</details>
+</details></div>
+<div class="card"><details open><summary><b>DECISION &amp; VEER LOG</b> <span class="muted">4 entries · newest first</span></summary>
+<div class="note"><span class="note-date">2026-07-01T22:33:50-04:00</span><span class="tag t-process">process</span><br><b>Review cycle 2: PASS</b><div class="muted">All 7 defects verified fixed at specific plan lines; new factual claims re-checked against game.js bytes; no new defects. Verification chain now layered honestly: static harness = construct presence, auditor diff = sacred/scope guard, md5 = frozen-three, screenshots = pixel truth.</div></div>
+<div class="note"><span class="note-date">2026-07-01T22:28:27-04:00</span><span class="tag t-process">process</span><br><b>Review cycle 1: 3 major + 4 minor defects</b><div class="muted">Layout strategy sound, cites verified against bytes. Defects target proof mechanisms: autopilot .commands variant missed by Fork C/DoD-4; false-loud harness text-scan assertion (g); missing frozen-baseline immutability clause; index.html scope pin; unparseable DoD-6 line ranges; Fork E cross-screen risk undeclared; overflow-x:hidden clipping mask. Routed back to Planner for revision (cycle 1/5).</div></div>
+<div class="note"><span class="note-date">2026-07-01T22:21:47-04:00</span><span class="tag t-process">process</span><br><b>Setup complete (adopt mode)</b><div class="muted">Dev home git-initialized at C:/Users/thoma/Dropbox/My Documents/Programs/Proxima Trail (baseline d890166 mirrors Y: repo 8a088e0). Skill installed to .claude/skills + .claude/agents + scripts. Graph: 725 nodes / 2298 edges / 53 communities via graphifyy. Deterministic gate verified green here (9 harnesses). Legacy docs/webapp copies adopted, not deleted. Cloud backend, full-auto, no laragon, sign-off off.</div></div>
+<div class="note"><span class="note-date">2026-07-01T22:21:47-04:00</span><span class="tag t-decision">fork · plan</span>
+<div class="fork "><b>F-SETUP-1</b>: options Render orchestration dashboard to docs/dashboard.html per skill default (overwrites the curated game changelog dashboard), Set ORCH_DOCS_DIR=docs/orchestration so event log / heartbeat / orchestration dashboard live beside, not over, the curated one → chose <b>docs/orchestration via the ORCH_DOCS_DIR env seam</b><div class="muted">docs/dashboard.html is a CLAUDE.md-protected curated artifact (game changelog + milestone status); the skill adopt-never-overwrite law forbids clobbering it. The env seam is provided by the script itself, zero code modification. Not the cheap path (cheap = let it overwrite); chosen for correctness.</div>
+<div class="muted">DA: <b>UPHOLD</b> — S2 is the non-cheap, correct path: protects the curated dashboard via a zero-code env seam.</div>
+</div></div>
+</details></div>
+</body></html>

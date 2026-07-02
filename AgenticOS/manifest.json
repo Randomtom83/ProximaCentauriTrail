@@ -1,0 +1,277 @@
+{
+  ".claude/skills/agentic-orchestration/scripts/log_event.py": {
+    "mtime": 1782958773.9398775,
+    "ast_hash": "af3ce25512eebff876bd03dc5736d5f6",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/scripts/render_dashboard.py": {
+    "mtime": 1782958773.9388728,
+    "ast_hash": "8cff7cdc4364259567ccc14f76c1f0e5",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/scripts/watchdog.ps1": {
+    "mtime": 1782958773.9388728,
+    "ast_hash": "e9eacd8734ba56975be249e2fb55f81c",
+    "semantic_hash": ""
+  },
+  "audio.js": {
+    "mtime": 1782958763.0473416,
+    "ast_hash": "48afc05bd303d6589eaab1657191cb33",
+    "semantic_hash": ""
+  },
+  "game.js": {
+    "mtime": 1782958762.8543618,
+    "ast_hash": "08908144dad6d239913a6c0cec3a850e",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1782958763.203716,
+    "ast_hash": "b8ce633e900bf92493ff214f7c62d7d9",
+    "semantic_hash": ""
+  },
+  "scripts/frozen.js": {
+    "mtime": 1782958764.0331912,
+    "ast_hash": "60bc8ce9eeffa9b70bbc547dd9843144",
+    "semantic_hash": ""
+  },
+  "scripts/log_event.py": {
+    "mtime": 1782958773.9884253,
+    "ast_hash": "af3ce25512eebff876bd03dc5736d5f6",
+    "semantic_hash": ""
+  },
+  "scripts/render_dashboard.py": {
+    "mtime": 1782958773.9894264,
+    "ast_hash": "8cff7cdc4364259567ccc14f76c1f0e5",
+    "semantic_hash": ""
+  },
+  "scripts/verify.sh": {
+    "mtime": 1782958764.1923234,
+    "ast_hash": "5dd58deee496183d6913dba86ac75e96",
+    "semantic_hash": ""
+  },
+  "scripts/watchdog.ps1": {
+    "mtime": 1782958773.999434,
+    "ast_hash": "e9eacd8734ba56975be249e2fb55f81c",
+    "semantic_hash": ""
+  },
+  "test/a11y_focus_live.js": {
+    "mtime": 1782958814.8621986,
+    "ast_hash": "e9113b2d875b70ad4caa541250211481",
+    "semantic_hash": ""
+  },
+  "test/brownout_hazard.js": {
+    "mtime": 1782958814.6058583,
+    "ast_hash": "afc4da502ab5c4a5c04301dbe46def4e",
+    "semantic_hash": ""
+  },
+  "test/colony_smoke.js": {
+    "mtime": 1782958815.139801,
+    "ast_hash": "16b4bb1f34750e8f9846dd96d2a16f8e",
+    "semantic_hash": ""
+  },
+  "test/endings_golden.js": {
+    "mtime": 1782958815.1342945,
+    "ast_hash": "93211156fbda5bc678948e0ca98fedf2",
+    "semantic_hash": ""
+  },
+  "test/frozen-baseline.json": {
+    "mtime": 1782958815.1206174,
+    "ast_hash": "7dfdb2e24cd5f18c3825c568909fd80c",
+    "semantic_hash": ""
+  },
+  "test/lib/boot.js": {
+    "mtime": 1782958815.1126146,
+    "ast_hash": "8ad08f9e247a0b169508720871425bf9",
+    "semantic_hash": ""
+  },
+  "test/loss_path.js": {
+    "mtime": 1782958815.1437993,
+    "ast_hash": "54a77d2b4adae4d7abfa68d067ad91e3",
+    "semantic_hash": ""
+  },
+  "test/mint1b.js": {
+    "mtime": 1782958815.1166184,
+    "ast_hash": "b6ec9f6789ae97ddb6e724c6f6c10d2a",
+    "semantic_hash": ""
+  },
+  "test/smoke_full_run.js": {
+    "mtime": 1782958815.1262784,
+    "ast_hash": "047c534ee9bcbe0187c207623fd6ca34",
+    "semantic_hash": ""
+  },
+  "test/voyage_smoke.js": {
+    "mtime": 1782958814.611364,
+    "ast_hash": "e25f653aa06dc7b8a8f72baec6b561be",
+    "semantic_hash": ""
+  },
+  "test/win_path.js": {
+    "mtime": 1782958815.1302788,
+    "ast_hash": "1e0475563146dc58620aab651213c9e8",
+    "semantic_hash": ""
+  },
+  "webapp/audio.js": {
+    "mtime": 1782158307.3422146,
+    "ast_hash": "8eaac71c7f0b2c89ebffef91bbde1164",
+    "semantic_hash": ""
+  },
+  "webapp/game.js": {
+    "mtime": 1782158314.622369,
+    "ast_hash": "67bcbe47027f83a772da6eeeb9a940b2",
+    "semantic_hash": ""
+  },
+  ".claude/agents/auditor.md": {
+    "mtime": 1782958773.9598393,
+    "ast_hash": "980c8465e3585e4f521d812171439bad",
+    "semantic_hash": ""
+  },
+  ".claude/agents/devils-advocate.md": {
+    "mtime": 1782958773.9618406,
+    "ast_hash": "c07475f23aad3659d4cd356dd480bea9",
+    "semantic_hash": ""
+  },
+  ".claude/agents/executor.md": {
+    "mtime": 1782958773.962842,
+    "ast_hash": "20d905453fd592e92c85003dd67a7b81",
+    "semantic_hash": ""
+  },
+  ".claude/agents/plan-reviewer.md": {
+    "mtime": 1782958773.9643388,
+    "ast_hash": "7667820d8f97bc8f57e83657719e2511",
+    "semantic_hash": ""
+  },
+  ".claude/agents/planner.md": {
+    "mtime": 1782958773.9648442,
+    "ast_hash": "4a5213a728d646adf6b4b30b42c311f4",
+    "semantic_hash": ""
+  },
+  ".claude/agents/reconciler.md": {
+    "mtime": 1782958773.9658487,
+    "ast_hash": "88a9bee67108b86e27fc20298989f3e2",
+    "semantic_hash": ""
+  },
+  ".claude/agents/reverse-intent.md": {
+    "mtime": 1782958773.9668572,
+    "ast_hash": "e9a43650148f0a7a4c4cb992e4dd4ed0",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/SKILL.md": {
+    "mtime": 1782958773.8858194,
+    "ast_hash": "533ef6b7811ac2bd7af282f85cd2b3f1",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/assets/agents/auditor.md": {
+    "mtime": 1782958773.9258268,
+    "ast_hash": "980c8465e3585e4f521d812171439bad",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/assets/agents/devils-advocate.md": {
+    "mtime": 1782958773.9003525,
+    "ast_hash": "c07475f23aad3659d4cd356dd480bea9",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/assets/agents/executor.md": {
+    "mtime": 1782958773.930866,
+    "ast_hash": "20d905453fd592e92c85003dd67a7b81",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/assets/agents/plan-reviewer.md": {
+    "mtime": 1782958773.9143555,
+    "ast_hash": "7667820d8f97bc8f57e83657719e2511",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/assets/agents/planner.md": {
+    "mtime": 1782958773.936862,
+    "ast_hash": "4a5213a728d646adf6b4b30b42c311f4",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/assets/agents/reconciler.md": {
+    "mtime": 1782958773.907359,
+    "ast_hash": "88a9bee67108b86e27fc20298989f3e2",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/assets/agents/reverse-intent.md": {
+    "mtime": 1782958773.9193044,
+    "ast_hash": "e9a43650148f0a7a4c4cb992e4dd4ed0",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/references/event-schema.md": {
+    "mtime": 1782958773.9383698,
+    "ast_hash": "a7f3ac592f26d49a07d4dfee8582a735",
+    "semantic_hash": ""
+  },
+  ".claude/skills/agentic-orchestration/references/roles.md": {
+    "mtime": 1782958773.9378648,
+    "ast_hash": "bddd0dc00f928f9b982736a505d3a39f",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1782958763.526243,
+    "ast_hash": "f4a5f3f16cc22fadb784f6831cef3a9e",
+    "semantic_hash": ""
+  },
+  "HANDOFF.md": {
+    "mtime": 1782958763.8183973,
+    "ast_hash": "2675b485ddd83712b65d7cce0b352402",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1782958763.6738932,
+    "ast_hash": "a7a029a6340aa9214e7d9039d0ec9f10",
+    "semantic_hash": ""
+  },
+  "docs/2026-0619_proxima-trail-implementation-plan.md": {
+    "mtime": 1781902432.1299424,
+    "ast_hash": "b0e51a7b66860aa4d5694293e6ee6684",
+    "semantic_hash": ""
+  },
+  "docs/README.md": {
+    "mtime": 1781913140.588019,
+    "ast_hash": "881f0b9624a88c0923aa9efcd9ae9123",
+    "semantic_hash": ""
+  },
+  "docs/dashboard (1).html": {
+    "mtime": 1781913128.2583194,
+    "ast_hash": "4134ba8d99d986290bd2795e9d1591c8",
+    "semantic_hash": ""
+  },
+  "docs/dashboard.html": {
+    "mtime": 1782958766.3001795,
+    "ast_hash": "551af06ee84f45602bce0a2e6e3ef051",
+    "semantic_hash": ""
+  },
+  "docs/orchestration/heartbeat.txt": {
+    "mtime": 1782958837.4392095,
+    "ast_hash": "b6cb465abf4ce111ef3d715f9c5ee86a",
+    "semantic_hash": ""
+  },
+  "docs/proxima-trail-implementation-plan.md": {
+    "mtime": 1782958766.6185415,
+    "ast_hash": "4270f879ab2c9929e7f477b67f1d704b",
+    "semantic_hash": ""
+  },
+  "docs/proximatrailimplementationplan.md": {
+    "mtime": 1781910345.7822602,
+    "ast_hash": "95f229ae80cbfb1f7134da09c2adfa93",
+    "semantic_hash": ""
+  },
+  "index.html": {
+    "mtime": 1782958760.3664565,
+    "ast_hash": "719ce44a1e5cc3043dd0f3cd2a4a59c6",
+    "semantic_hash": ""
+  },
+  "test/harness-commit-spec.md": {
+    "mtime": 1782958814.8581982,
+    "ast_hash": "937c4a5d2affa27a1fd3186e1bf6f92c",
+    "semantic_hash": ""
+  },
+  "webapp/README.md": {
+    "mtime": 1782158337.0246,
+    "ast_hash": "881f0b9624a88c0923aa9efcd9ae9123",
+    "semantic_hash": ""
+  },
+  "webapp/index.html": {
+    "mtime": 1782158324.9204469,
+    "ast_hash": "6e5ee16ba2cf135002dd3b04a6afe173",
+    "semantic_hash": ""
+  }
+}
