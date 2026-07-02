@@ -54,7 +54,12 @@ state where the run stopped, and continue from there.
 
 1. Create `AgenticOS/`, `ObsidianVault/`, `docs/` if absent. If any exist, adopt them and
    report what you found. Never delete or overwrite existing contents.
-2. Install graphify if needed: `pip install graphifyy`. Build the graph with output redirected:
+2. Install graphify if needed: `pip install graphifyy`. Then run `graphify install` so
+   graphify's own `/graphify` skill (full pipeline, health checks, query tools) is available in
+   future sessions — on Windows machines use `graphify install --platform windows` (its variant
+   handles PowerShell interpreter detection). Skills load at session start: for THIS session use
+   the direct CLI below; the installed skill takes over next session.
+   Build the graph with output redirected:
    - Set env `GRAPHIFY_OUT=AgenticOS` for every graphify command in this project.
    - Existing repo: `graphify update .` (AST-only, no LLM needed) or `graphify extract .`
      with `--backend claude` (Cloud) / `--backend ollama` (Local) for semantic extraction.
@@ -102,6 +107,8 @@ AUDIT     Auditor (fresh context) gets ONLY: worktree path, commit hash, DoD fil
           fail → Executor fixes → re-commit → re-audit. CAP: 5 cycles/phase, same
           raise-if-progressing rule. pass → orchestrator merges (serialize merges;
           conflict → executor rebases; repeat conflict on same files → escalate).
+          After EVERY merge: GRAPHIFY_OUT=AgenticOS graphify update .
+          (AST-only, free — planning and reconcile never read a stale graph).
 ```
 
 Log every boundary (`log_event.py` also refreshes the heartbeat). Re-render the dashboard at
@@ -135,7 +142,11 @@ and full-auto choices reliably land on the laziest option.
               the intent implied by its structure. It must NOT read docs/ goals.
 3  RECONCILE  Reconciler (fresh context) gets the reverse-intent report + docs/ goals
               + north star. Output: docs/divergence-report-<pass>.md, one entry per
-              divergence with an id. Log each as a `divergence` event.
+              divergence with an id. Log each as a `divergence` event. Orchestrator
+              then mirrors the report into ObsidianVault/orchestration/ as an
+              Obsidian-Flavored-Markdown note wikilinking the graph-generated notes
+              it names (use the obsidian-markdown skill if installed; plain markdown
+              fallback). The subfolder keeps agent notes safe from vault regeneration.
 4  ALIGNED?   No divergences → DONE → closeout (§6).
               Divergences → route each back into the Build loop (§2) as targeted work.
 BRAKES        Same divergence id unresolved after 2 consecutive TARGETED passes →
@@ -158,7 +169,8 @@ Working code (merged phases) · `docs/dashboard.html` (+ hub registry line if la
 `AgenticOS/` graph + `GRAPH_REPORT.md` (divergences fed in) · `ObsidianVault/` ·
 `docs/plan-events.jsonl` · `docs/divergence-report-*.md` · decision ledger (full-auto) ·
 **closeout, both forms:** a closeout section appended to the dashboard AND
-`docs/closeout.md` one-pager — what got built, where it diverged, how it resolved. Markdown
+`docs/closeout.md` one-pager — what got built, where it diverged, how it resolved — with an OFM
+mirror in `ObsidianVault/orchestration/` wikilinked into the graph notes. Markdown
 outputs carry the user's YAML frontmatter (file/project/chat/date) — project and chat names
 are in `AgenticOS/config.json`; ask at kickoff if absent.
 
