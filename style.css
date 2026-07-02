@@ -522,6 +522,23 @@ button.btn:hover .key { color: #04101c; }
      under the mobile viewscreen cap (T1.4 premise-gate evidence), so this chip is
      the only surviving numeric distance readout on phones. */
   .chip.dist { display: inline-block; }
+  /* D4 correction (M-UI2c, orchestrator-directed parameter tuning): at 390×844 the
+     route rail sat at ~y=123–153 inside the 135px-capped viewscreen — rail + current
+     node clipped (geometry already borderline in P2; the 4th chip added no row, head
+     80px either way). Reclaim the interior WITHOUT raising the cap: hide the
+     decorative NAVIGATION title (frees a full head row), compress chips, and tighten
+     the routemap's vertical envelope — same construct family the max-height:800px
+     block already tunes (D2). .rm-label offsets shrink with the padding so an
+     above/below-rail cur/nxt label stays inside the tightened envelope. */
+  .vs-title { display: none; }
+  .chip { font-size: 11px; padding: 2px 7px; }
+  .routemap { margin: 2px 0; padding: 14px 10px 30px; }
+  /* ^ bottom pad 30px is deliberate: it seats the below-rail cur/nxt label (needs 9px)
+     AND pushes vs-foot fully past the 135px cap — measured at 390×844 a 16px pad left
+     a 12px mid-glyph sliver of the foot's first line poking into view. The foot stays
+     clipped on mobile exactly as before this phase; the Dist chip is its readout. */
+  .rm-label.abv { top: -14px; }
+  .rm-label.blw { top: 26px; }
   /* touch targets ≥44px (AC2) */
   .cmd-grid .btn, .commands .btn.small { min-height: 44px; }
   .btn.primary { min-height: 48px; }

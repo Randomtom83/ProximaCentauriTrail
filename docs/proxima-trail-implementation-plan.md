@@ -1237,8 +1237,44 @@ anywhere. Premise-gate evidence had already shown `.vs-chips` (`game.js:4362-436
   push the routemap into its `overflow:hidden` clip; 1280×720 no-chip/no-duplication) is
   **orchestrator-run, pending outside this commit** — same posture prior milestones held.
 
+## Correction (same milestone, 2026-07-02) — DoD-6 viewscreen-internals FAIL → ≤900px tuning
+- **Orchestrator evidence on `ab6b2ce` at 390×844:** Dist chip VISIBLE ("Dist 0 / 434 ly",
+  joined the second chip row — no new row, head 80px with or without it), page/app/x
+  overflow 0/0/0, log 152px held — **but DoD 6 FAILED:** the route rail and current
+  waypoint node were clipped. Inside the 135px-capped viewscreen: vs-head ended y=93,
+  `.routemap` started y=99 with height 80 → the rail (24px into the routemap) sat
+  ~y=123–153, cut at the cap. Geometry was ALREADY borderline in P2 (the chip added no
+  row) — but DoD 6 pins rail + current node visible, so it had to be made true.
+- **Fix (orchestrator-directed parameter tuning, ≤900px block only — same construct
+  family the `max-height:800px` block already tunes for D2; no new fork):**
+  `.vs-title{display:none}` (decorative "Navigation" label — frees a full head row);
+  `.chip{font-size:11px; padding:2px 7px}` (compresses both chip rows);
+  `.routemap{margin:2px 0; padding:14px 10px 30px}` (top pad 24→14, margin 6/2→2/0);
+  `.rm-label.abv{top:-14px}` / `.rm-label.blw{top:26px}` (offsets shrink with the
+  padding so an above/below-rail cur/nxt label stays inside the tightened envelope —
+  mirrors D2's blw 32→28 precedent). Bottom pad 30px is deliberate: it seats the blw
+  label (needs 9px) AND pushes `vs-foot` fully past the cap — a first cut at 16px left
+  a 12px mid-glyph sliver of the foot's first line poking into view; the foot stays
+  clipped on mobile exactly as before this phase, the Dist chip is its readout.
+- **Builder in-browser measurements (390×844, supporting — official sign-off is
+  orchestrator-run):** vs-head 13–59 (was ending 93; title hidden, 4 chips in two
+  rows, Dist chip 40–59); rail **75–105** ✓; current node **79–101** ✓; cur/nxt labels
+  61–73 (abv) and 101–113 (blw), both visible ✓; vs-foot 137–183 → fully past the 135
+  cap (no sliver); log **152px held**; min command button 44px; page/app/x overflow
+  0/0/0. **1280×720:** Dist chip `display:none`, `.vs-title` visible, chip font at
+  base 12.5px, `vs-foot` sole `ly-abs` readout, 9/9 command buttons visible, zero
+  overflow — guaranteed unchanged by scoping (the entire correction lives inside the
+  ≤900px block).
+- **Gate re-run: GATE PASS — 10 harnesses green**, frozen-three md5-intact, baseline
+  untouched. The harness pins none of the tuned parameters, so assertion (l)'s
+  mutation-test evidence stands; diff is style.css-only (+17 lines inside the ≤900px
+  block) + this docs pair.
+
 ## STOP
 M-UI2c closes the last verified divergence from the Phase-2 premise-gate FAIL: mobile
 travel regains a numeric distance readout via the one CSS-provable element proven to
 survive the mobile viewscreen cap, at the cost of one extra chip-scale unit-wording
 divergence (`" ly"` vs `" ly-abs"`) — disclosed and intentional, not a cleanup target.
+The DoD-6 correction reclaims the viewscreen interior (title row + chip compression +
+routemap envelope) so the rail and current node the chip was meant to accompany are
+actually visible beside it — without raising the cap or touching the log's 152px.
