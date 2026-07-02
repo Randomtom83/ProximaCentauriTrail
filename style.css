@@ -508,6 +508,28 @@ button.btn:hover .key { color: #04101c; }
   /* Fork E (E2, orchestrator-affirmed): global mobile touch-target floor — strict,
      monotonic improvement, cannot shrink colony/voyage's .menu.row layout. */
   .menu.row .btn { min-height: 44px; }
+  /* D1 / T1.1 (Phase-2, unconditional floor): #topbar is OUTSIDE #app, so any wrapped
+     line steals #crt height budget from the travel log. Cap it to one line everywhere
+     at <=900px — this alone guarantees the topbar can never wrap multi-line again, on
+     any screen, in any browser; min-width:0 is required for ellipsis to apply inside a
+     flex child. */
+  #topbar-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* D1 / T1.2 (Phase-2, G1 — travel-scoped hide, SHIPPED SUBJECT TO the T1.4 premise
+     gate): on travel #topbar-status duplicates the viewscreen's Day/Next chips + the
+     vs-foot distance readout byte-for-byte, so hide the redundant topbar line there.
+     .bridge exists only on the travel screen (single emit site, renderTravel) so
+     title/setup screens keep their ellipsized BEST-SCORE line untouched. Where :has()
+     is unsupported this rule is simply ignored and T1.1's ellipsis floor still holds —
+     degradation is one redundant line, never five; no JS. */
+  #crt:has(.bridge) #topbar-status { display: none; }
+  /* D3 / T3.1 (Phase-2): shared .crew-head/.crew-row grid overflows its own panel at
+     390px (fixed 16+88px columns + 4x10px gaps = 144px overhead) and clips the last
+     "STATUS" column mid-glyph. Retune uniformly (Fork I) — same shared component on
+     travel/colony/voyage all hit the same overflow at this width. 14+60px + 4x6px gaps
+     = 98px overhead, freeing ~46px for the name/bars columns; letter-spacing trimmed so
+     "STATUS" still fits its narrower 60px track. */
+  .crew-head, .crew-row { grid-template-columns: 14px minmax(84px,1.4fr) 1fr 1fr 60px; gap: 6px; }
+  .crew-head { letter-spacing: 1px; }
 }
 
 /* ---- short viewports (e.g. 1280×720 desktop): tighten the fixed rows so the
@@ -521,6 +543,18 @@ button.btn:hover .key { color: #04101c; }
   .btn.primary { padding: 10px 12px; font-size: 15px; }
   .cmd-grid .btn { padding: 6px 6px; }
   .commands .danger { padding: 5px 6px; }
+  /* D2 / T2.1 (Phase-2): at >=1100px wide EVERY waypoint label renders (the <=1100px
+     cur/nxt reduction does not apply), and the 14vh viewscreen cap here is too short to
+     hold a full label row without clipping — same cur/nxt-only pattern as the <=1100px
+     block, applied to short-height viewports regardless of width. */
+  .rm-label { display: none; }
+  .rm-label.cur, .rm-label.nxt { display: block; }
+  /* D2 / T2.2 (Phase-2): tighten the plot's vertical envelope so even a below-rail
+     cur/nxt label fits inside the 14vh cap — existing-constructs-only (no cap raise,
+     no new layout system): .rm-label.blw sits at top:32px under the 30px rail, which
+     exceeded the cap; both the padding and the offset shrink together. */
+  .routemap { padding: 16px 10px 18px; }
+  .rm-label.blw { top: 28px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

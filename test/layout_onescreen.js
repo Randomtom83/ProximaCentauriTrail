@@ -147,6 +147,60 @@ try {
     ok("(g) applyOutcome/resolveCheck/tryCompose still present in game.js (presence only, no diff claim)");
   }
 
+  // Phase-2 remediation (plan-phase-2.md, T4.1/Fork J): extends this SAME harness/media-
+  // block family rather than a new file — presence-only checks, no diff claims (Phase-1
+  // MAJOR-2 lesson stands).
+
+  // (h2) D1: the <=900px block always carries the unconditional #topbar-status ellipsis
+  //      floor (T1.1). It caps topbar wrap damage on EVERY screen, independent of which
+  //      D1 fork (G1 hide vs G3 fallback) shipped.
+  {
+    const mediaMatch = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mediaMatch) fail("no @media (max-width:900px) block found in style.css");
+    const block = mediaMatch[1];
+    if (!/#topbar-status\s*\{[^}]*text-overflow:\s*ellipsis[^}]*\}/.test(block)) {
+      fail("<=900px block has no #topbar-status rule with text-overflow:ellipsis — D1's one-line floor is missing");
+    }
+    ok("(h2) D1: <=900px block carries the #topbar-status text-overflow:ellipsis floor");
+  }
+
+  // (i2) D2: the max-height:800px block carries the .rm-label cur/nxt reduction AND a
+  //      tightened .routemap vertical envelope (padding + .rm-label.blw offset), so a
+  //      below-rail label can never clip mid-glyph against the 14vh viewscreen cap.
+  {
+    const shortMatch = css.match(/@media\s*\(max-height:\s*800px\)\s*\{([\s\S]*?)\n\}/);
+    if (!shortMatch) fail("no @media (max-height:800px) block found in style.css");
+    const block = shortMatch[1];
+    if (!/\.rm-label\s*\{[^}]*display:\s*none[^}]*\}/.test(block) ||
+        !/\.rm-label\.cur\s*,\s*\.rm-label\.nxt\s*\{[^}]*display:\s*block/.test(block)) {
+      fail("max-height:800px block does not reduce .rm-label to cur/nxt-only — below-rail labels can clip at short heights");
+    }
+    if (!/\.routemap\s*\{[^}]*padding:/.test(block)) {
+      fail("max-height:800px block does not tighten .routemap padding — D2's vertical envelope fix is missing");
+    }
+    ok("(i2) D2: max-height:800px block reduces .rm-label to cur/nxt-only and tightens .routemap's vertical envelope");
+  }
+
+  // (j) D3: the <=900px block retunes the shared .crew-head/.crew-row grid so the fixed
+  //     last track ("STATUS") is narrow enough to fit at 390px without clipping. Bound
+  //     the track at <=64px so a regression back toward the 88px desktop track is caught.
+  {
+    const mediaMatch = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mediaMatch) fail("no @media (max-width:900px) block found in style.css");
+    const block = mediaMatch[1];
+    const gridMatch = block.match(/\.crew-head\s*,\s*\.crew-row\s*\{[^}]*grid-template-columns:\s*([^;]+);[^}]*\}/);
+    if (!gridMatch) {
+      fail("<=900px block has no .crew-head, .crew-row grid-template-columns override — D3's STATUS-column fix is missing");
+    }
+    const tracks = gridMatch[1].trim().split(/\s+/);
+    const lastTrack = tracks[tracks.length - 1];
+    const lastPx = parseFloat(lastTrack);
+    if (!/px$/.test(lastTrack) || !(lastPx <= 64)) {
+      fail("<=900px .crew-head/.crew-row last grid track is not a fixed value <=64px (was \"" + lastTrack + "\") — STATUS column can still overflow at 390px");
+    }
+    ok("(j) D3: <=900px block retunes .crew-head/.crew-row grid, last track " + lastTrack + " <= 64px");
+  }
+
   console.log("PASS " + NAME + " — all one-screen bridge CSS constructs present.");
   process.exit(0);
 } catch (e) {
