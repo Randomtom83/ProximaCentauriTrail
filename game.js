@@ -4144,25 +4144,21 @@
     setAlert(false);
     var app = $("#app");
     var resume = loadSave();
-    var art =
-"      .      *        .           ·         .     *\n" +
-"   *      ____  ____  ____ _  _ _ _  _  __ _      .\n" +
-"      .  (  _ \\(  _ \\(  _ ( \\/ ) ( \\/ )(  ( \\  *\n" +
-"   .      ) __/ )   / )   /)  (/ \\/ \\ /    /     .\n" +
-"      *  (__)  (_)\\_)(_)\\_)(_/\\_)\\_)(_/\\_)__)  .   *\n" +
-"   ___  ____   __   __  __   ___   *  TRAIL   .\n" +
-"      .     humanity's last voyage      *\n";
     app.innerHTML =
-      "<div class='center title-art ascii'>" + art + "</div>" +
-      "<div class='center spacer'></div>" +
-      "<div class='center small dim'>Earth is dying. One ship. Four light-years to Proxima Centauri b.<br>" +
-      "Outfit your vessel, keep your crew alive, and found a colony — if you can.</div>" +
-      "<div class='spacer'></div>" +
-      "<div class='menu'>" +
-        (resume ? "<button class='btn go' data-action='resume'><span class='key'>[R]</span> Resume voyage — Day " + resume.day + ", " + resume.role + "</button>" : "") +
-        "<button class='btn' data-action='new'><span class='key'>[N]</span> New voyage</button>" +
-        "<button class='btn' data-action='howto'><span class='key'>[H]</span> How to play</button>" +
-        (meta.runs.length ? "<button class='btn' data-action='logbook'><span class='key'>[L]</span> Logbook (past runs)</button>" : "") +
+      "<div class='hero'>" +
+        "<div class='vs-stars far'></div><div class='vs-stars near'></div>" +
+        "<div class='hero-planet' aria-hidden='true'></div>" +
+        "<div class='hero-kicker'>A.S. Proxima · humanity's last ark</div>" +
+        "<h1 class='hero-title'>Proxima<span class='t2'>Trail</span></h1>" +
+        "<hr class='hero-rule'>" +
+        "<div class='hero-sub'>Earth is dying. One ship. Four light-years to Proxima Centauri b.<br>" +
+        "Outfit your vessel, keep your crew alive, and found a colony — if you can.</div>" +
+        "<div class='hero-menu'>" +
+          (resume ? "<button class='btn go' data-action='resume'><span class='key'>[R]</span> Resume voyage — Day " + resume.day + ", " + resume.role + "</button>" : "") +
+          "<button class='btn' data-action='new'><span class='key'>[N]</span> New voyage</button>" +
+          "<button class='btn' data-action='howto'><span class='key'>[H]</span> How to play</button>" +
+          (meta.runs.length ? "<button class='btn' data-action='logbook'><span class='key'>[L]</span> Logbook (past runs)</button>" : "") +
+        "</div>" +
       "</div>";
   }
 
@@ -4293,17 +4289,20 @@
       var cls = "rm-node " + state + (wp.kind === "win" ? " win" : "");
       nodes += "<span class='" + cls + "' style='left:" + pct + "%' title='" +
         wp.name + " — " + wp.blurb.replace(/'/g, "") + "'>" + icon(wp, i) + "</span>";
-      if (i === game.waypointIndex || (i === game.waypointIndex - 1)) {
-        var lc = i === game.waypointIndex ? "cur" : "nxt";
-        labels += "<span class='rm-label " + lc + "' style='left:" + pct + "%'>" + abbrev(wp.name) + "</span>";
-      }
+      // Every waypoint gets a label; alternating above/below the rail keeps
+      // neighbours from ever colliding. Colour marks last / next / rest.
+      var lc = i === game.waypointIndex ? "cur"
+             : i === game.waypointIndex - 1 ? "nxt"
+             : state === "visited" ? "past" : "";
+      labels += "<span class='rm-label " + (i % 2 ? "blw" : "abv") + " " + lc +
+        "' style='left:" + pct + "%'>" + abbrev(wp.name) + "</span>";
     }
     return "<div class='routemap'><div class='rm-rail'>" +
       "<div class='rm-line'></div>" +
       "<div class='rm-fill' style='width:" + shipPct + "%'></div>" +
-      nodes +
+      labels + nodes +
       "<span class='rm-ship' style='left:" + shipPct + "%'>►</span>" +
-      "</div><div class='rm-labels'>" + labels + "</div></div>";
+      "</div></div>";
   }
 
   /* ---- Travel (main) ---- */
@@ -4353,51 +4352,66 @@
     var apBanner = game.autopilot
       ? "<div class='panel' style='border-color:var(--red)'><span class='red'>⚠ AUTOPILOT — you are in cold sleep. The ship is choosing for you.</span></div>"
       : "";
+    // Viewscreen: the nav readouts ride the plot as HUD chips instead of a form.
+    var sigTxt = game.earth && game.earth.status === "silent" ? "<span class='red'>silent</span>"
+               : (game.distance / TOTAL_DIST > 0.6 ? "<span class='amber'>faint</span>" : "<span class='cyan'>live</span>");
     var hud = apBanner +
-      "<div class='panel'><div class='panel-title'>Navigation</div>" +
-        "<div class='stat'><span class='label'>Day</span><span class='val'>" + game.day + "  <span class='dim small'>(voyage yr " + Math.round(game.shipYears) + ")</span></span></div>" +
-        "<div class='stat'><span class='label'>Next waypoint</span><span class='val cyan'>" +
-          WAYPOINTS[Math.min(game.waypointIndex, WAYPOINTS.length - 1)].name + "</span></div>" +
-        "<div class='stat'><span class='label'>Signal from Earth</span><span class='val " +
-          (game.earth && game.earth.status === "silent" ? "red'>silent" : (game.distance / TOTAL_DIST > 0.6 ? "amber'>faint" : "cyan'>live")) + "</span></div>" +
+      "<div class='viewscreen'>" +
+        "<div class='vs-stars far'></div><div class='vs-stars near'></div>" +
+        "<div class='vs-planet' aria-hidden='true'></div>" +
+        "<div class='vs-head'><span class='vs-title'>Navigation</span><span class='vs-chips'>" +
+          "<span class='chip'><span class='cl'>Day</span>" + game.day + " <span class='dim'>· yr " + Math.round(game.shipYears) + "</span></span>" +
+          "<span class='chip'><span class='cl'>Next</span><span class='cyan'>" +
+            WAYPOINTS[Math.min(game.waypointIndex, WAYPOINTS.length - 1)].name + "</span></span>" +
+          "<span class='chip'><span class='cl'>Earth</span>" + sigTxt + "</span>" +
+        "</span></div>" +
         track +
-        "<div class='small dim'>Thrust: <b class='paper'>" + THRUST[game.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[game.rations].label + "</b>" +
-          (disp ? " · Crew: <b class='paper'>" + disp + "</b>" : "") + "</div>" +
+        "<div class='vs-foot'><span>Thrust: <b class='paper'>" + THRUST[game.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[game.rations].label + "</b>" +
+          (disp ? " · Crew: <b class='paper'>" + disp + "</b>" : "") + "</span>" +
+          "<span class='faint'>" + Math.round(game.distance) + " / " + TOTAL_DIST + " ly-abs</span></div>" +
       "</div>" +
-      "<div class='cols'>" +
-        "<div class='col panel'><div class='panel-title'>Supplies · Hold " + cargoUsed() + "/" + ship.holdMax + "</div>" +
+      "<div class='stations'>" +
+        "<div class='panel'><div class='panel-title'>Supplies · Hold " + cargoUsed() + "/" + ship.holdMax + "</div>" +
           "<div class='bar " + (holdPct > 92 ? "crit" : holdPct > 75 ? "warn" : "ok") + "'><span style='width:" + holdPct + "%'></span></div>" +
-          "<div class='hud-grid' style='margin-top:6px'>" +
+          "<div class='hud-grid' style='margin-top:8px'>" +
           stat("Fuel", s.fuel, 100) + stat("Oxygen", s.oxygen, 100) + stat("Food", s.food, 100) +
           stat("Medicine", s.medicine, 12) + stat("Parts", ship.parts, 12) + stat("Charges", s.charges, 16) +
           "<div class='stat'><span class='label'>Credits</span><span class='val paper'>" + game.credits + "</span></div>" +
           stat("Hull", ship.hull, 100) +
         "</div>" + powerLine + cargoLine + "</div>" +
-        "<div class='col panel'><div class='panel-title'>Crew (" + alive().length + ")</div>" + crewStrip() + "</div>" +
+        "<div class='panel'><div class='panel-title'>Crew (" + alive().length + ")</div>" + crewStrip() + "</div>" +
       "</div>";
 
+    // Command console: the everyday verb is a big primary key; station keys grid
+    // below it; the run-ending action sits apart, beneath a separator.
     var apLabel = (game.autopilotWake && game.autopilotWake.type === "waypoint") ? "▶▶ Run to next waypoint" : "▶▶ Run until emergency";
-    var actions = game.autopilot
-      ? "<div class='menu row'>" +
-          "<button class='btn go' data-action='autorun'>" + apLabel + "</button>" +
+    var commands = game.autopilot
+      ? "<div class='commands'>" +
+          "<button class='btn primary' data-action='autorun'>" + apLabel + "</button>" +
           "<button class='btn small' data-action='continue'>▶ One turn</button>" +
+          "<hr class='cmd-sep'>" +
           "<button class='btn small danger' data-action='wakeself'>☼ Emergency wake</button>" +
         "</div>"
-      : "<div class='menu row'>" +
-          "<button class='btn go' data-action='continue'>▶ Continue</button>" +
-          "<button class='btn small' data-action='thrust'>⚙ Thrust</button>" +
-          "<button class='btn small' data-action='rations'>🍽 Rations</button>" +
-          "<button class='btn small' data-action='power'>⚡ Power</button>" +
-          "<button class='btn small' data-action='hibernate'>❄ Pods</button>" +
-          "<button class='btn small' data-action='rest'>🛠 Rest & repair</button>" +
-          "<button class='btn small' data-action='mine'>⛏ Mine</button>" +
+      : "<div class='commands'>" +
+          "<button class='btn primary' data-action='continue'>▶ Continue<span class='key'>space</span></button>" +
+          "<div class='cmd-grid'>" +
+            "<button class='btn' data-action='thrust'>⚙ Thrust</button>" +
+            "<button class='btn' data-action='rations'>🍽 Rations</button>" +
+            "<button class='btn' data-action='power'>⚡ Power</button>" +
+            "<button class='btn' data-action='hibernate'>❄ Pods</button>" +
+            "<button class='btn' data-action='rest'>🛠 Repair</button>" +
+            "<button class='btn' data-action='mine'>⛏ Mine</button>" +
+          "</div>" +
           "<button class='btn small' data-action='ai'>🧠 " + AI_NAME + "</button>" +
-          "<button class='btn small danger' data-action='abandon'>Abandon run</button>" +
+          "<hr class='cmd-sep'>" +
+          "<button class='btn small danger' data-action='abandon'>✖ Abandon run</button>" +
         "</div>";
 
-    app.innerHTML = hud + actions +
-      "<div class='panel-title' style='margin-top:10px'>Ship's Log</div>" +
-      "<div class='log' id='log'></div>";
+    app.innerHTML = "<div class='bridge'>" + hud +
+      "<div class='console'>" +
+        "<div class='log-wrap'><div class='panel-title'>Ship's Log</div><div class='log' id='log'></div></div>" +
+        commands +
+      "</div></div>";
 
     renderLog();
     // Fire any queued station/hazard/void interaction now that the screen exists.
@@ -4423,17 +4437,18 @@
         "<span class='s-" + c.status + "'>" + (c.status === "Hibernating" ? "❄" : c.child ? "◦" : "•") + "</span>" +
         "<span><span class='nm s-" + c.status + "'>" + c.name + "</span> <span class='rl small'>" + c.role +
           (c.name === game.youName ? "*" : "") + "</span>" + ageStr + tag + "</span>" +
-        "<span>" + mb(c.health) + "<span class='small dim'>hp</span></span>" +
-        "<span>" + mb(c.morale, "power") + "<span class='small dim'>mor</span></span>" +
+        "<span>" + mb(c.health) + "</span>" +
+        "<span>" + mb(c.morale, "power") + "</span>" +
         "<span class='st small s-" + c.status + "'>" + c.status + "</span>" +
         "</div>";
     }).join("");
+    var head = "<div class='crew-head'><span></span><span>Name</span><span>Health</span><span>Morale</span><span>Status</span></div>";
     var lost = roster.filter(function (c) { return c.status === "Dead" && !c.taken; }).map(function (c) { return c.name; });
     var taken = roster.filter(function (c) { return c.status === "Dead" && c.taken; }).map(function (c) { return c.name; });
     var memorial = "";
     if (lost.length) memorial += "<div class='small red crew-memorial'>✖ Lost: " + lost.join(", ") + "</div>";
     if (taken.length) memorial += "<div class='small amber crew-memorial'>◌ Taken by the unknown: " + taken.join(", ") + "</div>";
-    return "<div class='crew-strip'>" + rows + "</div>" + memorial;
+    return "<div class='crew-strip'>" + head + rows + "</div>" + memorial;
   }
 
   function renderLog() {

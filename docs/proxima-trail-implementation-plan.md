@@ -936,3 +936,48 @@ With M-INT1b the second front stops being invisible: a slim both-fronts strip, o
 clock shared identically by both HUDs (the colony stat repointed, never duplicated), and an adaptive digest
 that replays whatever the off-front auto-tick actually logged — all pure presentation, the engine
 byte-identical everywhere the zero-diff gate holds.
+
+# ============================================================
+# M-UI1 — Glass-bridge UI overhaul (ADDENDUM, built 2026-07-01)
+# Presentation-only: the whole game had shrunk into a dim 1000×780
+# box (tiny type, sliver bars, colliding route labels, a broken
+# ASCII title, Continue lost among nine identical pills with
+# Abandon beside it, the log cramped at 168px). Tom picked the
+# FULL BRIDGE REDESIGN over a polish pass or a re-theme.
+# ============================================================
+
+## What was built (style.css rewritten + four render functions' markup)
+- **Full-viewport frame:** `#crt` fills the screen; base type 14px; DIN flight stack
+  (`Bahnschrift` display, `Cascadia Mono`/`Consolas` numerals) — still zero external assets.
+- **Viewscreen (travel):** the nav panel becomes a window — two drifting parallax CSS
+  starfields, a destination planet on the plot's far edge, Day / Next / Earth-signal as
+  HUD chips riding the glass (replacing the label-left/value-right form with a dead middle).
+- **Route plot:** EVERY waypoint labeled, alternating above/below the rail so neighbours
+  cannot collide (old code labeled only current/previous, same line — "Earth Orbit" ended
+  x=255 while "Lunar Gateway" began x=225). ≤1100px: only current/next labels survive.
+- **Command console:** the log takes the remaining viewport height beside a command stack —
+  `▶ CONTINUE` as a big amber primary key (SPACE hint), the six station verbs in a 2-col
+  key grid, ATLAS below, `Abandon run` exiled under a separator.
+- **Crew station:** real header row (Name/Health/Morale/Status) replaces per-row `hp`/`mor`
+  micro-labels; supply bars 12px (crew 9px) with gauge-tick texture; crit bars still breathe.
+- **Title:** broken ASCII logo replaced by a full-bleed hero — big glow type over starfield +
+  rising planet; identical actions/shortcuts (R/N/H/L).
+
+## Scope boundary (held)
+- Diff = `style.css` + markup strings in `renderTitle` / `renderRouteMap` / `renderTravel` /
+  `crewStrip` ONLY. All `data-action` wiring, keyboard shortcuts, `#sr-live` announcer, modal
+  focus trap, and `prefers-reduced-motion` kill-switch untouched; colony/voyage/store/role/end
+  screens inherit purely via CSS. Nothing the sacred list guards moved — no odds, economy,
+  difficulty, or hidden-meter values.
+
+## Verification (all green)
+- `scripts/verify.sh` **GATE PASS** — node --check; frozen-three (applyOutcome / resolveCheck /
+  tryCompose) md5-identical to baseline; all 9 harnesses green incl. `endings_golden`.
+- Live browser pass at 1440×900 and 820×900: title → role → outfitting → launch → travel,
+  played to day 133 (hazard modal, three station/trade modals, red-alert active at O₂ 9,
+  8-crew roster incl. a child, full colored log). Narrow view stacks console; labels reduce.
+
+## STOP
+M-UI1 gives the game a bridge worth sitting on: a real viewscreen, gauges readable at a
+glance, the log restored to the heart of the screen — with the engine byte-identical
+everywhere the zero-diff gate holds.
