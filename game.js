@@ -4364,6 +4364,7 @@
           "<span class='chip'><span class='cl'>Next</span><span class='cyan'>" +
             WAYPOINTS[Math.min(game.waypointIndex, WAYPOINTS.length - 1)].name + "</span></span>" +
           "<span class='chip'><span class='cl'>Earth</span>" + sigTxt + "</span>" +
+          "<span class='chip dist'><span class='cl'>Dist</span>" + Math.round(game.distance) + " / " + TOTAL_DIST + " ly</span>" +
         "</span></div>" +
         track +
         "<div class='vs-foot'><span>Thrust: <b class='paper'>" + THRUST[game.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[game.rations].label + "</b>" +

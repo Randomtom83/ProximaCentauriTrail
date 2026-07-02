@@ -1189,3 +1189,56 @@ encoded conditional exactly as designed: the premise gate failed in evidence, th
 came back out, G3 shipped — and the unplanned FORK-D1b was logged before it was built, so
 the freed space finally reaches the ship's log (62→152px) instead of vanishing into a
 scrolling panel.
+
+# ============================================================
+# Addendum M-UI2c — D4: numeric distance missing on mobile travel
+# ============================================================
+Single-divergence micro-phase against merged HEAD `ba0347a` (`docs/orchestration/plan-phase-3.md`).
+Facts: shipping the G3 fallback (M-UI2b correction) means `vs-foot` — the only
+`N / 434 ly-abs` readout, `game.js:4371` — is clipped by the mobile viewscreen cap, and the
+ellipsized topbar squeezes to zero chars at 390px, so mobile travel had NO numeric distance
+anywhere. Premise-gate evidence had already shown `.vs-chips` (`game.js:4362-4367`,
+`flex-wrap:wrap`) survives the mobile cap 3/3.
+
+## M1 — Distance chip, mobile-only (D4)
+- **T1.1 (Fork K, chosen 4a):** `renderTravel`'s `.vs-chips` markup gains a fourth chip
+  after Earth — `<span class='chip dist'><span class='cl'>Dist</span>{round(distance)} /
+  {TOTAL_DIST} ly</span>` — reusing the same two expressions already rendered in `vs-foot`
+  two lines below; markup-string-only, no new state read, no logic, frozen-three untouched.
+  **Unit wording deliberate:** chip reads `" ly"` (chip-scale brevity), `vs-foot` keeps
+  `" ly-abs"` — NOT aligned, by design. Rejected 4b (CSS-only `vs-foot` reflow at ≤900px —
+  the same evidence that killed the Phase-2 G1 hide showed `vs-foot` clips BELOW the cap; a
+  pixel gamble a micro-phase shouldn't take) and 4c (waive D4 — unwarranted, a safe fix
+  existed).
+- **T1.2 (Fork L, chosen L1 — mobile-only):** `style.css` gets `.chip.dist{display:none}`
+  near the base `.chip` rule and `.chip.dist{display:inline-block}` inside the EXISTING
+  `@media (max-width:900px)` block — no new media query. Desktop (≥900px) renders
+  byte-for-eye unchanged, `vs-foot` stays the sole readout. Rejected L2 (chip everywhere,
+  duplicate with `vs-foot` on desktop) and L3 (chip everywhere, hide `vs-foot`'s distance
+  span instead — churns a working desktop layout).
+- **T1.3:** `test/layout_onescreen.js` extended with assertion **(l)** — not (k), already
+  occupied by Phase 2's FORK-D1b — three independent, content-specific, mutation-tested
+  checks: (l1) the `chip dist` markup string in `game.js` referencing `TOTAL_DIST`; (l2)
+  the `.chip.dist` default-hide rule; (l3) the ≤900px `.chip.dist` show rule. Harness count
+  stays 10 (Fork J posture carried). All three mutation-tested locally: each construct
+  deleted individually → harness exits 1 with a printed, content-specific reason; file
+  restored md5-identical after each check.
+
+## Verification
+- `scripts/verify.sh` **GATE PASS — 10 harnesses green**, frozen-three
+  (`applyOutcome`/`resolveCheck`/`tryCompose`) md5-identical, `test/frozen-baseline.json`
+  **BYTE-IDENTICAL** to the unchanged pre-phase HEAD `ba0347a` (NOT updated).
+- The ENTIRE `game.js` diff sits inside `renderTravel`'s function body
+  (`game.js:4311-4419`) as a single markup-string insertion — one `chip dist` span, no
+  `data-*` token, no logic, no new state reference beyond `game.distance`/`TOTAL_DIST`
+  (both already rendered in the same function).
+- Live evidence (390×844 Dist-chip-visible + route-rail/current-waypoint-node
+  non-regression — chip visibility alone is NOT a pass, since the extra wrapped line can
+  push the routemap into its `overflow:hidden` clip; 1280×720 no-chip/no-duplication) is
+  **orchestrator-run, pending outside this commit** — same posture prior milestones held.
+
+## STOP
+M-UI2c closes the last verified divergence from the Phase-2 premise-gate FAIL: mobile
+travel regains a numeric distance readout via the one CSS-provable element proven to
+survive the mobile viewscreen cap, at the cost of one extra chip-scale unit-wording
+divergence (`" ly"` vs `" ly-abs"`) — disclosed and intentional, not a cleanup target.

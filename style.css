@@ -241,6 +241,11 @@ button.btn:hover .key { color: #04101c; }
   background: rgba(4,9,18,0.6);
 }
 .chip .cl { color: var(--dim); font-family: var(--display); letter-spacing: 1.5px; font-size: 10.5px; text-transform: uppercase; margin-right: 6px; }
+/* D4 (Phase 3, T1.2): mobile-only distance chip. Hidden by default — desktop keeps
+   vs-foot as its sole distance readout (Fork L, chosen L1); shown only at <=900px,
+   where vs-foot clips under the mobile viewscreen cap and this chip is the only
+   surviving numeric distance readout on travel. */
+.chip.dist { display: none; }
 .vs-foot { position: relative; z-index: 2; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--dim); font-size: 12.5px; padding-top: 2px; }
 
 /* ---- route plot inside the viewscreen ---- */
@@ -513,6 +518,10 @@ button.btn:hover .key { color: #04101c; }
   .commands { flex: 0 0 auto; }
   .cmd-grid { grid-template-columns: repeat(4, 1fr); }
   .vs-planet { display: none; }
+  /* D4 (Phase 3, T1.2): show the mobile-only distance chip — vs-foot is clipped
+     under the mobile viewscreen cap (T1.4 premise-gate evidence), so this chip is
+     the only surviving numeric distance readout on phones. */
+  .chip.dist { display: inline-block; }
   /* touch targets ≥44px (AC2) */
   .cmd-grid .btn, .commands .btn.small { min-height: 44px; }
   .btn.primary { min-height: 48px; }

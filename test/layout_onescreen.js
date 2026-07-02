@@ -241,6 +241,36 @@ try {
     ok("(k) D1b: stations vh bound " + stMatch[1] + "vh <= 14, commands compression present, 48px primary touch floor intact");
   }
 
+  // (l) D4 (Phase 3, T1.3): mobile-only distance chip — three independent constructs.
+  //     (l1) game.js carries the `chip dist` markup string with an expression that
+  //     references TOTAL_DIST; (l2) style.css default-hides .chip.dist; (l3) the
+  //     <=900px block shows .chip.dist. FAIL LOUD, content-specific — each of the
+  //     three is checked independently so deleting any one trips this harness.
+  {
+    // (l1) game.js markup string.
+    const chipDistMatch = js.match(/class='chip dist'[^"']*<span class='cl'>Dist<\/span>"\s*\+[^;]*TOTAL_DIST/);
+    if (!chipDistMatch) {
+      fail("(l1) game.js has no `chip dist` markup string with a TOTAL_DIST expression — D4's mobile distance chip is missing");
+    }
+
+    // (l2) default-hide rule.
+    const chipDistHide = css.match(/\.chip\.dist\s*\{[^}]*\}/);
+    if (!chipDistHide || !/display:\s*none/.test(chipDistHide[0])) {
+      fail("(l2) style.css has no `.chip.dist { display:none }` default-hide rule — D4's chip would render unconditionally");
+    }
+
+    // (l3) <=900px show rule.
+    const mediaMatch = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mediaMatch) fail("no @media (max-width:900px) block found in style.css");
+    const block = mediaMatch[1];
+    const chipDistShow = block.match(/\.chip\.dist\s*\{[^}]*\}/);
+    if (!chipDistShow || !/display:\s*inline-block/.test(chipDistShow[0])) {
+      fail("(l3) <=900px block has no `.chip.dist { display:inline-block }` show rule — D4's chip would stay hidden on mobile");
+    }
+
+    ok("(l) D4: chip dist markup (l1) + default-hide (l2) + <=900px show rule (l3) all present");
+  }
+
   console.log("PASS " + NAME + " — all one-screen bridge CSS constructs present.");
   process.exit(0);
 } catch (e) {
