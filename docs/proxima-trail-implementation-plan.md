@@ -1189,3 +1189,92 @@ encoded conditional exactly as designed: the premise gate failed in evidence, th
 came back out, G3 shipped — and the unplanned FORK-D1b was logged before it was built, so
 the freed space finally reaches the ship's log (62→152px) instead of vanishing into a
 scrolling panel.
+
+# ============================================================
+# Addendum M-UI2c — D4: numeric distance missing on mobile travel
+# ============================================================
+Single-divergence micro-phase against merged HEAD `ba0347a` (`docs/orchestration/plan-phase-3.md`).
+Facts: shipping the G3 fallback (M-UI2b correction) means `vs-foot` — the only
+`N / 434 ly-abs` readout, `game.js:4371` — is clipped by the mobile viewscreen cap, and the
+ellipsized topbar squeezes to zero chars at 390px, so mobile travel had NO numeric distance
+anywhere. Premise-gate evidence had already shown `.vs-chips` (`game.js:4362-4367`,
+`flex-wrap:wrap`) survives the mobile cap 3/3.
+
+## M1 — Distance chip, mobile-only (D4)
+- **T1.1 (Fork K, chosen 4a):** `renderTravel`'s `.vs-chips` markup gains a fourth chip
+  after Earth — `<span class='chip dist'><span class='cl'>Dist</span>{round(distance)} /
+  {TOTAL_DIST} ly</span>` — reusing the same two expressions already rendered in `vs-foot`
+  two lines below; markup-string-only, no new state read, no logic, frozen-three untouched.
+  **Unit wording deliberate:** chip reads `" ly"` (chip-scale brevity), `vs-foot` keeps
+  `" ly-abs"` — NOT aligned, by design. Rejected 4b (CSS-only `vs-foot` reflow at ≤900px —
+  the same evidence that killed the Phase-2 G1 hide showed `vs-foot` clips BELOW the cap; a
+  pixel gamble a micro-phase shouldn't take) and 4c (waive D4 — unwarranted, a safe fix
+  existed).
+- **T1.2 (Fork L, chosen L1 — mobile-only):** `style.css` gets `.chip.dist{display:none}`
+  near the base `.chip` rule and `.chip.dist{display:inline-block}` inside the EXISTING
+  `@media (max-width:900px)` block — no new media query. Desktop (≥900px) renders
+  byte-for-eye unchanged, `vs-foot` stays the sole readout. Rejected L2 (chip everywhere,
+  duplicate with `vs-foot` on desktop) and L3 (chip everywhere, hide `vs-foot`'s distance
+  span instead — churns a working desktop layout).
+- **T1.3:** `test/layout_onescreen.js` extended with assertion **(l)** — not (k), already
+  occupied by Phase 2's FORK-D1b — three independent, content-specific, mutation-tested
+  checks: (l1) the `chip dist` markup string in `game.js` referencing `TOTAL_DIST`; (l2)
+  the `.chip.dist` default-hide rule; (l3) the ≤900px `.chip.dist` show rule. Harness count
+  stays 10 (Fork J posture carried). All three mutation-tested locally: each construct
+  deleted individually → harness exits 1 with a printed, content-specific reason; file
+  restored md5-identical after each check.
+
+## Verification
+- `scripts/verify.sh` **GATE PASS — 10 harnesses green**, frozen-three
+  (`applyOutcome`/`resolveCheck`/`tryCompose`) md5-identical, `test/frozen-baseline.json`
+  **BYTE-IDENTICAL** to the unchanged pre-phase HEAD `ba0347a` (NOT updated).
+- The ENTIRE `game.js` diff sits inside `renderTravel`'s function body
+  (`game.js:4311-4419`) as a single markup-string insertion — one `chip dist` span, no
+  `data-*` token, no logic, no new state reference beyond `game.distance`/`TOTAL_DIST`
+  (both already rendered in the same function).
+- Live evidence (390×844 Dist-chip-visible + route-rail/current-waypoint-node
+  non-regression — chip visibility alone is NOT a pass, since the extra wrapped line can
+  push the routemap into its `overflow:hidden` clip; 1280×720 no-chip/no-duplication) is
+  **orchestrator-run, pending outside this commit** — same posture prior milestones held.
+
+## Correction (same milestone, 2026-07-02) — DoD-6 viewscreen-internals FAIL → ≤900px tuning
+- **Orchestrator evidence on `ab6b2ce` at 390×844:** Dist chip VISIBLE ("Dist 0 / 434 ly",
+  joined the second chip row — no new row, head 80px with or without it), page/app/x
+  overflow 0/0/0, log 152px held — **but DoD 6 FAILED:** the route rail and current
+  waypoint node were clipped. Inside the 135px-capped viewscreen: vs-head ended y=93,
+  `.routemap` started y=99 with height 80 → the rail (24px into the routemap) sat
+  ~y=123–153, cut at the cap. Geometry was ALREADY borderline in P2 (the chip added no
+  row) — but DoD 6 pins rail + current node visible, so it had to be made true.
+- **Fix (orchestrator-directed parameter tuning, ≤900px block only — same construct
+  family the `max-height:800px` block already tunes for D2; no new fork):**
+  `.vs-title{display:none}` (decorative "Navigation" label — frees a full head row);
+  `.chip{font-size:11px; padding:2px 7px}` (compresses both chip rows);
+  `.routemap{margin:2px 0; padding:14px 10px 30px}` (top pad 24→14, margin 6/2→2/0);
+  `.rm-label.abv{top:-14px}` / `.rm-label.blw{top:26px}` (offsets shrink with the
+  padding so an above/below-rail cur/nxt label stays inside the tightened envelope —
+  mirrors D2's blw 32→28 precedent). Bottom pad 30px is deliberate: it seats the blw
+  label (needs 9px) AND pushes `vs-foot` fully past the cap — a first cut at 16px left
+  a 12px mid-glyph sliver of the foot's first line poking into view; the foot stays
+  clipped on mobile exactly as before this phase, the Dist chip is its readout.
+- **Builder in-browser measurements (390×844, supporting — official sign-off is
+  orchestrator-run):** vs-head 13–59 (was ending 93; title hidden, 4 chips in two
+  rows, Dist chip 40–59); rail **75–105** ✓; current node **79–101** ✓; cur/nxt labels
+  61–73 (abv) and 101–113 (blw), both visible ✓; vs-foot 137–183 → fully past the 135
+  cap (no sliver); log **152px held**; min command button 44px; page/app/x overflow
+  0/0/0. **1280×720:** Dist chip `display:none`, `.vs-title` visible, chip font at
+  base 12.5px, `vs-foot` sole `ly-abs` readout, 9/9 command buttons visible, zero
+  overflow — guaranteed unchanged by scoping (the entire correction lives inside the
+  ≤900px block).
+- **Gate re-run: GATE PASS — 10 harnesses green**, frozen-three md5-intact, baseline
+  untouched. The harness pins none of the tuned parameters, so assertion (l)'s
+  mutation-test evidence stands; diff is style.css-only (+17 lines inside the ≤900px
+  block) + this docs pair.
+
+## STOP
+M-UI2c closes the last verified divergence from the Phase-2 premise-gate FAIL: mobile
+travel regains a numeric distance readout via the one CSS-provable element proven to
+survive the mobile viewscreen cap, at the cost of one extra chip-scale unit-wording
+divergence (`" ly"` vs `" ly-abs"`) — disclosed and intentional, not a cleanup target.
+The DoD-6 correction reclaims the viewscreen interior (title row + chip compression +
+routemap envelope) so the rail and current node the chip was meant to accompany are
+actually visible beside it — without raising the cap or touching the log's 152px.
