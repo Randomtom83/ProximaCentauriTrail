@@ -981,3 +981,67 @@ byte-identical everywhere the zero-diff gate holds.
 M-UI1 gives the game a bridge worth sitting on: a real viewscreen, gauges readable at a
 glance, the log restored to the heart of the screen — with the engine byte-identical
 everywhere the zero-diff gate holds.
+
+# ============================================================
+# M-UI2 — One-screen bridge: no page scroll, desktop + mobile
+# (ADDENDUM, built 2026-07-02)
+# Presentation-only: the M-UI1 bridge looked right but did not
+# FIT — on short desktops and on phones (390×844) the .bridge
+# column overflowed #app and pushed Continue below the fold; at
+# ≤900px the console stacked log-then-commands, burying every
+# action. Phase plan: docs/orchestration/plan-phase-1.md
+# (forks A–F as recorded there, Fork E per orchestrator ruling).
+# ============================================================
+
+## What was built (style.css + one index.html token + one new harness)
+- **Viewport plumbing (M1):** `#crt` height gains a `calc(100dvh - 20px)` line after the
+  `100vh` fallback (both the base rule and the ≤900px override) — the iOS dynamic URL bar
+  stops causing phantom page scroll. `body` padding gains `env(safe-area-inset-*)` after its
+  `10px` fallback; `index.html`'s viewport meta gains the single token `, viewport-fit=cover`
+  (required for non-zero `env()` insets on iOS — the only index.html byte change).
+  `html,body` + `#app` gain `overflow-x:hidden` as the horizontal-scroll backstop.
+- **Desktop fit (M2, Fork A):** `.bridge` flex-column → `display:grid;
+  grid-template-rows: auto auto minmax(0,1fr); height:100%; min-height:0; gap:8px`. The
+  `minmax(0,1fr)` console row absorbs the leftover height instead of the log's intrinsic
+  size forcing overflow. `.viewscreen` `min-height:158px` → `min-height:0` +
+  `max-height:clamp(120px,22vh,200px)`; `.stations`/`.console`/`.log-wrap` gain
+  `min-height:0`; `.console .log` min-height 160px → 96px. The log's existing internal
+  `overflow-y:auto` is where scrolling now lives — you scroll the log, never the page.
+- **Mobile fit (M3, Fork C):** in the ≤900px block — `.bridge { gap:6px }`, `.viewscreen`
+  capped at `clamp(96px,18vh,150px)`, and `.console` becomes
+  `grid-template-rows: minmax(84px,1fr) auto`: log scrolls in row 1, BOTH `.commands`
+  variants (manual Continue+cmd-grid+ATLAS+Abandon AND autopilot Run/One-turn/Emergency-wake,
+  game.js:4388–4408) pin to row 2 — pure CSS on the existing DOM order, no markup reorder.
+  Touch targets: `.cmd-grid .btn`/`.commands .btn.small` ≥44px, `.btn.primary` ≥48px, and
+  (Fork E, orchestrator-affirmed) a global `.menu.row .btn { min-height:44px }` floor that
+  also reaches colony/voyage mobile action rows — monotonic, raise-only.
+- **Proof harness (M5, Fork F):** new `test/layout_onescreen.js` — plain node, no DOM; reads
+  committed `style.css`/`game.js` as text and FAILS LOUD (nonzero exit + printed reason) if
+  any fit-guaranteeing construct is missing: dvh height, safe-area padding, `.bridge` grid
+  with a `minmax(0,1fr)` row, bounded `.viewscreen` max-height, `.console`/`.log-wrap`
+  `min-height:0`, the ≤900px 44px floor, and frozen-three PRESENCE (presence only — the md5
+  gate, not this harness, proves zero-diff; a text-scan sacred-token claim would be vacuous).
+  It is the 10th harness counted by the gate (MIN_TESTS=9).
+
+## Scope boundary (held)
+- Diff = `style.css` + the exact single-token `index.html` viewport append +
+  `test/layout_onescreen.js` + the docs pair. **Zero `game.js` edits** — the phase turned out
+  to need no markup change at all (`.bridge` already wraps the whole travel screen, Fork D).
+  `renderColony`/`renderVoyage` bodies untouched; `.viewscreen` confirmed travel-only by grep
+  (game.js:4359, only in `renderTravel`). No `data-action`/`data-arg` token, keyboard wiring,
+  `#sr-live`, focus-trap, or reduced-motion change. `test/frozen-baseline.json` byte-identical
+  (NOT updated). Nothing the sacred list guards moved.
+
+## Verification
+- `scripts/verify.sh` **GATE PASS — 10 harnesses green** (9 existing + layout_onescreen),
+  frozen-three (applyOutcome/resolveCheck/tryCompose) md5-identical to the unchanged
+  baseline, endings golden present. Harness fail-loud sanity-checked: deleting the
+  `.viewscreen` max-height locally made it exit 1 with the reason printed, then restored.
+- Live three-viewport screenshot evidence (1280×720, 1920×1080, 390×844 in BOTH travel
+  command states, plus colony+voyage at 390×844 under the Fork-E floor) is **T5.3
+  orchestrator-run sign-off** — required by the DoD but captured outside this commit.
+
+## STOP
+M-UI2 makes the bridge FIT the glass it's drawn on: one screen, log and every command
+co-visible, desktop or phone — the scroll lives inside the ship's log where it belongs,
+and the engine stays byte-identical everywhere the zero-diff gate holds.
