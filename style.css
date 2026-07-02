@@ -485,13 +485,24 @@ button.btn:hover .key { color: #04101c; }
 @media (max-width: 900px) {
   #crt { padding: 8px 10px 6px; height: calc(100vh - 20px); height: calc(100dvh - 20px); }
   #topbar { margin-left: 56px; } #botbar { margin-right: 56px; }
-  .bridge { gap: 6px; }
+  /* D1b: 6px->4px (2 bridge gaps = +4px to the log's 1fr; measured 148->152px at 390x844) */
+  .bridge { gap: 4px; }
   .viewscreen { max-height: clamp(96px, 16vh, 140px); }
   /* Stacked to one column at phone widths the two station panels are far taller than
      the height budget — bound the row and let IT scroll internally (same T2.2 pattern
      as the viewscreen cap and the log: internal scroll, never page scroll, and the
-     console row's min-content floor keeps the commands unclipped below it). */
-  .bridge .stations { max-height: clamp(140px, 24vh, 240px); overflow-y: auto; scrollbar-width: thin; }
+     console row's min-content floor keeps the commands unclipped below it).
+     D1b (FORK-D1b, logged pre-commit): bound tightened 24vh->14vh (240->160 cap) — the
+     orchestrator measured at 390x844 that the budget freed for the log flowed into THIS
+     auto row instead (stations 154px while the log sat at its 84px floor). The stations
+     already scroll internally, so nothing is lost, only moved behind scroll; the freed
+     height falls through to the console 1fr row, where the log's own 1fr absorbs it.
+     Tuned 14vh->12vh after in-browser measurement: at 14vh the log reached 131px — the
+     commands stack is touch-floor-dominated (54px primary + 8x44px buttons, incompressible
+     without eating tap targets), so the last ~20px toward the >=150px log target must come
+     from here. 12vh at 844 = ~101px: station header + ~2 crew rows glanceable, rest behind
+     the row's own scroll. */
+  .bridge .stations { max-height: clamp(96px, 12vh, 160px); overflow-y: auto; scrollbar-width: thin; }
   .bridge .stations .panel { margin: 0 0 6px; }
   /* commands pinned to the bottom of the bridge; log scrolls internally above them —
      no markup reorder, so keyboard/data-action wiring is untouched (Fork C). */
@@ -508,6 +519,39 @@ button.btn:hover .key { color: #04101c; }
   /* Fork E (E2, orchestrator-affirmed): global mobile touch-target floor — strict,
      monotonic improvement, cannot shrink colony/voyage's .menu.row layout. */
   .menu.row .btn { min-height: 44px; }
+  /* D1 / T1.1 (Phase-2, unconditional floor): #topbar is OUTSIDE #app, so any wrapped
+     line steals #crt height budget from the travel log. Cap it to one line everywhere
+     at <=900px — this alone guarantees the topbar can never wrap multi-line again, on
+     any screen, in any browser; min-width:0 is required for ellipsis to apply inside a
+     flex child. */
+  #topbar-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* D1 / T1.2 — RESOLVED G3 (fallback, per plan T1.4/DoD-3): the G1 hide
+     (#crt:has(.bridge) #topbar-status{display:none}) shipped in 791b553 SUBJECT TO the
+     premise gate; the orchestrator's live 390x844 evidence FAILED it — chips visible
+     (3/3) but vs-foot CLIPPED (bottom 322 vs viewscreen bottom 230). Hiding the topbar
+     on travel would have deleted the ONLY surviving distance readout, so the hide is
+     REMOVED and the T1.1 ellipsized single-line topbar above is retained on travel as
+     that readout. Do not reintroduce the hide without fresh chips+vs-foot evidence. */
+  /* D3 / T3.1 (Phase-2): shared .crew-head/.crew-row grid overflows its own panel at
+     390px (fixed 16+88px columns + 4x10px gaps = 144px overhead) and clips the last
+     "STATUS" column mid-glyph. Retune uniformly (Fork I) — same shared component on
+     travel/colony/voyage all hit the same overflow at this width. 14+60px + 4x6px gaps
+     = 98px overhead, freeing ~46px for the name/bars columns; letter-spacing trimmed so
+     "STATUS" still fits its narrower 60px track. */
+  .crew-head, .crew-row { grid-template-columns: 14px minmax(84px,1.4fr) 1fr 1fr 60px; gap: 6px; }
+  .crew-head { letter-spacing: 1px; }
+  /* D1b continued (FORK-D1b, option c): the commands stack measured 288px at 390x844 and
+     dominates the console row's min-content floor — compress its paddings/gaps and reuse
+     the max-height:800px block's 15px primary treatment so the reclaimed topbar+stations
+     budget actually reaches the log (target: log >= ~150px at 390x844, orchestrator's
+     T4.3 evidence owns confirming). EVERY touch floor is untouched: the 44px cmd-grid /
+     .btn.small and 48px .btn.primary min-heights above still govern — only padding, gap,
+     and font-size shrink, never the tap target. */
+  .commands { gap: 4px; }
+  .btn.primary { padding: 8px 10px; font-size: 15px; }
+  .cmd-grid { gap: 4px; }
+  .cmd-grid .btn { padding: 6px 4px; font-size: 12px; }
+  .commands .danger { padding: 4px 6px; }
 }
 
 /* ---- short viewports (e.g. 1280×720 desktop): tighten the fixed rows so the
@@ -521,6 +565,18 @@ button.btn:hover .key { color: #04101c; }
   .btn.primary { padding: 10px 12px; font-size: 15px; }
   .cmd-grid .btn { padding: 6px 6px; }
   .commands .danger { padding: 5px 6px; }
+  /* D2 / T2.1 (Phase-2): at >=1100px wide EVERY waypoint label renders (the <=1100px
+     cur/nxt reduction does not apply), and the 14vh viewscreen cap here is too short to
+     hold a full label row without clipping — same cur/nxt-only pattern as the <=1100px
+     block, applied to short-height viewports regardless of width. */
+  .rm-label { display: none; }
+  .rm-label.cur, .rm-label.nxt { display: block; }
+  /* D2 / T2.2 (Phase-2): tighten the plot's vertical envelope so even a below-rail
+     cur/nxt label fits inside the 14vh cap — existing-constructs-only (no cap raise,
+     no new layout system): .rm-label.blw sits at top:32px under the 30px rail, which
+     exceeded the cap; both the padding and the offset shrink together. */
+  .routemap { padding: 16px 10px 18px; }
+  .rm-label.blw { top: 28px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

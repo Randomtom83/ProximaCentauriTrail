@@ -147,6 +147,100 @@ try {
     ok("(g) applyOutcome/resolveCheck/tryCompose still present in game.js (presence only, no diff claim)");
   }
 
+  // Phase-2 remediation (plan-phase-2.md, T4.1/Fork J): extends this SAME harness/media-
+  // block family rather than a new file — presence-only checks, no diff claims (Phase-1
+  // MAJOR-2 lesson stands).
+
+  // (h2) D1 — G3 FALLBACK variant (T1.4 premise gate FAILED: the orchestrator's live
+  //      390x844 evidence on 791b553 showed chips visible 3/3 but vs-foot CLIPPED,
+  //      bottom 322 vs viewscreen bottom 230). The <=900px block must carry the
+  //      unconditional #topbar-status ellipsis floor (T1.1), and the G1 hide rule must
+  //      be ABSENT — hiding the travel topbar would delete the only surviving distance
+  //      readout on phones.
+  {
+    const mediaMatch = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mediaMatch) fail("no @media (max-width:900px) block found in style.css");
+    const block = mediaMatch[1];
+    if (!/#topbar-status\s*\{[^}]*text-overflow:\s*ellipsis[^}]*\}/.test(block)) {
+      fail("<=900px block has no #topbar-status rule with text-overflow:ellipsis — D1's one-line floor is missing");
+    }
+    // Absence check runs against comment-stripped CSS: the rule's tombstone comment
+    // legitimately quotes the removed selector and must not trip the check.
+    const cssNoComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    if (/#crt:has\(\s*\.bridge\s*\)\s*#topbar-status\s*\{[^}]*display:\s*none/.test(cssNoComments)) {
+      fail("style.css contains the #crt:has(.bridge) #topbar-status display:none hide — G1 was REJECTED by the T1.4 premise gate (vs-foot clipped at 390x844); G3 (ellipsis-only) is the shipped variant and the hide must not return without fresh chips+vs-foot evidence");
+    }
+    ok("(h2) D1: <=900px #topbar-status ellipsis floor present; G1 hide absent (G3 fallback per T1.4 premise-gate FAIL)");
+  }
+
+  // (i2) D2: the max-height:800px block carries the .rm-label cur/nxt reduction AND a
+  //      tightened .routemap vertical envelope (padding + .rm-label.blw offset), so a
+  //      below-rail label can never clip mid-glyph against the 14vh viewscreen cap.
+  {
+    const shortMatch = css.match(/@media\s*\(max-height:\s*800px\)\s*\{([\s\S]*?)\n\}/);
+    if (!shortMatch) fail("no @media (max-height:800px) block found in style.css");
+    const block = shortMatch[1];
+    if (!/\.rm-label\s*\{[^}]*display:\s*none[^}]*\}/.test(block) ||
+        !/\.rm-label\.cur\s*,\s*\.rm-label\.nxt\s*\{[^}]*display:\s*block/.test(block)) {
+      fail("max-height:800px block does not reduce .rm-label to cur/nxt-only — below-rail labels can clip at short heights");
+    }
+    if (!/\.routemap\s*\{[^}]*padding:/.test(block)) {
+      fail("max-height:800px block does not tighten .routemap padding — D2's vertical envelope fix is missing");
+    }
+    ok("(i2) D2: max-height:800px block reduces .rm-label to cur/nxt-only and tightens .routemap's vertical envelope");
+  }
+
+  // (j) D3: the <=900px block retunes the shared .crew-head/.crew-row grid so the fixed
+  //     last track ("STATUS") is narrow enough to fit at 390px without clipping. Bound
+  //     the track at <=64px so a regression back toward the 88px desktop track is caught.
+  {
+    const mediaMatch = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mediaMatch) fail("no @media (max-width:900px) block found in style.css");
+    const block = mediaMatch[1];
+    const gridMatch = block.match(/\.crew-head\s*,\s*\.crew-row\s*\{[^}]*grid-template-columns:\s*([^;]+);[^}]*\}/);
+    if (!gridMatch) {
+      fail("<=900px block has no .crew-head, .crew-row grid-template-columns override — D3's STATUS-column fix is missing");
+    }
+    const tracks = gridMatch[1].trim().split(/\s+/);
+    const lastTrack = tracks[tracks.length - 1];
+    const lastPx = parseFloat(lastTrack);
+    if (!/px$/.test(lastTrack) || !(lastPx <= 64)) {
+      fail("<=900px .crew-head/.crew-row last grid track is not a fixed value <=64px (was \"" + lastTrack + "\") — STATUS column can still overflow at 390px");
+    }
+    ok("(j) D3: <=900px block retunes .crew-head/.crew-row grid, last track " + lastTrack + " <= 64px");
+  }
+
+  // (k) D1b (unplanned fork FORK-D1b, logged pre-commit in plan-events.jsonl): freeing
+  //     the topbar line did NOT reach the log — measured at 390x844 the freed budget
+  //     flowed into the stations auto row while the console row sat at min-content
+  //     (commands-dominated) and the log never grew past its 84px floor. The fix is a
+  //     budget reclaim on both sides of the log, all inside the <=900px block:
+  //     (k1) .bridge .stations max-height clamp's vh term <= 14vh (24vh let the stations
+  //          reabsorb everything freed for the log);
+  //     (k2) a .btn.primary padding compression is present (the commands stack was 288px
+  //          and dominates the console row's min-content floor);
+  //     (k3) the .btn.primary min-height:48px touch floor is STILL pinned in the block —
+  //          compression must never eat the tap target.
+  {
+    const mediaMatch = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mediaMatch) fail("no @media (max-width:900px) block found in style.css");
+    const block = mediaMatch[1];
+    const stMatch = block.match(/\.bridge\s+\.stations\s*\{[^}]*max-height:\s*clamp\([^,]+,\s*([\d.]+)vh/);
+    if (!stMatch) {
+      fail("<=900px .bridge .stations has no max-height clamp with a vh term — D1b's stations bound is missing");
+    }
+    if (parseFloat(stMatch[1]) > 14) {
+      fail("<=900px .bridge .stations vh bound is " + stMatch[1] + "vh > 14vh — the stations reabsorb the budget freed for the log (D1b regression)");
+    }
+    if (!/\.btn\.primary\s*\{[^}]*padding:/.test(block)) {
+      fail("<=900px block has no .btn.primary padding compression — the commands stack re-inflates the console min-content floor and the log falls back to 84px (D1b regression)");
+    }
+    if (!/\.btn\.primary\s*\{[^}]*min-height:\s*48px/.test(block)) {
+      fail("<=900px block no longer pins .btn.primary min-height:48px — the D1b compression must never eat the touch floor");
+    }
+    ok("(k) D1b: stations vh bound " + stMatch[1] + "vh <= 14, commands compression present, 48px primary touch floor intact");
+  }
+
   console.log("PASS " + NAME + " — all one-screen bridge CSS constructs present.");
   process.exit(0);
 } catch (e) {

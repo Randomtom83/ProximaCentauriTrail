@@ -1071,3 +1071,121 @@ everywhere the zero-diff gate holds.
 M-UI2 makes the bridge FIT the glass it's drawn on: one screen, log and every command
 co-visible, desktop or phone — the scroll lives inside the ship's log where it belongs,
 and the engine stays byte-identical everywhere the zero-diff gate holds.
+
+# ============================================================
+# M-UI2b — Post-merge remediation: 3 targeted divergences
+# (ADDENDUM, built 2026-07-02)
+# Presentation-only, CSS-only. NOT a feature phase. Cites are
+# against merged HEAD af85b37 (style.css 533 lines). Phase plan:
+# docs/orchestration/plan-phase-2.md (Forks G–J as recorded there).
+# ============================================================
+
+## What was built (style.css + test/layout_onescreen.js only)
+- **D1, mobile topbar status (degrades-goal, T1.1+T1.2):** `#topbar` sits OUTSIDE `#app`,
+  so its travel-only status string (byte-duplicate of the viewscreen's Day/Next chips +
+  `vs-foot` distance) wrapped ~5 lines at 390px, squeezing the travel log to ~62px. T1.1
+  (unconditional, ships regardless): `@media (max-width:900px) #topbar-status {
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }` caps the
+  damage to one line everywhere, in any browser. T1.2 (Fork G1, travel-scoped hide):
+  `#crt:has(.bridge) #topbar-status { display:none; }` removes the fully-redundant travel
+  line while title/setup screens keep their non-duplicated BEST-SCORE line. **Both pieces
+  are committed; T1.2 SHIPPED SUBJECT TO the T1.4 premise gate** — the executor has no
+  browser and could not itself confirm the viewscreen's chips + `vs-foot` survive uncropped
+  at 390×844 once the topbar line disappears (`vs-foot` is the last child of the
+  `overflow:hidden` viewscreen, capped ~135px at 844 tall). The orchestrator owns the live
+  390×844 verification and the G1-vs-G3 ship call; if `vs-foot` is found clipped, a
+  follow-up commit removes the `:has(.bridge)` hide and G3 (ellipsis-only, topbar retained
+  as the sole surviving distance readout) becomes the shipped variant. Where `:has()` is
+  unsupported the rule is simply ignored — T1.1 alone still caps the worst case at one
+  redundant line, never five.
+- **D2, route-label clipping at short desktop heights (cosmetic, T2.1+T2.2, Fork H3):** at
+  `max-height:800px` + `>=1100px` wide, every waypoint label rendered inside a 14vh-capped
+  viewscreen; `.rm-label.blw{top:32px}` under the 30px rail plus `.routemap`'s 24/26px
+  padding exceeded the cap and clipped below-rail labels mid-glyph. Fix: the same
+  cur/nxt-only `.rm-label` reduction already used at `<=1100px` is extended into the
+  `max-height:800px` block, PLUS `.routemap` padding `24px 10px 26px` → `16px 10px 18px`
+  and `.rm-label.blw` top `32px` → `28px` — existing constructs only, no cap raise (H4
+  rejected: would steal console-row budget and risk reopening the Phase-1 AC1 no-scroll
+  guarantee at 1280×720).
+- **D3, crew-table STATUS header clipping at 390px (cosmetic, shared component, T3.1, Fork
+  I1):** `.crew-head`/`.crew-row` share one grid (`16px minmax(120px,1.5fr) 1fr 1fr 88px`,
+  `gap:10px` — 144px fixed+gap overhead) that overflows its panel at 390px, clipping
+  STATUS; the SAME grid renders on travel, colony, and voyage. Fix, uniform at `<=900px`
+  (not voyage-only — no voyage-unique ancestor selector exists, and travel/colony clip
+  identically): `grid-template-columns: 14px minmax(84px,1.4fr) 1fr 1fr 60px; gap:6px;`
+  (98px overhead, freeing ~46px for name/bars) plus `.crew-head` `letter-spacing`
+  `2px`→`1px` so STATUS fits its narrower 60px track. Desktop untouched (rule lives only
+  in the `<=900px` block).
+- **Proof harness (T4.1, Fork J1 — extended, not a new file):** `test/layout_onescreen.js`
+  gains 3 presence-only assertions in the same file/media-block family it already pins
+  (harness count stays 10, `MIN_TESTS=9` cleared with headroom): `(h2)` the `<=900px`
+  block carries the `#topbar-status` ellipsis rule (always, independent of which D1 fork
+  ships); `(i2)` the `max-height:800px` block carries both the `.rm-label` cur/nxt
+  reduction and the `.routemap` padding tightening; `(j)` the `<=900px` block's
+  `.crew-head`/`.crew-row` `grid-template-columns` override has a last track `<=64px`
+  (bound catches a regression back toward the 88px desktop track). Each assertion was
+  mutation-tested locally: construct deleted individually → harness exits 1 with a printed
+  reason; file restored md5-identical after every check.
+
+## Scope boundary (held)
+- Diff = `style.css` + `test/layout_onescreen.js` ONLY. **Zero `game.js` and zero
+  `index.html` diff** — all three fixes are CSS-only (DoD 2). `test/frozen-baseline.json`
+  byte-identical to pre-phase HEAD `af85b37` (NOT updated). No `data-*`/odds/hidden-meter
+  token anywhere in the diff. Nothing the sacred list guards moved.
+
+## Verification
+- `scripts/verify.sh` **GATE PASS — 10 harnesses green**, frozen-three
+  (applyOutcome/resolveCheck/tryCompose) md5-identical to the SAME unchanged baseline,
+  endings golden present.
+- Live evidence (T4.3) is **orchestrator-run, pending outside this commit** — same posture
+  M-UI2's T5.3 evidence pass held: D1 390×844 before/after log-height px + the
+  chips-AND-`vs-foot`-visible premise check (or the recorded G3 fallback) + title-screen
+  ellipsis sanity shot; D2 1280×720 no-clip label check; D3 390×844 voyage/travel/colony
+  crew-table shots (all three shared-component call sites).
+
+## Correction (same milestone, 2026-07-02) — premise-gate verdict + FORK-D1b
+- **T1.4 verdict → G3 fallback shipped (plan-sanctioned path, DoD 3):** the orchestrator's
+  live 390×844 evidence on 791b553 showed chips visible (3/3) but **`vs-foot` CLIPPED**
+  (bottom 322 vs viewscreen bottom 230) — the G1 hide would have deleted the only
+  surviving distance readout, so the `#crt:has(.bridge) #topbar-status { display:none }`
+  rule is **REMOVED**. G3 ships: the T1.1 ellipsized single-line topbar is retained on
+  travel as that readout. Harness `(h2)` flipped to the G3 variant — ellipsis floor still
+  required, and the hide now **required ABSENT** (checked against comment-stripped CSS so
+  the rule's tombstone comment doesn't trip it; mutation-tested by reintroducing the rule
+  → exit 1).
+- **FORK-D1b (unplanned, load-bearing — logged via `log_event` to `plan-events.jsonl`
+  BEFORE the commit):** the orchestrator's deeper finding — with the topbar freed, the log
+  STILL sat at ~62px: the freed ~87px flowed into the stations auto row (154px) while the
+  console row sat at min-content (commands-dominated, 288px) and the `minmax(84px,1fr)`
+  log row never left its floor. Options: (a) harder stations bound alone (~120px log,
+  short); (b) commands compression alone (~124–140px, short); **(c) both — chosen**,
+  targeting log ≥ ~150px. Shipped (all `<=900px`): `.bridge .stations` max-height
+  `clamp(140px,24vh,240px)` → `clamp(96px,12vh,160px)` — tuned from the fork's initial
+  14vh after in-browser measurement showed the log reached only 131px, the commands stack
+  being touch-floor-dominated (54px primary + 8×44px buttons, incompressible without
+  eating tap targets — off the table); commands compression (`.commands`/`.cmd-grid` gap
+  6→4px, `.btn.primary` padding 14→8px + font 17→15px — the `max-height:800px` block's
+  existing treatment — plus tighter `.cmd-grid .btn`/`.danger` paddings; the 44/48px
+  min-height floors untouched and now harness-pinned); `.bridge` gap 6→4px. **Honest
+  cost:** stations ~101px at 844 tall — header + ~2 crew rows glanceable, the rest behind
+  the row's existing internal scroll; a denser command console.
+- **Builder in-browser diagnostics** (supporting, NOT the official T4.3 evidence):
+  390×844 travel — log **62→152px**, no page scroll, min command button 44px, topbar
+  single-line carrying the distance readout, crew STATUS inside its panel; 1280×720
+  travel — 0 labels clipped (cur/nxt only; below-rail label bottom 169 ≤ viewscreen
+  bottom 172), all 9 commands visible, no page scroll (AC1 held); 390×844 title —
+  single-line topbar, hero intact, no page scroll.
+- **Harness `(k)` added** for the D1b reclaim: stations clamp vh term ≤ 14, a
+  `.btn.primary` padding compression present, and the 48px primary floor still pinned;
+  (k1)/(k2)/(k3) each mutation-tested (24vh restored / padding removed / floor removed →
+  exit 1, file restored md5-identical). Gate re-run: **GATE PASS — 10 harnesses green**,
+  frozen-three md5-intact, baseline untouched; diff scope unchanged (style.css +
+  layout_onescreen.js + docs pair; zero game.js/index.html).
+
+## STOP
+M-UI2b closes the three verified divergences the Phase-1 reconcile loop surfaced without
+disturbing the merged one-screen bridge — CSS-only, gate green. D1 resolved through its
+encoded conditional exactly as designed: the premise gate failed in evidence, the G1 hide
+came back out, G3 shipped — and the unplanned FORK-D1b was logged before it was built, so
+the freed space finally reaches the ship's log (62→152px) instead of vanishing into a
+scrolling panel.
