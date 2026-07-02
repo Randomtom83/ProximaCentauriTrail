@@ -4068,18 +4068,17 @@
     transiting = true;
 
     var ov = $("#transit");
-    var ship = $("#transit-ship"), dest = $("#transit-dest"), cap = $("#transit-cap");
-    var V = {
-      cruise: { ship: "⊳—■▣",    dur: 2300, destIcon: "" },
-      dock:   { ship: "⊳—■▣ ▸",  dur: 2600, destIcon: "◉" },
-      hazard: { ship: "⊳—■▣ !",  dur: 2500, destIcon: "✦" },
-      land:   { ship: "⊳—■▣ ▸",  dur: 3600, destIcon: "◐" }
-    }[opts.variant] || { ship: "⊳—■▣", dur: 2300, destIcon: "" };
+    var dest = $("#transit-dest"), cap = $("#transit-cap");
+    // Scene art is STATIC SVG in index.html; only the variant attribute changes —
+    // CSS decides which destination art shows and how the ark behaves.
+    var variant = { cruise: 1, dock: 1, hazard: 1, land: 1 }[opts.variant] ? opts.variant : "cruise";
+    var V = { cruise: { dur: 2300, dest: false }, dock: { dur: 2600, dest: true },
+              hazard: { dur: 2500, dest: true }, land: { dur: 3600, dest: true } }[variant];
 
-    ship.textContent = V.ship;
+    ov.setAttribute("data-variant", variant);
     cap.textContent = opts.caption || "";
-    if (V.destIcon) { dest.textContent = V.destIcon; dest.classList.remove("grow"); void dest.offsetWidth; dest.classList.add("grow"); }
-    else { dest.textContent = ""; dest.classList.remove("grow"); }
+    if (V.dest) { dest.classList.remove("grow"); void dest.offsetWidth; dest.classList.add("grow"); }
+    else { dest.classList.remove("grow"); }
     if (opts.variant === "hazard") sfx("warn");
     else if (opts.variant === "land") sfx("win");
     else sfx("tick");
@@ -4269,26 +4268,42 @@
   }
 
   // Multi-waypoint trail: a node per WAYPOINTS entry, ship at current distance.
+  // Starchart nav plot: a shallow ballistic arc across the four light-years —
+  // burned bright behind the ship, faint ahead. Waypoints are drawn SVG glyphs;
+  // the ship marker is a miniature of the transit ark. Labels stay HTML overlays
+  // (their collision + media-query rules are gate-pinned).
+  function rmCurveY(f) {   // node y (%) along the plotted arc; x stays linear in f
+    var y0 = 74, yc = 22, y2 = 52;   // quadratic bezier, gentle rise then settle
+    return (1 - f) * (1 - f) * y0 + 2 * f * (1 - f) * yc + f * f * y2;
+  }
+  function rmGlyph(wp) {   // small designed glyphs, one per waypoint kind
+    if (wp.kind === "start")   // Earth: blue world + moon
+      return "<svg viewBox='0 0 20 20' aria-hidden='true'><circle cx='9' cy='10' r='6' class='g-earth'/><path d='M 5 8 Q 9 6 13 9 Q 10 11 6 12 Z' class='g-earth-land'/><circle cx='17' cy='6' r='1.6' class='g-moon'/></svg>";
+    if (wp.kind === "win")     // Proxima: amber star + world
+      return "<svg viewBox='0 0 20 20' aria-hidden='true'><path d='M 7 3 L 8.6 8.4 L 14 10 L 8.6 11.6 L 7 17 L 5.4 11.6 L 0 10 L 5.4 8.4 Z' class='g-star'/><circle cx='15.5' cy='14' r='3' class='g-world'/></svg>";
+    if (wp.hazard)             // hazard: warning shard
+      return "<svg viewBox='0 0 20 20' aria-hidden='true'><path d='M 10 2 L 13 8 L 19 10 L 13 12 L 10 18 L 7 12 L 1 10 L 7 8 Z' class='g-hazard'/></svg>";
+    if (wp.kind === "void")    // the void: hollow, dashed, empty
+      return "<svg viewBox='0 0 20 20' aria-hidden='true'><circle cx='10' cy='10' r='6.5' class='g-void' pathLength='100' stroke-dasharray='9 8'/></svg>";
+    if (wp.kind === "station") // station: hub + tilted orbit ring
+      return "<svg viewBox='0 0 20 20' aria-hidden='true'><ellipse cx='10' cy='10' rx='8' ry='3.4' class='g-ring' transform='rotate(-18 10 10)'/><circle cx='10' cy='10' r='3' class='g-hub'/></svg>";
+    return "<svg viewBox='0 0 20 20' aria-hidden='true'><path d='M 10 3 L 16 6.5 L 16 13.5 L 10 17 L 4 13.5 L 4 6.5 Z' class='g-hex'/></svg>";
+  }
   function renderRouteMap() {
-    function icon(wp, i) {
-      if (wp.kind === "win") return "◐";
-      if (wp.kind === "start") return "⌂";
-      if (wp.hazard) return "✦";
-      if (wp.kind === "void") return "❄";
-      if (wp.kind === "station") return "◉";
-      return "⬡";
-    }
     function abbrev(name) { return name.replace(/\s*\(.*\)/, "").replace("The ", ""); }
-    var shipPct = clamp((game.distance / TOTAL_DIST) * 100, 0, 100);
+    var shipF = clamp(game.distance / TOTAL_DIST, 0, 1);
+    var shipPct = shipF * 100;
     var nodes = "", labels = "";
     for (var i = 0; i < WAYPOINTS.length; i++) {
       var wp = WAYPOINTS[i];
-      var pct = clamp((CUM[i] / TOTAL_DIST) * 100, 0, 100);
+      var f = clamp(CUM[i] / TOTAL_DIST, 0, 1);
+      var pct = f * 100;
       var state = game.visited.indexOf(i) > -1 ? "visited"
                 : (i === game.waypointIndex ? "current" : "future");
       var cls = "rm-node " + state + (wp.kind === "win" ? " win" : "");
-      nodes += "<span class='" + cls + "' style='left:" + pct + "%' title='" +
-        wp.name + " — " + wp.blurb.replace(/'/g, "") + "'>" + icon(wp, i) + "</span>";
+      nodes += "<span class='" + cls + "' style='left:" + pct + "%;top:" + rmCurveY(f).toFixed(1) + "%' title='" +
+        wp.name + " — " + wp.blurb.replace(/'/g, "") + "'>" +
+        (state === "current" ? "<i class='rm-halo'></i>" : "") + rmGlyph(wp) + "</span>";
       // Every waypoint gets a label; alternating above/below the rail keeps
       // neighbours from ever colliding. Colour marks last / next / rest.
       var lc = i === game.waypointIndex ? "cur"
@@ -4297,11 +4312,25 @@
       labels += "<span class='rm-label " + (i % 2 ? "blw" : "abv") + " " + lc +
         "' style='left:" + pct + "%'>" + abbrev(wp.name) + "</span>";
     }
+    // The plotted trajectory: one dim full arc, one bright arc trimmed to the
+    // ship's fraction via pathLength/dash. Control-point x = midpoint keeps
+    // x(t) linear, so node left% and the curve stay in registration.
+    var arc = "M 0 74 Q 500 22 1000 52";
+    var ship =
+      "<span class='rm-ship' style='left:" + shipPct + "%;top:" + rmCurveY(shipF).toFixed(1) + "%'>" +
+        "<svg viewBox='0 0 34 14' aria-hidden='true'>" +
+          "<polygon points='1,7 8,5.4 8,8.6' class='ms-plume'/>" +
+          "<rect x='8' y='5.6' width='14' height='2.8' rx='1' class='ms-spine'/>" +
+          "<ellipse cx='17' cy='7' rx='2.2' ry='5.6' class='ms-ring'/>" +
+          "<polygon points='22,4.8 30,5.6 33,7 30,8.4 22,9.2' class='ms-hull'/>" +
+        "</svg></span>";
     return "<div class='routemap'><div class='rm-rail'>" +
-      "<div class='rm-line'></div>" +
-      "<div class='rm-fill' style='width:" + shipPct + "%'></div>" +
-      labels + nodes +
-      "<span class='rm-ship' style='left:" + shipPct + "%'>►</span>" +
+      "<svg class='rm-svg' viewBox='0 0 1000 100' preserveAspectRatio='none' aria-hidden='true'>" +
+        "<path d='" + arc + "' class='rm-arc-base' vector-effect='non-scaling-stroke'/>" +
+        "<path d='" + arc + "' class='rm-arc-glow' vector-effect='non-scaling-stroke' pathLength='100' stroke-dasharray='" + shipPct.toFixed(1) + " 100'/>" +
+        "<path d='" + arc + "' class='rm-arc-lit' vector-effect='non-scaling-stroke' pathLength='100' stroke-dasharray='" + shipPct.toFixed(1) + " 100'/>" +
+      "</svg>" +
+      labels + nodes + ship +
       "</div></div>";
   }
 

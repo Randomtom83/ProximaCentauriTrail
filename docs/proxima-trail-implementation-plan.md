@@ -1278,3 +1278,59 @@ divergence (`" ly"` vs `" ly-abs"`) — disclosed and intentional, not a cleanup
 The DoD-6 correction reclaims the viewscreen interior (title row + chip compression +
 routemap envelope) so the rail and current node the chip was meant to accompany are
 actually visible beside it — without raising the cap or touching the log's 152px.
+
+# ============================================================
+# M-UI3 — Ship & starchart artwork (ADDENDUM, built 2026-07-02)
+# Intent-first redesign of the two graphics Tom called out: the
+# between-locations ship and the navigation bar. Designed from
+# intent, not patched: the transit is the Oregon-Trail wagon shot
+# (an ARK crossing forever), the nav bar is the mission plotted
+# on a bridge starchart. Presentation-only; zero external assets.
+# ============================================================
+
+## What was built
+- **THE ARK (transit):** the `⊳—■▣` text glyph is replaced by a designed inline-SVG
+  colony ship — drive plume (flicker-animated), engine block with amber radiators,
+  cargo spine with lit cryo pods, a habitat ring with a sweeping highlight (life
+  aboard), lit command prow, blinking nav lights. All artwork is STATIC SVG in
+  `index.html`; `playTransit` now only flips `data-variant` on `#transit` — the
+  textContent/destIcon writes are gone (NO new markup sinks; the fenced
+  innerHTML concern is moot by construction). Destination art per variant, also
+  static SVG: ring station (dock), Proxima Centauri b with terminator + atmosphere
+  rim (land), drifting debris shards + pulsing warning (hazard, plus red vignette
+  and a shudder animation on the ark). Variant table/durations/skip logic unchanged.
+- **THE STARCHART (nav):** `renderRouteMap` now plots a shallow ballistic arc
+  (SVG quadratic bezier; control-point x at midpoint keeps x(t) linear so node
+  left% stays in registration with the curve). Three strokes: dim full arc, wide
+  soft glow understroke, bright lit arc — the lit pair trimmed to the ship's
+  fraction via `pathLength`/`stroke-dasharray`. Waypoints are drawn SVG glyphs
+  riding the curve (Earth with moon · orbit-ring stations · warning-shard hazards
+  · dashed hollow void · amber star + world for Proxima · hexagon default),
+  coloured by state (visited cyan glow / current amber + pulsing halo / future
+  faint). The ship marker is a MINIATURE OF THE TRANSIT ARK (plume, spine, ring,
+  hull) gliding the arc with left+top transitions. Labels keep the existing HTML
+  overlay system untouched (collision rules + media queries are gate-pinned).
+- **Paint-safety note:** the lit arc's glow is a wide understroke, NOT a
+  `drop-shadow` filter — a filter inside a `preserveAspectRatio:none` SVG
+  rasterizes at stretched scale and measurably hung compositing during evidence.
+- All new animations added to the `prefers-reduced-motion` kill list.
+
+## Scope boundary (held)
+- Diff: `index.html` (static transit SVG art), `game.js` (`playTransit` variant
+  flip; `renderRouteMap` + new `rmCurveY`/`rmGlyph` presentation helpers — render
+  layer only), `style.css`. Frozen-three untouched; `test/frozen-baseline.json`
+  byte-identical; no odds/economy/difficulty/hidden-meter change; `data-action`
+  wiring, keyboard, `#sr-live`, focus trap untouched.
+
+## Verification (all green)
+- `scripts/verify.sh` GATE PASS — 10 harnesses, frozen-three md5 intact, endings
+  golden. Gate-pinned constructs (`.rm-label` rules, `.routemap` padding
+  envelopes, chip pins l1–l3) all preserved.
+- Live browser: 1440×900 travel starchart (arc + glyphs + ark marker render, 10
+  nodes, 3 arc strokes); transit variants land/dock/hazard freeze-framed and
+  reviewed; 390×844 — rail, current node, ark marker, all 10 glyphs AND the Dist
+  chip inside the 135px viewscreen cap; log 152px HELD; page/app/x overflow 0/0/0.
+
+## STOP
+The ark finally looks like what the fiction says it is, and the nav bar reads as
+a plotted crossing — bright where you've survived it, faint where it's still dark.
