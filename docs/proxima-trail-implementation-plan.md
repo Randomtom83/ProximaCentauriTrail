@@ -1143,8 +1143,49 @@ and the engine stays byte-identical everywhere the zero-diff gate holds.
   ellipsis sanity shot; D2 1280×720 no-clip label check; D3 390×844 voyage/travel/colony
   crew-table shots (all three shared-component call sites).
 
+## Correction (same milestone, 2026-07-02) — premise-gate verdict + FORK-D1b
+- **T1.4 verdict → G3 fallback shipped (plan-sanctioned path, DoD 3):** the orchestrator's
+  live 390×844 evidence on 791b553 showed chips visible (3/3) but **`vs-foot` CLIPPED**
+  (bottom 322 vs viewscreen bottom 230) — the G1 hide would have deleted the only
+  surviving distance readout, so the `#crt:has(.bridge) #topbar-status { display:none }`
+  rule is **REMOVED**. G3 ships: the T1.1 ellipsized single-line topbar is retained on
+  travel as that readout. Harness `(h2)` flipped to the G3 variant — ellipsis floor still
+  required, and the hide now **required ABSENT** (checked against comment-stripped CSS so
+  the rule's tombstone comment doesn't trip it; mutation-tested by reintroducing the rule
+  → exit 1).
+- **FORK-D1b (unplanned, load-bearing — logged via `log_event` to `plan-events.jsonl`
+  BEFORE the commit):** the orchestrator's deeper finding — with the topbar freed, the log
+  STILL sat at ~62px: the freed ~87px flowed into the stations auto row (154px) while the
+  console row sat at min-content (commands-dominated, 288px) and the `minmax(84px,1fr)`
+  log row never left its floor. Options: (a) harder stations bound alone (~120px log,
+  short); (b) commands compression alone (~124–140px, short); **(c) both — chosen**,
+  targeting log ≥ ~150px. Shipped (all `<=900px`): `.bridge .stations` max-height
+  `clamp(140px,24vh,240px)` → `clamp(96px,12vh,160px)` — tuned from the fork's initial
+  14vh after in-browser measurement showed the log reached only 131px, the commands stack
+  being touch-floor-dominated (54px primary + 8×44px buttons, incompressible without
+  eating tap targets — off the table); commands compression (`.commands`/`.cmd-grid` gap
+  6→4px, `.btn.primary` padding 14→8px + font 17→15px — the `max-height:800px` block's
+  existing treatment — plus tighter `.cmd-grid .btn`/`.danger` paddings; the 44/48px
+  min-height floors untouched and now harness-pinned); `.bridge` gap 6→4px. **Honest
+  cost:** stations ~101px at 844 tall — header + ~2 crew rows glanceable, the rest behind
+  the row's existing internal scroll; a denser command console.
+- **Builder in-browser diagnostics** (supporting, NOT the official T4.3 evidence):
+  390×844 travel — log **62→152px**, no page scroll, min command button 44px, topbar
+  single-line carrying the distance readout, crew STATUS inside its panel; 1280×720
+  travel — 0 labels clipped (cur/nxt only; below-rail label bottom 169 ≤ viewscreen
+  bottom 172), all 9 commands visible, no page scroll (AC1 held); 390×844 title —
+  single-line topbar, hero intact, no page scroll.
+- **Harness `(k)` added** for the D1b reclaim: stations clamp vh term ≤ 14, a
+  `.btn.primary` padding compression present, and the 48px primary floor still pinned;
+  (k1)/(k2)/(k3) each mutation-tested (24vh restored / padding removed / floor removed →
+  exit 1, file restored md5-identical). Gate re-run: **GATE PASS — 10 harnesses green**,
+  frozen-three md5-intact, baseline untouched; diff scope unchanged (style.css +
+  layout_onescreen.js + docs pair; zero game.js/index.html).
+
 ## STOP
 M-UI2b closes the three verified divergences the Phase-1 reconcile loop surfaced without
-disturbing the merged one-screen bridge — CSS-only, gate green, D1's hide mechanism
-carrying its premise check honestly into the orchestrator's hands rather than
-self-certifying it.
+disturbing the merged one-screen bridge — CSS-only, gate green. D1 resolved through its
+encoded conditional exactly as designed: the premise gate failed in evidence, the G1 hide
+came back out, G3 shipped — and the unplanned FORK-D1b was logged before it was built, so
+the freed space finally reaches the ship's log (62→152px) instead of vanishing into a
+scrolling panel.
