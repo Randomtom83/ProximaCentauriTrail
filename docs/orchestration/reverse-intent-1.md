@@ -215,4 +215,100 @@ robustness and longevity over modern tooling convenience.
 
 ---
 
+## DELTA 2 — the return trail (update pass, merged main `bbdba5c`)
+
+*Same independence rule: only the changed code was read (`game.js` return-leg region,
+`renderReturnMap`, `test/homeleg.js`). Line numbers are from the post-merge file.*
+
+### D2.1 WHAT IT DOES now on the crossing home
+
+The homeward leg, previously a bare distance bar, now has a **named landmark layer**:
+
+- **`HOME_WAYPOINTS`** (`game.js:2521-2528`) defines three interior landmarks keyed by a
+  *fraction* of the voyage total, not absolute distance: The Fold Seam (`at: 0.20`,
+  `anchorEvent: null`), The Halfway Dark (`at: 0.50`, `anchorEvent: "longdark"`), The Last
+  Beacon (`at: 0.80`, `anchorEvent: "word"`). They are pure "between" places — void seams and
+  relay edges — never re-transited Sol ports (comment `2515-2517` calls this a "fiction guard").
+- **Crossing detection** — `startVoyage` seeds `v.waypointIndex: 0` as an explicit *sibling*
+  of the outbound `game.waypointIndex` (`game.js:2441`). Each `voyageTurn` calls
+  `voyageCrossLandmarks(auto)` (`2506`), whose while-loop (`2532-2542`) advances
+  `v.waypointIndex` whenever `v.distance / v.total` passes the next landmark's `at` — a
+  structural mirror of the outbound advance loop at `game.js:724`, but reading `game.voyage`.
+  The fractional keying is deliberate robustness: mid-run distance jumps (the "fold" event
+  adds `distance: +70`, `2569`) can't skip the bookkeeping the way a fixed cumulative table
+  would (comment `2502-2503`).
+- **Landmark beats** — `voyageLandmarkBeat` (`2548-2557`) logs the landmark's blurb; if the
+  landmark carries an `anchorEvent` id, it looks that entry up **in the existing
+  `VOYAGE_EVENTS` pool** and dispatches it through the committed chain
+  (`presentVoyageEvent` / `resolveVoyageCheck` / `voyageOutcome`) — no new resolver.
+  "word" is condition-gated (Earth not silent, `2589`) and skipped quietly if ungated (`2552`).
+  Off-front (`auto`) crossings resolve the safe/non-role choice inline with no modal
+  (`2553-2555`), matching the existing off-front convention.
+- **Map plotting** — `renderReturnMap` (`4418-4442`) now plots the interior landmarks on the
+  curved homeward chart between the Earth (left, 0%) and Proxima (right, 100%) endpoints. Since
+  the ark flies leftward, a landmark's screen x is mirrored: `left:(1-at)*100%` (`4432-4433`).
+  Node state (visited / current-with-halo / future) derives directly from `v.waypointIndex`
+  (`4429, 4434-4437`), and labels alternate above/below the rail exactly like the outbound map.
+  The comment declares it "presentation only — reuses rmChart/rmGlyph/rmCurveY (gate-pinned),
+  no new map engine" (`4428`).
+- **Statistical harness** — `test/homeleg.js` is a *winnability sweep*, not a unit test: three
+  arms of n=200 full crossings driven through the real `voyageTurn(true)` loop. It pins a sound
+  ark's survival to [94%,100%] and a wounded Voyager ark's loss rate to [28%,52%]
+  (`homeleg.js:105,116`), asserts every arrival crosses all three landmarks **in order 0,1,2**
+  (`142-143`), and runs a "coupling-drift guard" confirming the anchored ids actually fire at
+  their landmarks by scanning the live log (`150-174`). A third arm temporarily overrides
+  `HOME_EVENT_P` to 0.40 through a test-seam get/set accessor pair (`game.js:5083`) and
+  verifies it restores (`homeleg.js:122-135`) — a preview knob with zero shipped-byte change.
+
+### D2.2 Does landmark state feed any danger/odds function?
+
+**No — verified in the code paths, not just the comments.** The per-turn peril split is two
+constants, `HOME_HAZARD_P = 0.18, HOME_EVENT_P = 0.34` (`game.js:2667`), consumed once per
+turn (`2510-2512`); nothing writes them in production (the only setter is the harness seam,
+`5083`). `voyageHazardDanger` (`2696-2707`) reads hull, awake-Pilot skill, brownout, posture,
+`potential`, and difficulty — **no `v.waypointIndex`, `v.distance`, or `HOME_WAYPOINTS` term**.
+The comment block at `2500-2505` asserts this boundary explicitly ("Structure/anchor ONLY:
+never reads into voyageHazardDanger… never varies odds by position").
+
+One precise caveat: while *continuous odds* are position-independent, the two **anchored
+landmarks deterministically inject a guaranteed event at a fixed position** — "longdark" at
+50% (a Commander check, morale ±, `2592-2596`) and "word" at 80% (morale +9,
+`inf: {persist: +3}`, `2589-2591`). These are scripted *placements* of already-sampled-outcome
+events, so the sampled engine still resolves them; but strictly speaking the crossing is no
+longer probabilistically uniform — two beats are position-locked by design.
+
+### D2.3 IMPLIED INTENT of the delta
+
+1. **Pacing without touching the odds.** The entire layer is engineered to add narrative
+   *shape* to the emptiest stretch of the game — the decades-long crossing — while provably
+   not moving a single probability. The sibling-not-reuse discipline (`v.waypointIndex`
+   beside `game.waypointIndex`, `voyageOutcome` never the frozen `applyOutcome`), the
+   fraction-keyed positions, and the explicit lock-boundary comment all say the builders'
+   first fear when adding content is *accidentally changing the game's fairness*. The
+   balance-is-sacred priority inferred in §2.3 is not just preserved — it is now defended
+   with in-line boundary declarations at the point of extension.
+2. **The dead middle of the voyage was judged a real problem.** Anchoring "longdark" at the
+   exact 50% point (maximum distance from both worlds) and "word" at the last plausible
+   signal horizon shows the builders think the *emotional low point and the first touch of
+   home* deserve guaranteed, not left-to-chance, placement. They were willing to bend
+   sampled-everywhere purity for exactly two beats — the clearest statement yet of a
+   narrative-pacing value ranked just below, but touching, the odds-purity value.
+3. **Statistical, not anecdotal, verification of game feel.** `homeleg.js` asserting
+   survival-rate *bands* over 600 simulated crossings extends the anti-silent-failure
+   apparatus (§2.4) into balance territory: the builders now regression-test *difficulty
+   itself*. A future change that makes the crossing easier or deadlier trips the gate even
+   if no function drifted byte-wise.
+4. **Present with no apparent mechanical goal:** "The Fold Seam" (`anchorEvent: null`,
+   `2522-2523`) does nothing but log a blurb — pure foreshadowing texture for the existing
+   "fold" event (`2566`). Likewise the harness's RIDER 2/4 data recordings (quiet-turn share,
+   birth counts, `homeleg.js:21-22, 102-103`) assert nothing; they exist to feed some future
+   tuning decision. Both are built-ahead scaffolding: evidence the builders instrument first
+   and decide later.
+5. **Tuning happens in harness runtime, never in shipped bytes.** The `HOME_EVENT_P` get/set
+   accessor pair on the test seam (`game.js:5083`) exists so a balance experiment can run
+   (the B-preview arm) without editing the shipped constant — the same "zero shipped-byte
+   change" discipline the frozen-three gate embodies, now applied to tuning previews.
+
+---
+
 *End of report.*

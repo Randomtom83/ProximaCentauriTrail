@@ -70,6 +70,52 @@ orchestrator ruling where a dispute was adjudicated. Derived from plan-events.js
 - Chosen: **?** — 
 - DA verdict: **UPHOLD** — Mobile-only chip avoids a 40px-apart duplicate on desktop and avoids churning a working element; least-work and correct coincide.
 
+## P4-D1  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — Only option producing named anticipatable places; B fiction-breaking, C covert odds mechanism.
+
+## P4-D2  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — Gameplay is in the complaint; B reuses the committed resolver; C correctly fenced.
+
+## P4-D3  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — 3 landmarks defensible; FLAG: count not immovable if the sweep shows quiet still dominates.
+
+## P4-D5  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — Sacred hidden meters + calibration anchors; dual-birth review properly sweep-conditioned.
+
+## P4-P1  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — Sibling of committed outbound pattern, smaller save payload, similar work either way.
+
+## P4-P2  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — Fractional at is the harder choice and load-bearing (fold shortcuts jump v.distance).
+
+## P4-P3  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — Reuse is right; FLAG: add a test asserting landmark-gated dispatch fires the intended event (coupling drift guard).
+
+## P4-P4  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **UPHOLD** — Dedicated harness makes AC4 evidence legible and gate-counted; setup is consumed auditability.
+
+## P4-D4  (? · ?)
+- Options: 
+- Chosen: **?** — 
+- DA verdict: **OVERTURN** — Partial: 4A is the provable path, not the sufficient one - deferring the B sweep to a second cycle likely re-triggers the complaint then pays for a second sweep anyway. Payoff: add a B arm (HOME_EVENT_P 0.34->0.40) to the SAME n>=200 harness pass. Flagged, not forced: the constant itself is Tom's per-item lock. → now **4A shipped + B-preview arm measured in the same sweep**
+- Orchestrator ruling: Accept the DA refinement in MEASUREMENT-ONLY form: shipped constants stay byte-identical per Tom's 4A lock; test/homeleg.js adds a third arm (B-preview: HOME_EVENT_P=0.40 overridden inside the harness runtime only) whose rates are recorded alongside the two AC4 arms. Tom's 4A lock is unchanged; 4B becomes a one-lock flip pre-proven by data if he wants it after playing A. — Captures the DA payoff (no second sweep cycle) with zero shipped-byte change and zero new lock required. Sacred list untouched.
+
 ## F-SETUP-1  (plan · 2026-07-01T22:21:47-04:00)
 - Options: Render orchestration dashboard to docs/dashboard.html per skill default (overwrites the curated game changelog dashboard), Set ORCH_DOCS_DIR=docs/orchestration so event log / heartbeat / orchestration dashboard live beside, not over, the curated one
 - Chosen: **docs/orchestration via the ORCH_DOCS_DIR env seam** — docs/dashboard.html is a CLAUDE.md-protected curated artifact (game changelog + milestone status); the skill adopt-never-overwrite law forbids clobbering it. The env seam is provided by the script itself, zero code modification. Not the cheap path (cheap = let it overwrite); chosen for correctness.
