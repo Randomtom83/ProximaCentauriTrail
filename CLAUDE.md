@@ -51,20 +51,47 @@ On the public repo the dev files are staged under `docs/to-be-deleted/` until re
 `docs/to-be-deleted/proxima-trail-implementation-plan.md`, not `docs/`, and the first agent
 read will whiff. After restore: `CLAUDE.md` → root, plan/dashboard/etc → `docs/`.
 
-## The sacred list (never change, for any reason)
-permadeath · sampled-not-scripted outcomes · hidden meters (`earth.truth` / `EARTH_DOOM_YEARS`
-stay hidden) · the brutal economy · resource interdependence · emergent-tragedy bonds · the
-**Settler / Pioneer / Voyager** tiers (the only legitimate difficulty lever). No change to any
-odds, difficulty, scarcity, or hidden-meter value — ever. A change that would touch these is
-out of scope; stop and surface it.
+## The constitution (2026-07-10 — supersedes "the sacred list")
+Tom reopened everything ("nothing is sacred") and set the North Star: **darker, harder,
+slightly real, still funny.** The old never-change list is RETIRED as law; what survives of it
+survives on merit. Six principles now govern every design decision (full re-vision plan:
+Tom's plan file + `docs/audit-design.md` context):
 
-## Zero-diff gate (the precise version)
-- **Frozen-three (md5-identical to the committed baseline):** `applyOutcome`, `resolveCheck`,
-  `tryCompose`. Checked by `scripts/frozen.js` against `test/frozen-baseline.json`.
-- **`composeEnding` is golden-locked, NOT md5-frozen** (M-INT1 unfroze it). It is verified by
-  the `endings_golden` harness, not by md5. Do not md5-gate it.
-- Intentionally changing a frozen-three function = a deliberate act: update the baseline in the
-  same commit and say so. Never let it drift silently.
+1. **The arithmetic doesn't care.** Physics, biology, logistics are the antagonist. Consequences
+   are simulated honestly and narrated coldly. Space is never shortened for the player's
+   convenience; light-lag is real; everything heard from Earth is old news.
+2. **Legible brutality.** The game may kill you; it may never confuse you. Kill-chains narrate
+   themselves as they happen; every death ends in a flight-recorder post-mortem. Dying
+   comprehensibly IS the tutorial. Nothing gets easier — it gets visible.
+3. **Grief has names.** Deaths are specific and earned (a named disease, a pod that lied, a
+   stillbirth on survival rations). Oregon Trail's memorial culture, rebuilt for the void.
+4. **The comedy lives in the mundane.** Gallows humor in coffee, paperwork, ATLAS's passive
+   aggression — never in survival lines. Lucky-escape flourishes read as deadpan, not triumph.
+5. **Hope is earned, never issued.** No passive regeneration, no invisible floors, no free heals,
+   no riskless labor. Every mercy has a cost and a name. One healer per front, and it spends
+   something.
+6. **The mission outlives you.** Permadeath holds; command succession survives but costs (grief,
+   legitimacy). Wins are rare, partial, honest: verdicts are TRIUMPH / SURVIVAL / EPITAPH, and
+   genocide, contamination, and trauma follow you into the ending text.
+
+**Re-affirmed on merit (not by law):** permadeath · sampled-not-scripted outcomes · hidden
+meters stay hidden (surfaced diegetically only — ATLAS, the signal, omens; never numbers) ·
+Settler/Pioneer/Voyager tiers · the void leg's full length · naive win-rate 0%.
+**Explicitly opened:** odds, scarcity, the economy, heal valves, ending verdicts, act structure —
+changeable when a change serves the six principles, always behind the gate + a win-rate sweep.
+Tuning contract after hardening: naive 0% everywhere / optimal Settler ~35-45 / Pioneer ~25-35 /
+Voyager ~10-15.
+
+## Characterization gate (evolved from the zero-diff gate)
+The md5 freeze is no longer a design law — it is a **drift alarm.** The engine is changeable;
+it is never changeable *silently*.
+- `applyOutcome`, `resolveCheck`, `tryCompose` are still md5-checked by `scripts/frozen.js`
+  against `test/frozen-baseline.json`. Changing one is a deliberate act: **update the baseline
+  in the same commit and say so in the commit message.** An unexplained baseline bump is a defect.
+- `composeEnding` is golden-locked via the `endings_golden` harness (not md5). When the verdict
+  model changes (TRIUMPH/SURVIVAL/EPITAPH), regenerate the golden set in the same commit.
+- Every behavior-changing commit runs `bash scripts/verify.sh` AND (for balance-touching work)
+  a per-difficulty win-rate sweep; report the before/after gradient in the commit body.
 
 ## FAIL LOUD — no silent death (verification principle)
 A check that passes without actually testing is worse than no check. Two failure modes, both
@@ -87,10 +114,14 @@ Definitions in `.claude/agents/`. The main session orchestrates (`Task`). Per se
   its own findings. The deterministic gate is **scripts**, not an agent.
 - A self-report is never evidence; "didn't land in the commit" and "no proof" both = FAIL/FLAG.
 
-## Fenced items — never auto-build (need Tom's decision)
-S2-4 (save integrity), D2-1 (void-leg pacing), S3-1 (sibling-applier dedup — would break the
-zero-diff gate), S2-2 (seeded RNG — silent stream drift), S3-3 (file split — silent reorder),
-non-name `innerHTML` sinks. The Planner returns `FENCED — needs Tom` for these.
+## Fenced items (updated 2026-07-10)
+Tom's re-vision UNFENCED and scheduled: S2-4 save integrity, S2-2 seeded RNG, S3-1
+sibling-applier dedup, S3-3 file split (all Phase 5, behind characterization tests), and
+D2-1 void-leg *legibility* (length stays). Still fenced — needs Tom, case by case:
+- Anything that would change the six constitution principles themselves.
+- Exposing a hidden meter as a number (diegetic surfacing is always fine).
+- Shortening the trail (either direction) or removing permadeath.
+- Non-name `innerHTML` sinks (add `escapeHtml()` before any typed-text feature ships).
 
 ## Deploy
 Build local; deploy by copying approved static files (`index.html style.css game.js audio.js
