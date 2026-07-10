@@ -1486,3 +1486,67 @@ The flight home now has a named trail: three void landmarks the ark passes and
 can see coming on the chart, two of them real decisions — same structural answer
 to the complaint the outbound trail already gives, tuned to the crossing's own
 loneliness. Odds untouched; the structure did the work the AC4 sweep set out to prove.
+
+# ============================================================
+# RE-VISION (2026-07-10) — Phase 0 (reconcile & guard) + Phase 1 (the on-ramp)
+# Tom's directive: "nothing is sacred" — darker, harder, slightly real, still funny.
+# Constitution replaces the sacred list (see CLAUDE.md); on-ramp lands FIRST.
+# ============================================================
+
+## Context
+Tom reopened the whole design with a three-call mandate: genuinely open to reinvention,
+push darker/harder further, tighten the on-ramp first. Two code-grounded deep-reads set
+the targets: a punch-pulling audit (the mercy layer: ×0.62 return, four stacked heal
+valves, free beacon flipping losses to wins, infinite station jobs, genocide with no
+ending consequence, reload skipping crossings) and a run-1 design (narrate the kill-chain
+as it happens; dying comprehensibly IS the tutorial). Full plan: Tom's plan file;
+principles: CLAUDE.md constitution. Phases: 0 reconcile/guard → 1 on-ramp → 2 mobile
+re-verify → 3 hardening wave → 4 reinvention → 5 ops.
+
+## Phase 0 — shipped
+- Repo fast-forwarded 9 commits (HEAD now byte-identical to the deployed Y build);
+  the three 2026-06-27 audits committed.
+- S9: pending hazard/station/void queues persist in game._pending (JSON-safe keys +
+  indices); flushQueues re-fires on resume; pend() upgrades legacy saves. Reload can no
+  longer skip a crossing. Harness: test/pending_persist.js.
+- S1-2: handle() dispatch boundary (save → SYSTEM FAULT log → re-render, static notice
+  if the renderer broke); additive window backstops save on timer-escaped errors and
+  never claim window.onerror. S2-1: save() slims the blob (log→80) and warns once per
+  outage on write failure. Harness: test/error_boundary.js.
+- CLAUDE.md: sacred list retired → six-principle constitution; md5 gate re-scoped to a
+  drift alarm (deliberate, same-commit baseline updates only); S2-2/S2-4/S3-1/S3-3
+  unfenced into Phase 5; tuning contract recorded (naive 0 / S ~35-45 / P ~25-35 / V ~10-15).
+
+## Phase 1 — shipped (all display/recording; frozen-three md5-identical = proof of zero odds change)
+- Flight recorder: chronicle()→game.chain (≤60 causal facts at each transition's single
+  point of truth: named deaths, ≥15 hull hits via chronHull() watcher, brownout onset
+  with output/demand/hull, LS unpowered, cause-tagged anoxia (onset + every 3rd turn),
+  starvation onset, pods unpowered, despair count, ATLAS hostile, fuel out, chose-brownout).
+  game.firsts marks 16 systems/beats via first() at dispatch cases + beat functions.
+- atlasTelemetry(): band-change narration ("Hull 62% — reactor capped at 12 of 20…",
+  "Net oxygen −5.0/turn. At this rate: 9 turns of air."), fidelity gated on ATLAS
+  integrity (>60 numbers / 28-60 the numbers slip / ≤28 silent).
+- Brownout classroom: openAllocate prints the output = base × hull% derivation and
+  per-row real consequences; the proceed button captions its exact cost.
+- Post-mortem: renderEnd gains FLIGHT RECORDER (chain rows + ATLAS "Final analysis…")
+  and, on losses, WHAT YOU NEVER FOUND (accusations, Act N of III, endings-seen count,
+  the loss-rank-cap truth). endGame stores compact chain/firsts into meta.runs.
+- The chase: showLogbook gains the 16-tier ENDINGS gallery (◼-silhouettes + one-word
+  hints, legacy tiers auto-append), THE LADDER (best marked, delta-to-next, day-400
+  truth), BEST PER DIFFICULTY. meta.tiersSeen/bestByDiff with loadMeta backfill.
+- Honesty pass: title three-act line; How-to rewritten (The Arithmetic / The Long Dark /
+  The Shape of the Story); store Tips → provisioning brief computed from live formulas;
+  Settler/Voyager blurbs tell the truth; thrust/pods modals state their laws; hazard
+  modals name visible danger drivers only (hidden meters stay hidden).
+- Harness: test/onramp.js — a REAL suffocation death driven through the real dispatch,
+  asserting chain → post-mortem → meta → gallery → honest onboarding, end to end.
+
+## Verification
+GATE PASS — 14 harnesses green; frozen-three md5-identical to the committed baseline;
+endings_golden untouched. onramp/pending_persist/error_boundary added to the suite
+(MIN_TESTS floor still 9; actual 14).
+
+## STOP
+Phase 2 next: RE-VERIFY mobile against the M-UI2b/M-UI2c fixes (the 06-27 audit's U1-x
+items may already be closed) before porting anything; then the Phase-3 hardening wave
+(the mercy layer) with a win-rate sweep per sub-wave against the tuning contract.

@@ -90,9 +90,9 @@
   var ROLE_ORDER = ["Commander", "Pilot", "Engineer", "Medic", "Xenobiologist"];
 
   var DIFFICULTY = {
-    Settler: { mult: 1.0, credit: 2.0, harsh: 0.5,  startMult: 1.60, potential0: 64, blurb: "Forgiving. Margins to learn the ropes." },
+    Settler: { mult: 1.0, credit: 2.0, harsh: 0.5,  startMult: 1.60, potential0: 64, blurb: "Where you learn why you die. Even perfect play loses more than it wins." },
     Pioneer: { mult: 1.6, credit: 1.3, harsh: 0.8,  startMult: 1.25, potential0: 55, blurb: "The intended balance. Death is real." },
-    Voyager: { mult: 2.2, credit: 0.85, harsh: 1.25, startMult: 0.92, potential0: 45, blurb: "Brutal. Most crews die in the dark." }
+    Voyager: { mult: 2.2, credit: 0.85, harsh: 1.25, startMult: 0.92, potential0: 45, blurb: "Most crews die in the dark. Yours will probably be one of them." }
   };
 
   var STORE_ITEMS = [
@@ -268,7 +268,12 @@
       // Pending waypoint interactions (hazard keys + waypoint indices). Lives IN the save
       // so a reload can never skip a crossing — refreshing at "HAZARD AHEAD" used to empty
       // the module-level queues and wave the ship through. Permadeath holds now.
-      _pending: { hazards: [], stations: [], voids: [] }
+      _pending: { hazards: [], stations: [], voids: [] },
+      // Flight recorder (run-1 legibility): chain = the causal facts of this run, written
+      // at the moment they occur; firsts = which systems/beats this player has touched.
+      // Both feed the post-mortem — the game must never kill a player it cannot explain.
+      chain: [],
+      firsts: {}
     };
   }
 
@@ -309,8 +314,24 @@
       var m = localStorage.getItem(META_KEY);
       var parsed = m ? JSON.parse(m) : { best: 0, runs: [] };
       if (parsed.anim == null) parsed.anim = true;   // animations on by default
+      // One-time backfill: derive the endings census + per-difficulty bests from the
+      // run history that predates the gallery (runs already store tier/difficulty).
+      if (!parsed.tiersSeen) {
+        parsed.tiersSeen = {}; parsed.bestByDiff = {};
+        (parsed.runs || []).forEach(function (r) {
+          if (r.tier) {
+            if (!parsed.tiersSeen[r.tier]) parsed.tiersSeen[r.tier] = { count: 0, first: r.date || null };
+            parsed.tiersSeen[r.tier].count++;
+          }
+          if (r.difficulty) {
+            var b = parsed.bestByDiff[r.difficulty];
+            if (!b || r.score > b.score) parsed.bestByDiff[r.difficulty] = { score: r.score, rank: r.rank, won: !!r.won };
+          }
+        });
+      }
+      if (!parsed.bestByDiff) parsed.bestByDiff = {};
       return parsed;
-    } catch (e) { return { best: 0, runs: [], anim: true }; }
+    } catch (e) { return { best: 0, runs: [], anim: true, tiersSeen: {}, bestByDiff: {} }; }
   }
   function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {} }
 
@@ -323,6 +344,31 @@
     // a11y: announce ONLY the newest line via the scoped #sr-live region (index.html),
     // so a screen reader hears new events without the whole #app re-announcing each turn.
     if (typeof document !== "undefined") { var _live = document.getElementById("sr-live"); if (_live) _live.textContent = msg; }
+  }
+
+  /* ---- flight recorder (run-1 legibility) ----
+     chronicle(): append one causal FACT to the run's chain — the raw material of the
+     post-mortem ("how this crew died", reconstructed, not guessed). Facts, not prose;
+     written at the single point of truth where each state transition actually happens.
+     first(): mark a system/beat as discovered, so the post-mortem can also say what the
+     player NEVER found. Neither changes any odds — they only remember. */
+  function chronicle(fact) {
+    if (!game || !game.chain) return;
+    game.chain.push({ d: game.day, f: fact });
+    if (game.chain.length > 60) game.chain.shift();   // the recent chain is what killed you
+  }
+  function first(key) {
+    if (game && game.firsts && !game.firsts[key]) game.firsts[key] = true;
+  }
+  // Hull watcher: chronicle any ≥15-point hit since the last look, wherever it came from
+  // (hazard crossing, event, ATLAS). Called from the turn loop and the travel render so
+  // modal-inflicted damage is caught without touching the frozen appliers.
+  function chronHull() {
+    if (!game || !game.ship) return;
+    if (game._chronHullAt == null) { game._chronHullAt = game.ship.hull; return; }
+    var drop = game._chronHullAt - game.ship.hull;
+    if (drop >= 15) chronicle("Hull " + Math.round(game._chronHullAt) + "→" + Math.round(game.ship.hull) + " — the ship is wounded");
+    game._chronHullAt = game.ship.hull;
   }
 
   /* ---------------------------------------------------------
@@ -415,6 +461,7 @@
     c.taken = !!taken;          // abducted by the unknown vs simply dead — distinct in the roster
     c.health = 0;
     log(c.name + " (" + c.role + ") " + (reasonVerb || "died") + ".", "bad");
+    chronicle(c.name + " (" + c.role + ") " + (reasonVerb || "died"));
     sfx("death");
     // Bonds: partners grieve (within their own crew front).
     for (var i = 0; i < c.bonds.length; i++) {
@@ -562,6 +609,22 @@
       else if (chance(0.30)) { log(AI_NAME + ": \"...why do you keep trying? It would be kinder to stop.\"", "warn"); adjustMoraleAll(-2, true); }
     }
   }
+  /* ---- ATLAS telemetry: the ship narrates its own arithmetic (constitution #2) ----
+     Display-only — reads numbers the engine already computed; changes no odds. Emitted
+     on BAND CHANGES, never every turn (the log is scarce). Fidelity is gated on the
+     ship-mind's own integrity: a fraying narrator loses the numbers, a hostile one goes
+     silent — maintaining ATLAS is maintaining your ability to understand your own death.
+     The raw truth always remains readable on the power board (openAllocate). */
+  function atlasTelemetry(msg) {
+    var integ = (game && game.ai && game.ai.integrity != null) ? game.ai.integrity : 100;
+    if (integ <= 28) return;                                   // hostile: no narrator now
+    if (integ <= 60) {
+      log(AI_NAME + " ▸ " + msg.replace(/\d+(\.\d+)?/g, "…") + " I had the numbers a moment ago.", "sys");
+      return;
+    }
+    log(AI_NAME + " ▸ " + msg, "sys");
+  }
+
   function aiGlitch() {
     pick([
       function () { var k = pick(["fuel", "oxygen"]); var l = rint(2, 5); game.supplies[k] = Math.max(0, round1(game.supplies[k] - l)); log(AI_NAME + " misreported the " + k + " gauge — you were running leaner than it showed.", "warn"); },
@@ -570,6 +633,7 @@
     ])();
   }
   function aiHostile() {
+    chronicle(AI_NAME + " turned on the crew (integrity " + Math.round(game.ai.integrity) + ")");
     pick([
       function () { game.power.allocation.lifeSupport = false; log(AI_NAME + " locks life support: \"The air is wasted on the doubtful.\" Restore it before you choke.", "bad"); },
       function () { game.power.allocation.drive = false; log(AI_NAME + " cuts the drive: \"We are not going. I have decided.\"", "bad"); },
@@ -713,6 +777,7 @@
   // Wormholes: a rare, optional gamble — shortcut or one-way ticket to lost. Alien knowledge
   // makes them navigable, but they are NEVER a sure line to Proxima.
   function presentWormhole() {
+    first("wormhole");
     game._wormholes++;
     var navigable = (game.dest.knowledge >= 35) || (game.alien && game.alien.tech);
     openModal({
@@ -892,11 +957,20 @@
       if (game.ended) return;
       if (game.supplies.fuel <= 0 && game.power.allocation.drive) {
         log("No fuel. The drive is dead — you drift, bleeding air and food.", "bad");
-      }
+        if (!game._chronFuel) { game._chronFuel = true; chronicle("Fuel exhausted at " + Math.round(game.distance) + "/" + TOTAL_DIST + " — adrift"); }
+      } else if (game.supplies.fuel > 0) game._chronFuel = false;
       var p = computePower();
       if (p.brownout) {
+        // The reactor shortfall is the invisible middle of the canonical death spiral —
+        // chronicle its ONSET (once per outage) with the numbers that explain it.
+        if (!game._chronBrown) {
+          game._chronBrown = true;
+          chronicle("Reactor " + p.output + "/" + p.demand + " power (hull " + Math.round(game.ship.hull) + "%) — brownout");
+          atlasTelemetry("Hull " + Math.round(game.ship.hull) + "% — reactor capped at " + p.output + " of " + p.demand + " demanded. Something must go dark.");
+        }
         openBrownout(resolveTurn);
       } else {
+        game._chronBrown = false;
         resolveTurn();
       }
     });
@@ -937,7 +1011,21 @@
     // Scrubbers can't overfill the hold — surplus O₂ vents to space.
     var o2over = cargoUsed() - game.ship.holdMax;
     if (o2over > 0) game.supplies.oxygen = Math.max(0, round1(game.supplies.oxygen - o2over));
-    if (!al.lifeSupport) log("Life support unpowered — scrubbers offline.", "warn");
+    if (!al.lifeSupport) {
+      log("Life support unpowered — scrubbers offline.", "warn");
+      if (!game._chronLS) { game._chronLS = true; chronicle("Life support unpowered — scrubbers stopped"); }
+    } else game._chronLS = false;
+    // Telemetry: narrate the O₂ arithmetic when its BAND changes (sign flip / steepening),
+    // so the always-bleeding truth is taught once, not shouted every turn. Display-only.
+    var o2net = round1(recover - o2use);
+    if (o2net < 0 && game.supplies.oxygen > 0) {
+      var o2band = o2net <= -2.5 ? "steep" : "slow";
+      if (game._o2band !== o2band) {
+        game._o2band = o2band;
+        atlasTelemetry((!al.lifeSupport ? "Scrubbers offline. " : "") + "Net oxygen " + o2net + " per turn. At this rate: " +
+          Math.ceil(game.supplies.oxygen / -o2net) + " turns of air.");
+      }
+    } else if (o2net >= 0) game._o2band = null;
     if (game.supplies.oxygen <= 0) {
       game.supplies.oxygen = 0;
       // Anoxia escalates the longer the air stays gone — a brief gasp is survivable, but
@@ -946,8 +1034,15 @@
       // Severity scales with difficulty: forgiving tiers give marginal runs room to recover;
       // a sustained outage still kills everywhere.
       var oHit = Math.round(Math.min(46, 14 + (game._anoxia - 1) * 9) * (0.6 + 0.5 * DIFFICULTY[game.difficulty].harsh));
-      log(game._anoxia === 1 ? "OXYGEN DEPLETED. The crew gasps in the dark."
-        : "Still no air (" + game._anoxia + " turns). Lips blue, minds going — they are suffocating.", "bad");
+      // Cause-tag the suffocation so the player can connect the chain WHILE it kills them.
+      var oWhy = !al.lifeSupport ? "life support unpowered"
+        : game._chronBrown ? "reactor shortfall — scrubbers browned out"
+        : pace > 1 ? "burning air at " + THRUST[game.thrust].label + " pace"
+        : "more lungs than scrubbers";
+      log((game._anoxia === 1 ? "OXYGEN DEPLETED. The crew gasps in the dark."
+        : "Still no air (" + game._anoxia + " turns). Lips blue, minds going — they are suffocating.")
+        + " (" + oWhy + ")", "bad");
+      if (game._anoxia === 1 || game._anoxia % 3 === 0) chronicle("O₂ depleted, turn " + game._anoxia + " without air (" + oWhy + ")");
       adjustHealthAll(-oHit, true);
       adjustMoraleAll(-(6 + game._anoxia * 2), true);
       sfx("warn");
@@ -968,6 +1063,7 @@
       log(game._starve === 1 ? "Stores are empty. Hunger sets in."
         : game._starve <= 3 ? "Another day with no food. The crew is gaunt and failing."
         : "Starvation (" + game._starve + " turns). They are wasting away — this cannot go on.", "bad");
+      if (game._starve === 1) chronicle("Food stores empty — starvation begins" + (game.rations !== "full" ? " (on " + game.rations + " rations)" : ""));
       adjustHealthAll(-fHit, true);
       adjustMoraleAll(-(4 + game._starve * 2), true);
     } else {
@@ -1013,11 +1109,13 @@
     // Hibernation effects
     if (sl.length && !al.pods) {
       log("Hibernation pods unpowered — sleepers in danger!", "bad");
+      if (!game._chronPods) { game._chronPods = true; chronicle("Hibernation pods unpowered — " + sl.length + " sleeper(s) dying in the cold"); }
       for (var s = 0; s < sl.length; s++) {
         sl[s].health = clamp(sl[s].health - 25, 0, 100);
         if (sl[s].health <= 0) killCrew(sl[s], "never woke from cold sleep");
       }
     } else {
+      game._chronPods = false;
       for (var s2 = 0; s2 < sl.length; s2++) {
         var sleeper = sl[s2];
         sleeper.morale = clamp(sleeper.morale - 1, 0, 100);
@@ -1080,6 +1178,7 @@
     // End checks (don't let a coincidental loss override a pending win)
     if (!game.ended && !game._win) checkEnd();
 
+    chronHull();   // flight recorder: sum this turn's hull damage into the chain
     save();
     if (!game.ended) renderTravel();     // renderTravel flushes any queued contact/win/vignette
   }
@@ -1198,6 +1297,7 @@
     // pull out of (rest, rations, a good event), not an instant mutiny.
     if (awk.length > 0 && awk.every(function (c) { return c.morale <= 0; })) {
       game._despair = (game._despair || 0) + 1;
+      chronicle("Every waking soul at zero morale (" + game._despair + "/3 to mutiny)");
       if (game._despair >= 3) return endGame(false, "The crew has given up. They stop the engines and let the dark take them. Mutiny of despair.");
     } else game._despair = 0;
     // Stranded: no fuel, no charges to mine, not at a station, and out of air on the horizon.
@@ -1243,6 +1343,7 @@
   }
 
   function arriveAtProxima() {
+    first("arrived");
     var d = game.dest;
     // Sample the situation. Knowledge gathered en route (surveys, probes, a peaceful first
     // contact) genuinely tilts the odds toward viability and softens nasty surprises — but
@@ -1469,6 +1570,7 @@
   }
 
   function beginColony(petition) {
+    first("colony");
     closeModal();
     // Landing wakes everyone — no one rides out the colony in cold sleep.
     game.crew.forEach(function (c) { if (c.status === "Hibernating") c.status = c.ailment ? "Sick" : "Healthy"; });
@@ -1946,6 +2048,7 @@
   // hedge; and, when established, FOUND the settlement (a standalone victory that no longer hard-ends the
   // game if an ark is already out there — both fronts then compose). The crossing turn loop itself is P3-M2.
   function openFutureDecision() {
+    first("decision");
     var col = game.colony;
     var eligible = !!col.settledEligible;
     var ready = (col.shipReadiness || 0) >= LAUNCH_READY;
@@ -1975,6 +2078,7 @@
   // Earth still listens, the word gets through (beaconHeard, which composeEnding reads); loosed after
   // Earth has gone silent, it crosses an empty house. One-shot — you cannot recall or re-send it.
   function sendBeacon() {
+    first("beacon");
     var col = game.colony;
     if (col.beacon) { log("The beacon is already away — its message is light-years gone. You can't recall it or send another.", "warn"); sfx("empty"); return; }
     col.beacon = true;
@@ -2406,6 +2510,7 @@
   }
 
   function doLaunch(returnees) {
+    first("ark");
     var col = game.colony;
     // Move the returnees out of the colony crew into the ship's crew.
     var goNames = {}; returnees.forEach(function (c) { goNames[c.name] = 1; });
@@ -2971,15 +3076,27 @@
     game.outcomeTier = tier || (won ? "ARRIVED" : "LOST");
     var sc = computeScore();
     var rank = won ? rankFor(sc.total) : rankFor(Math.min(sc.total, RANKS[2].min - 1));
-    // Record run + meta
+    // Record run + meta. The run record carries a COMPACT flight-recorder chain +
+    // discovery flags so post-mortems stay revisitable from the logbook.
     meta.runs.unshift({
       date: new Date().toISOString().slice(0, 10),
       role: game.role, difficulty: game.difficulty,
       won: won, score: sc.total, rank: rank, day: game.day,
-      cause: cause, survivors: sc.survivors, tier: game.outcomeTier
+      cause: cause, survivors: sc.survivors, tier: game.outcomeTier,
+      chain: (game.chain || []).map(function (e) { return "d" + e.d + " " + e.f; }),
+      firsts: Object.keys(game.firsts || {})
     });
     if (meta.runs.length > 25) meta.runs.pop();
     if (sc.total > meta.best) meta.best = sc.total;
+    // Endings census + per-difficulty ladder (the chase: gallery + tier bests).
+    if (!meta.tiersSeen) meta.tiersSeen = {};
+    var tk = game.outcomeTier;
+    if (!meta.tiersSeen[tk]) meta.tiersSeen[tk] = { count: 0, first: null };
+    meta.tiersSeen[tk].count++;
+    if (!meta.tiersSeen[tk].first) meta.tiersSeen[tk].first = new Date().toISOString().slice(0, 10);
+    if (!meta.bestByDiff) meta.bestByDiff = {};
+    var bd = meta.bestByDiff[game.difficulty];
+    if (!bd || sc.total > bd.score) meta.bestByDiff[game.difficulty] = { score: sc.total, rank: rank, won: won };
     saveMeta();
     clearSave();           // permadeath: the run is over
     sfx(won ? "win" : "death");
@@ -3368,6 +3485,7 @@
      10b. First contact (scripted surprise) + aftermath
      --------------------------------------------------------- */
   function presentFirstContact() {
+    first("contact");
     game.contact = true;
     sfx("good");
     log("◆ FIRST CONTACT — you are not alone. ◆", "sys");
@@ -3456,8 +3574,17 @@
                disabled: noOne && anyViable,
                onClick: function () { resolveHazard(key, op); } };
     });
+    // Conditions line (run-1 legibility): name the VISIBLE danger drivers the sampler will
+    // read — hull, sensors, the helm — so the player learns they were levers on this
+    // crossing. Qualitative only; hidden meters (potential/posture) stay hidden.
+    var conds = [];
+    if (game.ship.hull < 70) conds.push("Hull " + Math.round(game.ship.hull) + "% — a wounded ship is in more peril");
+    if (!game.power.allocation.sensors) conds.push("sensors dark — you are flying blind");
+    if (game.autopilot) conds.push("no one at the helm");
     openModal({ title: "≋ " + hz.title, art: hz.art,
-      body: hz.text + "<div class='small dim' style='margin-top:8px'>Crew disposition: " + (dispositionText() || "steady") + "</div>",
+      body: hz.text +
+        (conds.length ? "<div class='small warn' style='margin-top:8px'>Conditions: " + conds.join(" · ") + ".</div>" : "") +
+        "<div class='small dim' style='margin-top:8px'>Crew disposition: " + (dispositionText() || "steady") + "</div>",
       choices: choices });
   }
 
@@ -3562,6 +3689,7 @@
   }
 
   function openTrade(wp) {
+    first("trade");
     var idx = wpIndexOf(wp);
     var rows = STORE_ITEMS.map(function (it) {
       var buy = priceAt(idx, it.key, "buy"), sell = priceAt(idx, it.key, "sell");
@@ -3691,6 +3819,7 @@
     return picks;
   }
   function openJobs(wp) {
+    first("jobs");
     var idx = wpIndexOf(wp), jobs = genJobs(idx);
     var rows = jobs.map(function (j, i) {
       var tag = j.role ? " <span class='dim'>[" + j.role + "]</span>" : (j.courier ? " <span class='dim'>[deferred]</span>" : " <span class='dim'>[anyone]</span>");
@@ -3801,7 +3930,7 @@
     openModal({
       title: "❄ Hibernation Pods",
       art: "",
-      body: "<div class='small dim'>Sleepers use almost no air or food, but can't act in events. Keep a pilot awake to fly — and a <b class='paper'>Medic awake to treat sickness</b>, or ailments will fester untended.</div>" + rows,
+      body: "<div class='small dim'>The exact arithmetic: an awake adult breathes <b class='paper'>1.0</b> O₂ a turn; a sleeper breathes <b class='paper'>0.1</b> — but pods draw power, and an unpowered pod kills its sleeper at 25 health a turn. Sleepers can't act in events. Keep a pilot awake to fly — and a <b class='paper'>Medic awake to treat sickness</b>, or ailments will fester untended. The void is 180 units long. Do the arithmetic.</div>" + rows,
       choices: [{ label: "Close", onClick: function () { sfx("confirm"); closeModal(); save(); renderTravel(); } }],
       onBind: function (root) {
         root.querySelectorAll("[data-hib]").forEach(function (b) {
@@ -3916,23 +4045,38 @@
   function openAllocate(thenFn, forced) {
     var al = game.power.allocation;
     var p = computePower();
-    function sys(key, label, draw) {
-      return "<div class='store-row'><span>" + label + "</span>" +
+    // The classroom (run-1 legibility): every number below is read from the exact formula
+    // that will execute next turn — the derivation, and each row's real consequence. The
+    // most-feared screen in the game becomes the most instructive one. Display-only.
+    function sys(key, label, draw, conseq) {
+      return "<div class='store-row'><span>" + label +
+        (conseq ? "<br><span class='small dim'>" + conseq + "</span>" : "") + "</span>" +
         "<span class='qty'>" + draw + " pwr</span>" +
         "<span></span>" +
         "<span><button class='btn small' data-sys='" + key + "'>" + (al[key] ? "ON" : "OFF") + "</button></span></div>";
     }
-    var body = "<div class='small'>Reactor output <b class='paper'>" + p.output + "</b> (hull-limited) · demand <b class='" +
-      (p.brownout ? "red" : "paper") + "'>" + p.demand + "</b></div>" +
+    var nSleep = sleepers().length;
+    var o2need = round1(consumeUnits());
+    var body = "<div class='small'>Reactor output <b class='paper'>" + p.output + "</b> <span class='dim'>= " + game.ship.reactorBase +
+      " × hull " + Math.round(game.ship.hull) + "%</span> · demand <b class='" +
+      (p.brownout ? "red" : "paper") + "'>" + p.demand + "</b>" +
+      (game.ship.hull < 100 ? "<br><span class='dim'>Repair the hull to restore reactor output.</span>" : "") + "</div>" +
       (forced ? "<div class='red small'>BROWNOUT — shed load until demand ≤ output to proceed.</div>" : "") +
-      sys("lifeSupport", "Life support (O₂ scrubbers)", POWER_DRAW.lifeSupport) +
-      sys("drive", "Drive (thrust)", THRUST[game.thrust].power) +
-      sys("medbay", "Medbay", ailing().length ? POWER_DRAW.medbay : 0) +
-      sys("sensors", "Sensors / nav", POWER_DRAW.sensors) +
-      sys("pods", "Hibernation pods", POWER_DRAW.podEach * sleepers().length);
+      sys("lifeSupport", "Life support (O₂ scrubbers)", POWER_DRAW.lifeSupport,
+        al.lifeSupport ? "off → scrubbers stop; net O₂ −" + o2need + "/turn" : "OFF — net O₂ −" + o2need + "/turn, nothing coming back") +
+      sys("drive", "Drive (thrust)", THRUST[game.thrust].power,
+        al.drive ? "off → you hold position, still breathing" : "OFF — holding position") +
+      sys("medbay", "Medbay", ailing().length ? POWER_DRAW.medbay : 0,
+        ailing().length ? (al.medbay ? "off → the sick go untreated" : "OFF — the sick are on their own") : null) +
+      sys("sensors", "Sensors / nav", POWER_DRAW.sensors,
+        al.sensors ? "off → you fly blind into hazards" : "OFF — flying blind") +
+      sys("pods", "Hibernation pods", POWER_DRAW.podEach * nSleep,
+        nSleep ? (al.pods ? "off → sleepers take −25/turn; they will die in their sleep" : "OFF — the sleepers are dying") : null);
     var stillBrown = computePower().brownout;
+    var brownDeficit = Math.max(0, game.power.demand - game.power.output);
     // You can ALWAYS proceed — but running under-powered strains the ship (no soft-lock).
-    var label = !forced ? "Done" : (stillBrown ? "Run under brownout (systems strain)" : "Proceed");
+    // The button captions its real cost: the exact formula the click will apply.
+    var label = !forced ? "Done" : (stillBrown ? "Run under brownout (air −" + round1(brownDeficit * 1.5) + ", crew −3)" : "Proceed");
     openModal({
       title: "⚡ Power Allocation",
       art: forced ? "!!! BROWNOUT !!!" : "",
@@ -3947,6 +4091,7 @@
                       game.supplies.oxygen = Math.max(0, round1(game.supplies.oxygen - deficit * 1.5));
                       adjustHealthAll(-3, true);
                       log("Running in brownout: scrubbers falter, the air goes thin and stale.", "bad");
+                      chronicle("Chose to run under brownout — air −" + round1(deficit * 1.5));
                     }
                     closeModal(); if (thenFn) thenFn(); else renderTravel();
                   } }],
@@ -4231,7 +4376,8 @@
         "<h1 class='hero-title'>Proxima<span class='t2'>Trail</span></h1>" +
         "<hr class='hero-rule'>" +
         "<div class='hero-sub'>Earth is dying. One ship. Four light-years to Proxima Centauri b.<br>" +
-        "Outfit your vessel, keep your crew alive, and found a colony — if you can.</div>" +
+        "Outfit your vessel, keep your crew alive, and found a colony — if you can.<br>" +
+        "<span class='dim'>Reaching Proxima is the middle of the story. There are three acts. Almost no one sees the third.</span></div>" +
         "<div class='hero-menu'>" +
           (resume ? "<button class='btn go' data-action='resume'><span class='key'>[R]</span> Resume voyage — Day " + resume.day + ", " + resume.role + "</button>" : "") +
           "<button class='btn' data-action='new'><span class='key'>[N]</span> New voyage</button>" +
@@ -4245,13 +4391,12 @@
     openModal({
       title: "How to Play",
       body:
-        "<p><b class='paper'>Goal:</b> travel the fixed trail from Earth to Proxima Centauri b and arrive with crew and supplies intact.</p>" +
-        "<p><b class='paper'>Each turn</b> you Continue along the trail. Your crew burns <b>oxygen</b> and <b>food</b>; the drive burns <b>fuel</b>.</p>" +
-        "<p><b class='paper'>Power</b> is the hub. The reactor's output depends on hull integrity. If demand beats output you <b>brown out</b> and must shed load — turning off scrubbers drains air, turning off the drive stops you.</p>" +
-        "<p><b class='paper'>Crew</b> have skills, morale, and bonds. Low morale leads to breakdowns; a death hurts the morale of bonded crewmates. Lose a specialist and you lose their edge in events.</p>" +
-        "<p><b class='paper'>Hibernate</b> crew to save air and food (vital for the Interstellar Void) — but sleepers can't help in a crisis, and a sleeping Medic can't treat the sick. Keep a small awake bridge crew (a pilot to fly, an engineer to mend, a medic to heal).</p>" +
-        "<p><b class='paper'>Mine</b> asteroids for supplies, <b>trade</b> at stations, and pick your <b>thrust</b> and <b>rations</b> to manage the squeeze.</p>" +
-        "<p class='dim small'>Death is permanent. The run autosaves so you can resume — but you can't undo a loss.</p>",
+        "<p><b class='paper'>The arithmetic.</b> Hull caps the reactor. The reactor powers the scrubbers. The scrubbers make your air. So a rock that cracks the hull is not a dent — it is the first day of a suffocation that arrives a week later. This chain is the game; every death you'll have traces back along it.</p>" +
+        "<p><b class='paper'>Each turn</b> you Continue along the trail. Five awake adults breathe 5.0 O₂ and eat 5.0 food; the scrubbers give back 4.0. Your tanks bleed <i>even when nothing goes wrong</i>. The drive burns fuel on top.</p>" +
+        "<p><b class='paper'>The long dark.</b> The void between the stars is 180 of the trail's 434 units — no ports, no rescue, nothing to buy. You cannot keep everyone awake for it. Hibernation cuts a sleeper's air to a tenth, at the price of their hands — and pods need power, and pods can fail. Plan to freeze your friends.</p>" +
+        "<p><b class='paper'>Crew</b> have skills, morale, and bonds. Low morale leads to breakdowns; a death hurts everyone bonded to the fallen. Lose a specialist and you lose their edge — permanently.</p>" +
+        "<p><b class='paper'>The shape of the story.</b> Reaching Proxima is the <i>middle</i>. There are three acts and " + ENDINGS_CENSUS.length + "+ ways it ends; the logbook keeps a gallery of the ones you've earned. Most first crews die in Act I — comprehensibly, if you read your ship's telemetry.</p>" +
+        "<p class='dim small'>Death is permanent. The run autosaves so you can resume — but you can't undo a loss. Death is also how you learn: every loss ends with the flight recorder's account of exactly what killed you.</p>",
       choices: [{ label: "Got it", onClick: function () { sfx("confirm"); closeModal(); } }]
     });
   }
@@ -4259,12 +4404,52 @@
   function showLogbook() {
     var rows = meta.runs.map(function (r) {
       return "<div class='score-line'><span>" + r.date + " · " + r.role + " · " + r.difficulty + "</span>" +
-        "<span class='v'>" + (r.won ? "<span class='cyan'>★ " + r.rank + "</span>" : "<span class='red'>lost d" + r.day + "</span>") +
+        "<span class='v'>" + (r.won ? "<span class='cyan'>★ " + r.rank + "</span>" : "<span class='red'>" + (r.tier && r.tier !== "LOST" ? r.tier.toLowerCase() : "lost") + " d" + r.day + "</span>") +
         " · " + r.score + "</span></div>";
     }).join("");
+
+    // ---- ENDINGS gallery: seen endings named; unseen as silhouettes with a one-word hint.
+    // The matrix is the chase — most players see one or two and stop, never learning the
+    // ceiling exists. Locked rows tell them it does, without saying how any cell is reached.
+    var seenT = meta.tiersSeen || {};
+    var census = ENDINGS_CENSUS.slice();
+    Object.keys(seenT).forEach(function (t) {          // legacy/drift tiers auto-append
+      if (t !== "LOST" && t !== "ARRIVED" && !census.some(function (e) { return e.t === t; })) census.push({ t: t, hint: "?" });
+    });
+    var seenCount = 0;
+    var gallery = census.map(function (e) {
+      var s = seenT[e.t];
+      if (s) { seenCount++; return "<div class='small'><span class='cyan'>◆</span> " + e.t + " <span class='dim'>×" + s.count + "</span></div>"; }
+      return "<div class='small dim'>◇ " + e.t.replace(/[A-Z0-9]/g, "◼") + " — <i>“" + e.hint + "”</i></div>";
+    }).join("");
+
+    // ---- THE LADDER: every rank, your best marked, the distance to the next — plus the
+    // two truths the score screen never states.
+    var best = meta.best || 0;
+    var ladder = RANKS.map(function (r) {
+      var got = best >= r.min;
+      return "<div class='small " + (got ? "" : "dim") + "'>" + (got ? "★" : "☆") + " " + r.name + " <span class='dim'>" + r.min + "+</span></div>";
+    }).join("");
+    var next = RANKS.filter(function (r) { return best < r.min; })[0];
+    var ladderFoot = next
+      ? "<div class='small amber'>Best " + best + " — " + (next.min - best) + " short of " + next.name + ".</div>"
+      : "<div class='small cyan'>You have stood at the top of the ladder.</div>";
+    ladderFoot += "<div class='small dim'>The speed bonus dies at day 400. Ranks above DRIFTER are for crews that arrive.</div>";
+
+    // ---- PER-TIER BESTS: the difficulty climb, made visible.
+    var bd = meta.bestByDiff || {};
+    var tiers = Object.keys(DIFFICULTY).map(function (dk) {
+      var b = bd[dk];
+      return "<div class='small'>" + dk + ": " + (b ? (b.won ? "<span class='cyan'>" + b.rank + "</span>" : "<span class='dim'>" + b.rank + "</span>") + " · " + b.score : "<span class='dim'>—</span>") + "</div>";
+    }).join("");
+
     openModal({
       title: "Logbook — Best " + meta.best,
-      body: rows || "<p class='dim'>No runs yet.</p>",
+      body:
+        "<div class='panel-title'>Endings — " + seenCount + " of " + census.length + "</div>" + gallery +
+        "<div class='spacer'></div><div class='panel-title'>The ladder</div>" + ladder + ladderFoot +
+        "<div class='spacer'></div><div class='panel-title'>Best per difficulty</div>" + tiers +
+        "<div class='spacer'></div><div class='panel-title'>Runs</div>" + (rows || "<p class='dim'>No runs yet.</p>"),
       choices: [{ label: "Close", onClick: function () { sfx("confirm"); closeModal(); } }]
     });
   }
@@ -4333,8 +4518,11 @@
       "<div class='panel'><div class='store-row'><b>Credits remaining</b><span class='dim small'>Hold " + cargoUsed() + "/" + game.ship.holdMax + "</span><span></span>" +
         "<span class='qty paper' id='cr'>" + game.credits + "</span></div>" + rows + "</div>" +
       "<div class='cols small'>" +
-        "<div class='col panel'><div class='panel-title'>Tips</div>" +
-        "<p class='dim'>Fuel moves you; oxygen & food keep the crew; parts repair the hull; medicine cures ailments; charges power mining. The void leg is long — bring air and food.</p></div>" +
+        "<div class='col panel'><div class='panel-title'>Provisioning brief — read this like your life depends on it</div>" +
+        "<p class='dim'>Fuel moves you; oxygen & food keep the crew; parts repair the hull; medicine cures ailments; charges power mining.</p>" +
+        "<p class='dim small'>The arithmetic: " + alive().length + " awake crew breathe " + round1(consumeUnits()) + " O₂ and eat " + round1(foodUnits(1)) + " food per turn at full rations. The scrubbers give back " + SCRUBBER_RECOVERY + " — <b class='warn'>your tanks bleed even when nothing goes wrong.</b></p>" +
+        "<p class='dim small'>The trail is " + TOTAL_DIST + " units; the void alone is 180, with nothing to buy and no one to save you. Sleepers breathe 0.1. Plan to freeze your friends.</p>" +
+        "<p class='dim small'>You start with " + game.supplies.medicine + " doses of medicine. Sickness does not care. Credits spend at stations — corpses don't trade.</p></div>" +
         "<div class='col panel'><div class='panel-title'>Manifest</div>" + manifestMini() + "</div>" +
       "</div>" +
       "<div class='spacer'></div>" +
@@ -4473,6 +4661,7 @@
   function renderTravel() {
     game.screen = "travel";
     if (maybeSuccession(game.crew, renderTravel)) return;   // your character fell — command passes first
+    chronHull();   // flight recorder: catch hull hits from hazard/event modals (they render here after)
     updateTopbar();
     var app = $("#app");
     var s = game.supplies, ship = game.ship;
@@ -4630,7 +4819,9 @@
   function openThrust() {
     openModal({
       title: "⚙ Drive Thrust",
-      body: "<p class='small dim'>More thrust covers ground faster but burns more fuel and power.</p>" +
+      body: "<p class='small dim'>More thrust covers ground faster but burns more fuel and power. " +
+        "The air bill is charged per light-year, not per day — you pay the gulf either way; " +
+        "speed decides how fast the tanks feel it.</p>" +
         Object.keys(THRUST).map(function (k) {
           var t = THRUST[k];
           return "<div class='store-row'><span><b>" + t.label + "</b></span><span class='small dim'>" +
@@ -4880,6 +5071,8 @@
     var head = game.won
       ? "<h2 class='cyan'>✦ " + tier + " ✦</h2>"
       : "<h2 class='red'>✖ " + tier + " ✖</h2>";
+    // ---- post-mortem: the flight recorder + what was never found (run-1 legibility) ----
+    var pm = postMortemHTML(game.won);
     var survivors = game.crew.filter(function (c) { return c.status !== "Dead"; });
     var lostC = game.crew.filter(function (c) { return c.status === "Dead" && !c.taken; });
     var takenC = game.crew.filter(function (c) { return c.status === "Dead" && c.taken; });
@@ -4913,10 +5106,85 @@
         "<div class='col panel'><div class='panel-title'>Final manifest</div>" + crewSummary +
           "<div class='spacer'></div><div class='small dim'>Day " + game.day + " · " + game.role + " · " + game.difficulty + "</div></div>" +
       "</div>" +
+      pm +
       "<div class='spacer'></div>" +
       "<div class='menu row'><button class='btn go' data-action='again'>▶ New voyage</button>" +
       "<button class='btn small' data-action='backTitle'>Title screen</button>" +
       (meta.runs.length ? "<button class='btn small' data-action='logbook'>Logbook</button>" : "") + "</div>";
+  }
+
+  /* ---------------------------------------------------------
+     16b. Post-mortem — dying comprehensibly IS the tutorial (constitution #2).
+     Display-only reconstruction from the flight recorder; changes no odds.
+     --------------------------------------------------------- */
+  // The endings census. Order tells the arc without spoiling how any cell is reached;
+  // hints are one word. Tiers a player earns that aren't listed (legacy paths) are
+  // appended from meta.tiersSeen, so the gallery can never lie about its own total.
+  var ENDINGS_CENSUS = [
+    { t: "TWO WORLDS", hint: "both" },
+    { t: "A WORLD, AND WORD", hint: "hedge" },
+    { t: "A WORLD, AT LEAST", hint: "foothold" },
+    { t: "A WORLD, AND AN EMPTY SKY", hint: "gone" },
+    { t: "A WORLD, AND A SILENT SHORE", hint: "unanswered" },
+    { t: "SETTLED", hint: "root" },
+    { t: "THE MESSENGER", hint: "maps" },
+    { t: "WORD WORTH CROSSING FOR", hint: "home" },
+    { t: "THE LONG WAY HOME", hint: "years" },
+    { t: "THE WORD GOT THROUGH", hint: "beacon" },
+    { t: "A SILENT SHORE", hint: "silence" },
+    { t: "TOO LATE", hint: "clock" },
+    { t: "WITHERED", hint: "hunger" },
+    { t: "LIFE SUPPORT LOST", hint: "cold" },
+    { t: "LOST WITH ALL HANDS", hint: "dark" },
+    { t: "EXTINCT", hint: "everything" }
+  ];
+  // What the dead never discovered — phrased as accusations, not tips. Keys match first().
+  var NEVER_FOUND = [
+    ["power",  "You never once opened the power board — the ship was rationing your air without you."],
+    ["thrust", "You never touched the throttle. The gulf does not cross itself politely."],
+    ["rations","You never changed the rations. The kitchen kept serving like Earth still existed."],
+    ["pods",   "You never used the hibernation pods. The void is 180 units long and everyone breathed through all of it."],
+    ["mine",   "You never mined an asteroid."],
+    ["trade",  "You never traded at a station."],
+    ["jobs",   "You never took station work — you flew past every paycheck."],
+    ["rest",   "You never stopped to mend the ship or the crew."],
+    ["atlas",  "You never spoke to ATLAS. It noticed."]
+  ];
+  function postMortemHTML(won) {
+    var chain = game.chain || [];
+    var rows = chain.slice(-14).map(function (e) {
+      return "<div class='small'><span class='dim'>d" + e.d + "</span> " + e.f + "</div>";
+    }).join("");
+    if (!rows) rows = "<div class='small dim'>No causal record — it was over before the recorder had anything to say.</div>";
+    // ATLAS closes the record: the first recorded wound vs the day it finally mattered.
+    var closer = "";
+    if (!won && chain.length >= 2) {
+      var gap = chain[chain.length - 1].d - chain[0].d;
+      closer = "<div class='small amber'>" + AI_NAME + " ▸ Final analysis: day " + chain[0].d + "'s damage did not kill this crew. The arithmetic did — " +
+        (gap > 0 ? gap + " days later." : "the same day.") + "</div>";
+    } else if (!won) {
+      closer = "<div class='small amber'>" + AI_NAME + " ▸ Final analysis: the void does not act quickly. It compounds.</div>";
+    }
+    var recorder =
+      "<div class='col panel'><div class='panel-title'>" + (won ? "Flight recorder" : "Flight recorder — how this crew died") + "</div>" +
+      rows + closer + "</div>";
+    if (won) return "<div class='cols'>" + recorder + "</div>";
+
+    // ---- WHAT YOU NEVER FOUND (losses only) ----
+    var f = game.firsts || {};
+    var missed = NEVER_FOUND.filter(function (nf) { return !f[nf[0]]; }).slice(0, 5)
+      .map(function (nf) { return "<div class='small warn'>" + nf[1] + "</div>"; }).join("");
+    var act = game.voyage ? "III" : game.colony ? "II" : "I";
+    var seen = Object.keys(meta.tiersSeen || {}).length;
+    var total = ENDINGS_CENSUS.length;
+    var never =
+      "<div class='col panel'><div class='panel-title'>What you never found</div>" +
+      (missed || "<div class='small dim'>You touched every system the ship had. It wasn't ignorance that killed you.</div>") +
+      "<div class='spacer'></div>" +
+      "<div class='small'>You died in <b>Act " + act + " of III</b>. There are " + total + " ways this story ends — you have seen <b>" + seen + "</b>.</div>" +
+      "<div class='small dim'>Ranks above DRIFTER are for crews that arrive. The logbook keeps what the dead learned.</div>" +
+      "</div>";
+    return "<div class='cols'>" + recorder + never + "</div>";
   }
 
   /* ---------------------------------------------------------
@@ -4996,13 +5264,13 @@
         break;
 
       case "continue": onContinue(); break;
-      case "thrust": openThrust(); break;
-      case "rations": openRations(); break;
-      case "power": openAllocate(null, false); break;
-      case "hibernate": openHibernation(); break;
-      case "rest": doRestRepair(); break;
-      case "mine": openMining(); break;
-      case "ai": openAI(); break;
+      case "thrust": first("thrust"); openThrust(); break;
+      case "rations": first("rations"); openRations(); break;
+      case "power": first("power"); openAllocate(null, false); break;
+      case "hibernate": first("pods"); openHibernation(); break;
+      case "rest": first("rest"); doRestRepair(); break;
+      case "mine": first("mine"); openMining(); break;
+      case "ai": first("atlas"); openAI(); break;
       case "colony":
         if (arg === "allocate") openColonyAllocate();
         else if (arg === "expedition") openExpedition();   // player-only modal (sets _pendingExpedition)
