@@ -1592,3 +1592,100 @@ GATE PASS — 14 harnesses green; frozen baseline updated for applyOutcome alone
 ## STOP
 Next: Phase 2.5 (docs/reality-audit.md — the tech bible) then the Phase-3 hardening
 wave with a win-rate sweep per sub-wave.
+
+# ============================================================
+# RE-VISION Phase 2.6 (2026-07-10) — Systems-truth audit
+# Succession · the journey home · colony machinery · cross-front UX
+# Findings routed into Phase 3 (new sub-wave 3.0) and Phase 4. Audit only — no code.
+# ============================================================
+
+## Context
+Tom asked for a serious look (not a fix pass) at whether the machinery does what the
+buttons and fiction promise: taking over a life when you die, the flight home, every
+colony verb, what power is based on, Scout clickable at 5/5 sites, life support pinned
+at 100, colonists with no useful skill, research that leads nowhere, and switching from
+the homebound ship back to the colony. Three line-level audits ran against E: HEAD
+6703794 (= deployed Y). Verdict: the *structure* is sound (landmarks, ending
+composition, split guards, stage transitions); the defects cluster in identity (one
+global `youName`, no notion of fronts), economy leaks, and verbs that lie.
+
+## Findings (line-cited at HEAD 6703794)
+- **Succession:** no cross-front succession — dying as the last of one front leaves the
+  player inhabiting nobody on the surviving front (L853, L2626→2935); `playerChar()`
+  fallback has no Dead-guard and can rebind "you" to a corpse (L842); a hibernating heir
+  is never woken and can end the run next turn (L852/854/864 vs L1293); end screen /
+  records print the frozen origin `game.role` while the roster `*` moves (L5107/L4406/
+  L3083 vs L4807); the split UI is youName-blind and `doLaunch` always flips the screen
+  to the voyage (L2535); off-front avatar deaths never prompt (auto-step paths omit
+  `maybeSuccession`). Intra-front core is sound and keeps: forced modal, autopilot
+  teardown, mid-modal deferral; role-gated checks never misalign (they read crew .role).
+- **Colony:** a powered, manned life-support axis structurally pins at 100 — prod
+  (8+sysLvl·3)·factor always beats use (heads·drain·techEase) and no entropy touches a
+  healthy axis (L1965–71), contradicting the "everything drains — triage" HUD (L4971);
+  colonist `skill` is dead data read only in the expedition no-specialist fallback
+  (L1774) — a colonist is `pop` with a name; Scout burns a season at 5/5 (button never
+  disabled, L5005; effect inside `if(hidden.length)`, L1740–45) and Refit does the same
+  at readiness 100/post-launch (L5008); five verbs charge the season on failed
+  affordability because `col.year++` precedes every gate (L1955); `colPower` (output
+  10+infra, 3 pwr + 1 hand per axis, L1509–18) makes brownout impossible once infra≥5 &
+  hands≥5 (allocate turns decorative) and permanent under 5 hands; `popCap` is never
+  read (L1588); infra/defense/sysLvl are unbounded flat-cost spam; children eat 1.0
+  (ship: 0.5) and faceless `pop` "mans" life support; Research does real math
+  (drain ×(1−tech/200), Work ×(1+tech/150), gates Settled) but unlocks nothing visible.
+- **Journey home:** Rest/Scavenge advance the colony a full cycle but zero ship turns
+  (L2995/3019→2932) and become completely FREE once `colonyDone` (L3024) — farm a parked
+  ark to full, then cruise; fuel=0 freezes distance while the log says "coasts on
+  momentum" (L2599–2600); no Cracked/breakdowns and no ATLAS on the crossing home —
+  even `beginReturn`'s same ship (L1130/L1136 vs L2594); launch provisioning is
+  invisible at commit and a lean colony under-provisions the ark (~45% of colony food,
+  L2492–2501/L2522); `beaconHeard` is written from possibly-frozen belief (L2085) while
+  arrival resolves on hidden truth (L2906); an arrival that reverses the crew's belief
+  is never acknowledged (L2911–18); voyage power has no allocate UI (hidden half-
+  scrubber brownout under ~hull 45, L2587/2602); metabolism differs from outbound
+  (child 1.0/sleeper 0.0 vs 0.5/0.1); last-awake guard is count-only (a child can fly,
+  L2968); voyage O₂ uncapped and misdisplayed (L2603).
+- **Cross-front UX (Tom hit live):** the switch is one-way — voyage has "⇄ Tend the
+  colony" (L5058) but the colony's "⇄ Ark —" line is inert text (L4942); no
+  focus→voyage control exists. With the ark flying you cannot look at it again until
+  its front self-resolves.
+- **Dead promises (carried from the first review):** `col.petition` written, never read;
+  `resolveActTwo` colonize/petition/return branches unreachable; colony has no birth
+  path (`addChild` has zero colony call sites); event pools too thin for run length
+  (outbound 20 → ~6–10 effective per zone; colony 12; return 10 with outbound dupes).
+- **Repo:** M-UI3c (77734b3, homebound-chart orientation) stranded in the Dropbox
+  clone — never picked into the E: re-vision line; reconcile before Phase 3.
+
+## Routing (amendments adopted into the plan)
+- **NEW Phase 3.0 — "The machinery tells the truth"** lands FIRST in Phase 3 (sweeps
+  are meaningless while the economy leaks): front-switch symmetry (both strips become
+  buttons; off-front avatar death surfaces immediately) · succession integrity (cross-
+  front succession; Dead-guard; costed heir-waking; youName-aware split UI, screen
+  follows YOU; lineage on the end screen; score-mult rule documented) · colony no-op
+  gating (disable-with-reason; affordability before `col.year++`) · voyage economy
+  integrity (Rest/Scavenge cost a ship turn; kill the post-colony farm; fuel-0 = named
+  drift countdown; O₂ cap + metabolism parity; child-pilot warning) · Earth-fate
+  coherence (`beaconHeard` vs truth lagged 4.24 yr; arrival acknowledges the reversal)
+  · dead-promise excision (resolveActTwo; petition made real or cut).
+- **Phase 3 amendments:** 3.2 gains colony life-support ENTROPY (axes never pin; the
+  colony gets the ship's recovery<demand tension) + voyage Cracked/ATLAS-rides-home;
+  3.4 gains the provisioning preview ("34 turns of food for 3 awake. You are carrying
+  18."); 3.8 gains popCap enforce/retire + caps on infra/defense/sysLvl + colPower
+  re-tension (demand grows with what you build); 3.10 gains the flat-success-line
+  rewrite + pool expansion (outbound ≥35 / colony ≥24 / return ≥22, 2–3 variant bodies)
+  behind a content-lint harness.
+- **Phase 4 amendments:** 4.3 — colonists become people (trades assigned at creation
+  and coming-of-age; colony verbs read the roster); NEW 4.7 — research leads somewhere
+  (tech thresholds unlock named improvements from the tech bible; at-cap disables with
+  reason); 4.4 folds in the epitaph/crew-memory device; 4.1 noted as the root fix for
+  frozen-belief staleness on colony-only runs.
+- **Do not churn (verified working):** landmark crossing, `tryCompose` end-race, split
+  guards, stage transitions, modal-verbs-don't-burn-cycles pattern, intra-front
+  succession core, focus never double-steps, allocate UI matches the engine.
+
+## Verification (contracted for Phase 3.0)
+New harnesses: succession_crossfront.js · colony_gating.js (no `col.year++` without an
+effect) · voyage_economy.js (side-actions cost ship turns; post-colonyDone farm
+impossible; fuel-0 countdown terminates) · a non-pinning assertion (60-cycle stable
+colony must show life-support variance in the back 40). Phase 3.0 is ~odds-neutral
+except the closed exploits — sweep before/after to prove the exploit-sized delta.
+Full audit + routing detail: Tom's plan file (i-want-you-to-parsed-diffie).
