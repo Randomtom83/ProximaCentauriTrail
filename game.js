@@ -275,9 +275,27 @@
   /* ---------------------------------------------------------
      3. Save / load
      --------------------------------------------------------- */
+  var _saveFailedWarned = false;
   function save() {
     if (!game || game.ended) return;
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); } catch (e) {}
+    try {
+      // Persist a SLIM copy: the live log keeps 220 lines for the UI, but a resumed
+      // player only needs enough to re-orient. An oversized blob is exactly how a
+      // quota write dies — and in a permadeath game a dead autosave must never be
+      // silent (audit S2-1).
+      var slim = Object.assign({}, game);
+      slim.log = game.log.slice(-80);
+      localStorage.setItem(SAVE_KEY, JSON.stringify(slim));
+      _saveFailedWarned = false;   // storage recovered → re-arm the warning
+    } catch (e) {
+      if (!_saveFailedWarned) {
+        _saveFailedWarned = true;
+        try {
+          log("⚠ AUTOSAVE FAILED (" + ((e && e.name) || "storage error") + ") — this run may not survive a reload. Free some browser storage; the game plays on.", "bad");
+          sfx("warn");
+        } catch (e2) {}
+      }
+    }
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
   function loadSave() {
@@ -4913,7 +4931,33 @@
     handle(a, arg);
   });
 
+  /* ---- error boundary: a bug may cost a moment, never a run (audit S1-2) ----
+     handle() is the single dispatch for every user action (clicks, keys, modal
+     choices), so one boundary here covers the turn loops and render paths they
+     drive. On a fault: preserve the run (save), tell the truth in the log, and
+     re-render — under permadeath, a transient bug must never freeze a player out
+     of a run they were winning. */
+  var _crashGuard = false;
+  function crashRecover(label, err) {
+    try { console.error("PROXIMA FAULT [" + label + "]", err); } catch (e0) {}
+    try { if (game && !game.ended) save(); } catch (e1) {}
+    try { log("⚠ SYSTEM FAULT (" + label + ") — state preserved, resuming. If this repeats, reload and Resume.", "warn"); } catch (e2) {}
+    if (_crashGuard) return;           // fault inside recovery: stop, don't loop
+    _crashGuard = true;
+    try { renderApp(); } catch (e3) {
+      // the renderer itself is what broke — last-resort static notice
+      try {
+        document.getElementById("app").innerHTML =
+          "<div class='panel'><h2 class='red'>✖ SYSTEM FAULT ✖</h2>" +
+          "<p>Something broke mid-turn. Your run was saved — reload the page and press Resume.</p></div>";
+      } catch (e4) {}
+    }
+    _crashGuard = false;
+  }
   function handle(a, arg) {
+    try { handleInner(a, arg); } catch (err) { crashRecover("action:" + a, err); }
+  }
+  function handleInner(a, arg) {
     switch (a) {
       case "new": sfx("select"); game = null; sel = { role: "Commander", diff: "Settler", names: rerollNames() }; game = { screen: "role" }; renderRoleScreen(); break;
       case "resume":
@@ -5072,6 +5116,18 @@
   /* ---------------------------------------------------------
      18. Boot
      --------------------------------------------------------- */
+  // Backstop for errors that escape the dispatch boundary (setTimeout-driven transit
+  // completions, auto-step ticks): preserve the run so a reload can Resume. Additive
+  // listener — never assigns window.onerror (test harnesses own that seat), never
+  // re-renders (a render loop inside an error handler is how freezes become crashes).
+  if (typeof window !== "undefined" && window.addEventListener) {
+    window.addEventListener("error", function () {
+      try { if (game && !game.ended) save(); } catch (e) {}
+    });
+    window.addEventListener("unhandledrejection", function () {
+      try { if (game && !game.ended) save(); } catch (e) {}
+    });
+  }
   // Inert test seam: attaches nothing in production. A harness opts in by setting
   // window.__PROXIMA_TEST__ = true BEFORE this script loads, then drives composeEnding
   // over seeded (colonyDone × voyageDone × beaconHeard) inputs to characterize endings.
@@ -5090,6 +5146,9 @@
       // the queue flush directly, and reach meta so a harness can disable transits headlessly.
       checkArrival: checkArrival, flushQueues: flushQueues,
       get meta() { return meta; }, set meta(m) { meta = m; },
+      // error-boundary verification seam (inert in production): fire the guarded dispatch
+      // and the hardened autosave directly.
+      handle: handle, save: save,
       // M-HOME1 verification seam (inert in production): drive the return-leg turn loop directly
       // and read the landmark trail for the homeleg distributional sweep + coupling-drift guard.
       voyageTurn: voyageTurn, HOME_WAYPOINTS: HOME_WAYPOINTS,
