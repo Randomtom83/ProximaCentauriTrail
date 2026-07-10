@@ -1550,3 +1550,45 @@ endings_golden untouched. onramp/pending_persist/error_boundary added to the sui
 Phase 2 next: RE-VERIFY mobile against the M-UI2b/M-UI2c fixes (the 06-27 audit's U1-x
 items may already be closed) before porting anything; then the Phase-3 hardening wave
 (the mercy layer) with a win-rate sweep per sub-wave against the tuning contract.
+
+# ============================================================
+# RE-VISION Phase 2 (2026-07-10) — Playtest patch-wave
+# Colony fit · chart YOU/NEXT · full-ship honesty (+ locked forks)
+# ============================================================
+
+## Context
+Tom's live play surfaced three defects. All fixed with browser-measured evidence
+(1280×800 + 390×844) and pinned in the gate.
+
+## Shipped
+1. **Colony one-screen fix** (renderColony): verbs-first order (hud + banner + acts +
+   hint + world + crew + log) — the season verbs sat at y≈816 in an 800px window, on
+   desktop. Colony crew strip bounded (`.colony-crew .crew-strip` max-height + internal
+   scroll); at ≤900px decoration yields (`.colony-vista`/`.col-hint` hidden, denser
+   `.menu.row` buttons, 44px touch floor held). Measured: desktop verbs bottom 856→465;
+   phone all 10 verbs on the first screen (bottom 842). layout_onescreen assertion (m).
+2. **Chart legibility** (renderRouteMap/rmChart): ship carries a cyan **YOU** tag; the
+   amber destination node's label reads **NEXT ▸ name**. Presentation only.
+3. **Full-ship honesty** (DELIBERATE frozen-three change; baseline re-seeded this
+   commit, applyOutcome only): recruit resolves first — at MAX_CREW a rescue's rewards
+   (morale, their credits) no longer apply while shared-supply costs still do;
+   recruit-bearing choices warn "no berths (8/8)" up front; crew headers read n/8 — full.
+   BONUS: top-level `o.credits` (distress +90 / probe +260 / barter −80) was silently
+   ignored by applyOutcome — prompts that lied in both directions — now honestly applied.
+
+## Locked forks (Tom, this session)
+- **Beacon → rare REAL reinforcement** (Phase 3): a beacon that reached a living Earth
+  can, decades later on the physics' own timeline, bring an actual relief ship —
+  double-edged, epilogue-aware; beacon endings stay demoted to SURVIVAL/EPITAPH.
+- **Arrival converts the hold into colony founding capital** (Phase 3): food/meds carry;
+  parts+ore→materials/infra; ice/volatiles→water; fuel banks toward the return launch;
+  credits convert to nothing (and the game says so, coldly).
+- **Crew cap**: defect fixed now; life-support-driven dynamic capacity in Phase 4.
+
+## Verification
+GATE PASS — 14 harnesses green; frozen baseline updated for applyOutcome alone
+(resolveCheck/tryCompose md5-unchanged); browser evidence both viewports.
+
+## STOP
+Next: Phase 2.5 (docs/reality-audit.md — the tech bible) then the Phase-3 hardening
+wave with a win-rate sweep per sub-wave.

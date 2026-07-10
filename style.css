@@ -300,6 +300,12 @@ button.btn:hover .key { color: #04101c; }
 .rm-ship .ms-hull { fill: #1b2c4d; stroke: var(--cyan); stroke-width: .9; }
 /* homebound: same ark, flying the other way */
 .rm-ship.home svg { transform: scaleX(-1); }
+/* "you are here" belongs to the SHIP — the amber node is the destination (labeled NEXT) */
+.rm-ship .rm-you {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  font-style: normal; font-size: 8px; letter-spacing: .14em; color: var(--cyan);
+  text-shadow: 0 0 6px rgba(111,220,255,0.8); pointer-events: none;
+}
 
 /* ---- the colony's vista: ground truth in the same design language ----
    Sky lives in CSS layers (survives any panel width); SVG carries only the
@@ -373,6 +379,9 @@ button.btn:hover .key { color: #04101c; }
 
 /* ---- crew stations ---- */
 .crew-strip { display: flex; flex-direction: column; gap: 3px; }
+/* Colony-fit fix: the colony roster scrolls internally so a growing settlement can
+   never push the season verbs (which render ABOVE it) off-screen. */
+.colony-crew .crew-strip { max-height: clamp(120px, 24vh, 220px); overflow-y: auto; }
 .crew-head, .crew-row {
   display: grid; grid-template-columns: 16px minmax(120px,1.5fr) 1fr 1fr 88px; gap: 10px; align-items: center;
   font-size: 13px; padding: 4px 4px; border-radius: 8px;
@@ -569,6 +578,14 @@ button.btn:hover .key { color: #04101c; }
 @media (max-width: 900px) {
   #crt { padding: 8px 10px 6px; height: calc(100vh - 20px); height: calc(100dvh - 20px); }
   #topbar { margin-left: 56px; } #botbar { margin-right: 56px; }
+  /* Colony-fit fix (2026-07-10): at phone widths the stacked colony panels ate the whole
+     first screen before the season verbs. Decoration and long-form hints yield first —
+     same principle as hiding .vs-title (M-UI2c): art never outranks the controls. */
+  .colony-vista { display: none; }
+  .col-hint { display: none; }
+  .colony-crew .crew-strip { max-height: clamp(100px, 18vh, 160px); }
+  /* Denser season verbs on phones — 44px touch floor held (same posture as .cmd-grid). */
+  .menu.row .btn { padding: 8px 9px; font-size: 13px; min-height: 44px; }
   /* D1b: 6px->4px (2 bridge gaps = +4px to the log's 1fr; measured 148->152px at 390x844) */
   .bridge { gap: 4px; }
   .viewscreen { max-height: clamp(96px, 16vh, 140px); }

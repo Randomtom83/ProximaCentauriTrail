@@ -3115,6 +3115,12 @@
   // ailment, heal, kill, text, type.
   function applyOutcome(o) {
     if (!o) return "";
+    // Recruit resolves FIRST (2026-07-10, deliberate frozen-three change — baseline updated
+    // this commit): at full crew the person never boards, so a boarding's rewards (their
+    // credits, the crew's lift in morale) must not apply — the old order paid +8 morale and
+    // promised +90 cr for a rescue that didn't happen. Shared-supply COSTS still apply.
+    var recruitFull = false;
+    if (o.recruit) { if (!addCrewMember(o.recruit === true ? null : o.recruit)) recruitFull = true; }
     if (o.res) for (var k in o.res) {
       if (k === "credits") { game.credits = Math.max(0, game.credits + o.res[k]); continue; }
       var delta = o.res[k];
@@ -3122,9 +3128,13 @@
       if (delta > 0 && k !== "medicine") delta = Math.min(delta, cargoSpace());
       game.supplies[k] = Math.max(0, round1((game.supplies[k] || 0) + delta));
     }
+    // Top-level credits (distress +90 / probe study +260 / alien barter −80) were silently
+    // IGNORED before — prompts that promised pay that never arrived. Honest now; a payer
+    // who never boarded pays nothing.
+    if (o.credits && !(recruitFull && o.credits > 0)) game.credits = Math.max(0, game.credits + o.credits);
     if (o.parts) game.ship.parts = Math.max(0, game.ship.parts + (o.parts > 0 ? Math.min(o.parts, cargoSpace()) : o.parts));
     if (o.hull) game.ship.hull = clamp(game.ship.hull + o.hull, 0, 100);
-    if (o.morale) adjustMoraleAll(o.morale, true);
+    if (o.morale && !(recruitFull && o.morale > 0)) adjustMoraleAll(o.morale, true);
     if (o.health) {
       if (o.target === "one") {
         var one = pick(awake());
@@ -3142,8 +3152,6 @@
         : pick(awake());
       if (victim) killCrew(victim, o.killVerb || "died");
     }
-    var recruitFull = false;
-    if (o.recruit) { if (!addCrewMember(o.recruit === true ? null : o.recruit)) recruitFull = true; }
     if (o.clearPursuit && game.alien) game.alien.pursuit = false;
     if (o.inf) influence(o.inf);              // bend the hidden odds (probabilistic engine)
     if (o.text) {
@@ -3381,10 +3389,15 @@
     var anyViable = viable.some(Boolean);
     var choices = ev.choices.map(function (ch, i) {
       var noOne = ch.role && !viable[i];
+      // Don't promise a berth the ship doesn't have: recruit-bearing choices say so up
+      // front at full crew, BEFORE the player commits (the outcome already pays honestly).
+      var wantsRecruit = (ch.outcome && ch.outcome.recruit) || (ch.success && ch.success.recruit);
+      var noBerth = !isCol && wantsRecruit && alive().length >= MAX_CREW;
       return {
         // Don't pretend a dead/sleeping specialist will do it. Block the option when there's a
         // real alternative; if it's the ONLY option, leave it as a desperate (penalized) attempt.
-        label: ch.label + (ch.role ? "  [" + ch.role + (noOne ? (isCol ? " — none on hand" : " — none aboard") : "") + "]" : ""),
+        label: ch.label + (noBerth ? " — no berths (" + MAX_CREW + "/" + MAX_CREW + "); you can only share supplies" : "")
+          + (ch.role ? "  [" + ch.role + (noOne ? (isCol ? " — none on hand" : " — none aboard") : "") + "]" : ""),
         disabled: noOne && anyViable,
         onClick: function () {
           if (isCol) {
@@ -4577,8 +4590,10 @@
       var lc = i === game.waypointIndex ? "cur"
              : i === game.waypointIndex - 1 ? "nxt"
              : state === "visited" ? "past" : "";
+      // The pulsing amber node marks your DESTINATION, not your position — say so, because
+      // players read the loudest marker as "you are here" (the ship carries that tag now).
       labels += "<span class='rm-label " + (i % 2 ? "blw" : "abv") + " " + lc +
-        "' style='left:" + pct + "%'>" + abbrev(wp.name) + "</span>";
+        "' style='left:" + pct + "%'>" + (i === game.waypointIndex ? "NEXT ▸ " : "") + abbrev(wp.name) + "</span>";
     }
     // The plotted trajectory: one dim full arc, one bright arc trimmed to the
     // ship's fraction via pathLength/dash. Control-point x = midpoint keeps
@@ -4593,6 +4608,7 @@
     var shipX = homeward ? (1 - shipF) * 100 : shipF * 100;
     var ship =
       "<span class='rm-ship" + (homeward ? " home" : "") + "' style='left:" + shipX.toFixed(1) + "%;top:" + rmCurveY(homeward ? 1 - shipF : shipF).toFixed(1) + "%'>" +
+        "<i class='rm-you'>YOU</i>" +
         "<svg viewBox='0 0 34 14' aria-hidden='true'>" +
           "<polygon points='1,7 8,5.4 8,8.6' class='ms-plume'/>" +
           "<rect x='8' y='5.6' width='14' height='2.8' rx='1' class='ms-spine'/>" +
@@ -4731,7 +4747,7 @@
           "<div class='stat'><span class='label'>Credits</span><span class='val paper'>" + game.credits + "</span></div>" +
           stat("Hull", ship.hull, 100) +
         "</div>" + powerLine + cargoLine + "</div>" +
-        "<div class='panel'><div class='panel-title'>Crew (" + alive().length + ")</div>" + crewStrip() + "</div>" +
+        "<div class='panel'><div class='panel-title'>Crew (" + alive().length + "/" + MAX_CREW + (alive().length >= MAX_CREW ? " — <span class='amber'>full</span>" : "") + ")</div>" + crewStrip() + "</div>" +
       "</div>";
 
     // Command console: the everyday verb is a big primary key; station keys grid
@@ -4952,7 +4968,7 @@
       "<div class='panel'><div class='panel-title'>The Colony · Cycle " + col.year + " · " + col.habit + " world · " + col.stage + "</div>" +
         colonyVista() +
         "<div class='stat'><span class='label'>Hope</span><span class='val cyan'>" + Math.round(m.hope) + " / 100</span></div>" + bar(m.hope, 100, "power") +
-        "<div class='small dim' style='margin-top:6px'>Survival, not yet a settlement. Air, water, food, warmth and medical care all drain — and there is never enough power and hands to run all five at full. Triage.</div>" +
+        "<div class='small dim col-hint' style='margin-top:6px'>Survival, not yet a settlement. Air, water, food, warmth and medical care all drain — and there is never enough power and hands to run all five at full. Triage.</div>" +
         offStripLine("ship") +                       // [2a] off-front (the ark) headline
       "</div>" +
       digestBlock("ship") +                          // [1c] what the crossing did while you were here
@@ -4968,8 +4984,10 @@
           (col.relations != null ? stat("They", col.nativesGone ? "gone" : (col.nativeTrust >= 75 ? "trust you" : col.nativeTrust >= 25 ? "watch warily" : "hostile"), (col.nativeTrust < 25 && !col.nativesGone) ? "red" : "") : "") +
           (game.dest.inhabited === "settlers" && col.settlerStanding ? stat("Other camp", col.settlerStanding) : "") +
         "</div></div>" +
-      "</div>" +
-      "<div class='panel'><div class='panel-title'>Crew &amp; colonists</div>" + crewStrip() + "</div>";
+      "</div>";
+    // Crew rides BELOW the action row (see innerHTML order note there) and its strip
+    // scrolls internally, so a growing roster can never push the verbs off-screen.
+    var crewPanel = "<div class='panel colony-crew'><div class='panel-title'>Crew &amp; colonists</div>" + crewStrip() + "</div>";
     var revealed = (col.sites || []).filter(function (st) { return st.revealed; });
     var hiddenN = (col.sites || []).filter(function (st) { return !st.revealed; }).length;
     var worldRows = revealed.length
@@ -4998,8 +5016,13 @@
     var settledBanner = col.settledEligible
       ? "<div class='panel' style='border-color:#33ff66'><div class='small cyan'>★ The colony is thriving — you could call it <b>founded</b>. Open <b class='paper'>⚖ The future</b> to claim this world.</div></div>"
       : "";
-    app.innerHTML = hud + world + settledBanner + acts +
-      "<div class='small dim'>Each action is a cycle. <b class='paper'>Work</b> gathers materials &amp; food safely · <b class='paper'>Scout</b> reveals the world · <b class='paper'>Expedition</b> sends crew to a site for a bigger haul, at real risk · <b class='paper'>Tend</b> mends spirits and bodies · <b class='paper'>Secure/Build/Research/Refit</b> shape the colony · <b class='paper'>Hold</b> rests. Exploiting sites scars the land.</div>" +
+    // Order matters (the colony-fit fix, 2026-07-10): the every-cycle VERBS come right
+    // after the status panels so they sit above the fold at desktop height — the colony
+    // used to stack crew + world first and push its own action row off-screen (verbs at
+    // y≈816 in an 800px window). Same principle as the travel screen's one-screen bridge.
+    app.innerHTML = hud + settledBanner + acts +
+      "<div class='small dim col-hint'>Each action is a cycle. <b class='paper'>Work</b> gathers materials &amp; food safely · <b class='paper'>Scout</b> reveals the world · <b class='paper'>Expedition</b> sends crew to a site for a bigger haul, at real risk · <b class='paper'>Tend</b> mends spirits and bodies · <b class='paper'>Secure/Build/Research/Refit</b> shape the colony · <b class='paper'>Hold</b> rests. Exploiting sites scars the land.</div>" +
+      world + crewPanel +
       "<div class='panel-title' style='margin-top:10px'>Colony Log</div><div class='log' id='log'></div>";
     renderLog();
   }
@@ -5047,7 +5070,7 @@
           stat("Years since exodus", exodusYears()) +
           "<div class='stat'><span class='label'>Reactor</span><span class='val " + (p.brownout ? "red" : "cyan") + "'>" + p.demand + " / " + p.output + (p.brownout ? " ⚠" : "") + "</span></div>" +
         "</div><div class='small dim'>Thrust: <b class='paper'>" + THRUST[v.thrust].label + "</b> · Rations: <b class='paper'>" + RATIONS[v.rations].label + "</b></div></div>" +
-        "<div class='col panel'><div class='panel-title'>Crew aboard (" + alive(v.crew).length + ")</div>" + crewStrip(v.crew) + "</div>" +
+        "<div class='col panel'><div class='panel-title'>Crew aboard (" + alive(v.crew).length + "/" + MAX_CREW + (alive(v.crew).length >= MAX_CREW ? " — <span class='amber'>full</span>" : "") + ")</div>" + crewStrip(v.crew) + "</div>" +
       "</div>";
     var acts = "<div class='menu row'>" +
       "<button class='btn go' data-action='voyage' data-arg='continue'>▶ Continue</button>" +

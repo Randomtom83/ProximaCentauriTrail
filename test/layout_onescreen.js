@@ -271,6 +271,28 @@ try {
     ok("(l) D4: chip dist markup (l1) + default-hide (l2) + <=900px show rule (l3) all present");
   }
 
+  // (m) Colony-fit fix (2026-07-10): the colony's season verbs render ABOVE the world/crew
+  //     panels, and the crew strip is bounded — a growing settlement can never push the
+  //     every-cycle controls off-screen (they used to sit at y≈816 in an 800px window).
+  {
+    // (m1) renderColony innerHTML order: verbs (acts) before world + crewPanel.
+    if (!/app\.innerHTML = hud \+ settledBanner \+ acts \+/.test(js) || !/world \+ crewPanel \+/.test(js)) {
+      fail("(m1) renderColony no longer orders hud+banner+acts before world+crewPanel — the colony verbs can fall below the fold again");
+    }
+    // (m2) the colony crew strip is bounded with internal scroll.
+    const colonyCrew = css.match(/\.colony-crew \.crew-strip\s*\{[^}]*\}/);
+    if (!colonyCrew || !/max-height/.test(colonyCrew[0]) || !/overflow-y:\s*auto/.test(colonyCrew[0])) {
+      fail("(m2) style.css lost `.colony-crew .crew-strip { max-height…; overflow-y:auto }` — an 8+ roster pushes the verbs down again");
+    }
+    // (m3) <=900px: decoration yields to controls (vista + long hints hidden on phones).
+    const mBlock = css.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
+    if (!mBlock) fail("no @media (max-width:900px) block found in style.css");
+    if (!/\.colony-vista\s*\{\s*display:\s*none/.test(mBlock[1]) || !/\.col-hint\s*\{\s*display:\s*none/.test(mBlock[1])) {
+      fail("(m3) <=900px block no longer hides .colony-vista/.col-hint — the phone's first screen loses the verbs to decoration");
+    }
+    ok("(m) colony-fit: verbs-first order (m1) + bounded crew strip (m2) + <=900px decoration yield (m3)");
+  }
+
   console.log("PASS " + NAME + " — all one-screen bridge CSS constructs present.");
   process.exit(0);
 } catch (e) {
