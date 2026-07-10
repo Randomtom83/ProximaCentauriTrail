@@ -264,7 +264,11 @@
       ai: { integrity: 100 },     // ATLAS, the ship mind — helpful, then fallible, then hostile
       earth: { status: "live", heard: 0, truth: 2, estimate: 2 },  // status=belief view; truth hidden, estimate=shown belief (P3-M4)
       _wormholes: 0,              // wormholes encountered (capped per run)
-      _wormholePending: false
+      _wormholePending: false,
+      // Pending waypoint interactions (hazard keys + waypoint indices). Lives IN the save
+      // so a reload can never skip a crossing — refreshing at "HAZARD AHEAD" used to empty
+      // the module-level queues and wave the ship through. Permadeath holds now.
+      _pending: { hazards: [], stations: [], voids: [] }
     };
   }
 
@@ -3306,8 +3310,14 @@
     }
   };
 
-  var hazardQueue = [];
-  function queueHazard(wp) { hazardQueue.push(wp.hazard); }
+  // Pending-interaction queues live on game._pending (hazard KEYS + WAYPOINTS indices,
+  // both JSON-safe) so they persist through the autosave. pend() lazily upgrades
+  // pre-fix saves that predate the field.
+  function pend() {
+    if (!game._pending) game._pending = { hazards: [], stations: [], voids: [] };
+    return game._pending;
+  }
+  function queueHazard(wp) { pend().hazards.push(wp.hazard); }
   function flushQueues() {
     // Called from travel render when no modal/transit is busy. Each interaction is
     // preceded by a short arrival vignette for the Oregon-Trail between-scene feel.
@@ -3315,24 +3325,25 @@
     if (game._win) { game._win = false; if (game.autopilot) wakeSelf("arrival"); winGame(); return; }
     if (game._contactPending) { game._contactPending = false; presentFirstContact(); return; }
     if (game._wormholePending) { game._wormholePending = false; presentWormhole(); return; }
+    var p = pend();
     // Autopilot: the captain is asleep, so interactions resolve without a prompt.
     if (game.autopilot) {
-      if (hazardQueue.length) { autoResolveHazard(hazardQueue.shift()); return; }
-      if (stationQueue.length) { stationQueue.shift(); log("Autopilot coasts past the station — no one awake to dock or trade.", "warn"); renderTravel(); return; }
-      if (voidQueue.length) { voidQueue.shift(); renderTravel(); return; }
+      if (p.hazards.length) { autoResolveHazard(p.hazards.shift()); return; }
+      if (p.stations.length) { p.stations.shift(); log("Autopilot coasts past the station — no one awake to dock or trade.", "warn"); renderTravel(); return; }
+      if (p.voids.length) { p.voids.shift(); renderTravel(); return; }
     }
-    if (hazardQueue.length) {
-      var hz = hazardQueue.shift();
+    if (p.hazards.length) {
+      var hz = p.hazards.shift();
       playTransit({ variant: "hazard", caption: "HAZARD AHEAD" }, function () { presentHazard(hz); });
       return;
     }
-    if (stationQueue.length) {
-      var st = stationQueue.shift();
+    if (p.stations.length) {
+      var st = WAYPOINTS[p.stations.shift()];
       game._stationFresh = true;
       playTransit({ variant: "dock", caption: "APPROACHING · " + st.name.toUpperCase() }, function () { presentStation(st); });
       return;
     }
-    if (voidQueue.length) { var v = voidQueue.shift(); presentVoid(v); return; }
+    if (p.voids.length) { var v = WAYPOINTS[p.voids.shift()]; presentVoid(v); return; }
   }
 
   /* ---------------------------------------------------------
@@ -3497,8 +3508,7 @@
   /* ---------------------------------------------------------
      11. Stations (rest / trade)
      --------------------------------------------------------- */
-  var stationQueue = [];
-  function queueStation(wp) { stationQueue.push(wp); }
+  function queueStation(wp) { pend().stations.push(WAYPOINTS.indexOf(wp)); }
   function presentStation(wp) {
     var here = wpIndexOf(wp);
     // Contraband 'heat' catches up at the next port — but only checked once per visit.
@@ -3746,8 +3756,7 @@
   /* ---------------------------------------------------------
      12. The Interstellar Void (forced hibernation leg)
      --------------------------------------------------------- */
-  var voidQueue = [];
-  function queueVoid(wp) { voidQueue.push(wp); }
+  function queueVoid(wp) { pend().voids.push(WAYPOINTS.indexOf(wp)); }
   function presentVoid(wp) {
     openModal({
       title: "❄ " + wp.name,
@@ -5077,6 +5086,10 @@
       exodusYears: exodusYears, alive: alive, colHeads: colHeads,
       // a11y harness seam (inert in production): drive the modal + log announcer.
       openModal: openModal, closeModal: closeModal, log: log,
+      // pending-persist verification seam (inert in production): drive arrival queueing and
+      // the queue flush directly, and reach meta so a harness can disable transits headlessly.
+      checkArrival: checkArrival, flushQueues: flushQueues,
+      get meta() { return meta; }, set meta(m) { meta = m; },
       // M-HOME1 verification seam (inert in production): drive the return-leg turn loop directly
       // and read the landmark trail for the homeleg distributional sweep + coupling-drift guard.
       voyageTurn: voyageTurn, HOME_WAYPOINTS: HOME_WAYPOINTS,
