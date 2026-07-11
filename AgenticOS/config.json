@@ -1,0 +1,11 @@
+{
+  "project": "Proxima Trail",
+  "chat": "M-UI2 no-scroll bridge + mobile web (orchestrated run)",
+  "backend_mode": "cloud",
+  "interaction_mode": "full-auto",
+  "final_alignment_signoff": false,
+  "laragon": false,
+  "orch_docs_dir": "docs/orchestration",
+  "deploy_target": "Y:\\ProximaTrail (copy approved static files; outside ceremony per skill non-goals)",
+  "created": "2026-07-01"
+}

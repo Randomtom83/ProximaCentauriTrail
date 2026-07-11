@@ -1,0 +1,155 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Project Dashboard</title><style>
+body{background:#111;color:#e8e8e8;font-family:system-ui,sans-serif;max-width:860px;margin:0 auto;padding:2rem 1rem;line-height:1.5}
+h1{font-size:19px}.muted{color:#888;font-size:13px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px 16px;margin:10px 0}
+.bar{height:5px;background:#222;border-radius:3px;overflow:hidden}.fill{height:100%;background:#1D9E75}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;margin-left:8px;text-transform:uppercase;letter-spacing:.06em}
+.b-merged{background:#0d3d2a;color:#1D9E75}.b-executing{background:#1a2d3d;color:#378ADD}.b-escalated{background:#3d1a1a;color:#e06050}
+.b-planned{background:#2a2a2a;color:#999}.b-auditing{background:#3d2a14;color:#BA7517}.b-gated{background:#2d1a3d;color:#9a8fe0}
+details{margin:6px 0}summary{cursor:pointer;font-weight:500}
+.task{font-size:13px;padding:2px 0 2px 1.2em}.done{color:#555;text-decoration:line-through}
+.note{border-bottom:1px dashed #333;padding:8px 0}.note-date{font-size:11px;color:#BA7517}
+.tag{font-size:9px;padding:1px 6px;border-radius:4px;margin-left:6px;text-transform:uppercase}
+.t-decision{background:#1a2d3d;color:#378ADD}.t-process{background:#2d1a3d;color:#9a8fe0}.t-gotcha{background:#3d2a14;color:#BA7517}
+.t-rescope{background:#3d1a2d;color:#D85A30}.t-shipped{background:#0d3d2a;color:#1D9E75}.t-divergence{background:#3d1a1a;color:#e06050}
+.stale{background:#3d1a1a;color:#ff8070;padding:8px 12px;border-radius:8px;font-weight:600}
+.dod{font-size:12px;color:#888;margin:4px 0 8px 1.2em}
+.fork{font-size:13px;border-left:3px solid #378ADD;padding-left:10px;margin:8px 0}
+.overturn{border-left-color:#D85A30}
+</style></head><body>
+<h1>Project Dashboard</h1><div class="muted">rendered 2026-07-02T19:03:53-04:00 · view of docs/plan-events.jsonl — the log is the truth</div>
+<div class="card"><b>NORTH STAR</b><div>The flight home is as alive as the flight out - the crossing back to Earth carries the anticipation, texture, and decisions of the outbound trail, tuned to its own loneliness.</div>
+<div class="muted">Guardrails: SACRED-LIST STOP OVERRIDES FULL-AUTO: every odds/pacing/scarcity/content decision ships ONLY after Tom locks the plan&#x27;s decision blocks (P3-M3 DECISION-1 precedent); the Planner marks each NEEDS-TOM-LOCK · Zero-diff gate: frozen-three md5 + endings_golden; scripts/verify.sh GATE PASS; outbound machinery stays byte-identical (sibling pattern precedent) · Fenced items remain fenced (S2-4, D2-1 void-leg pacing is SIBLING territory - flag, do not assume) · Docs pair rule: dashboard + plan Addendum in every build commit</div>
+<div class="muted">Done means: AC1 structure: the return leg gains named landmarks/segments giving anticipation comparable to outbound waypoints, per Tom-locked decisions · AC2 tuning: the M-INT2 flagged constants (HOME_HAZARD_P, HOME_EVENT_P, EARTH_DOOM_YEARS, VOY_YEARS_PER_TURN, EARTH_NOISE_P, LAUNCH_READY, dual birth-source balance) are resolved per Tom-locked decisions - no constant changes without an explicit locked decision · AC3 gate: GATE PASS; frozen-three untouched; outbound path byte-identical · AC4 winnability: harness evidence that a sound crossing stays winnable and a wounded one deadly (homesmoke-style distributional proof)</div>
+</div>
+<div class="card"><b>37/37 tasks · 100%</b><div class="bar"><div class="fill" style="width:100%"></div></div>
+</div>
+<div class="card"><details open><summary>One-Screen Bridge (no-scroll travel, desktop + mobile) <span class="badge b-merged">merged</span> <span class="muted">17/17</span></summary>
+<details><summary class="muted">M1 Global viewport plumbing (dvh + safe-area + no-x-scroll)</summary>
+<div class="dod">DoD: dvh+fallback present · index.html diff = one token · overflow-x rule present</div>
+<div class="task done">✔ 100dvh with 100vh fallback on #crt/body</div>
+<div class="task done">✔ viewport-fit=cover single-token append + env(safe-area-inset) padding</div>
+<div class="task done">✔ html,body overflow-x:hidden</div>
+</details>
+<details><summary class="muted">M2 Desktop fit — bridge grid with flexible console</summary>
+<div class="dod">DoD: grid+minmax(0,1fr) present · .log internal scroll preserved</div>
+<div class="task done">✔ .bridge becomes grid, console row minmax(0,1fr)</div>
+<div class="task done">✔ cap .viewscreen/.stations so they cannot eat the console</div>
+<div class="task done">✔ .console/.log-wrap/.log min-height:0 chain; log scrolls internally</div>
+<div class="task done">✔ static fit-construct proxy for AC1</div>
+</details>
+<details><summary class="muted">M3 Mobile fit — commands pinned reachable</summary>
+<div class="dod">DoD: &lt;=900px block contains pin + 44px constructs</div>
+<div class="task done">✔ same height budget at &lt;=900px</div>
+<div class="task done">✔ console order override: commands pinned bottom row, log scrolls above (both command variants)</div>
+<div class="task done">✔ 44px touch floor at &lt;=900px (global per Fork E ruling)</div>
+<div class="task done">✔ static &lt;=900px media-block assertions</div>
+</details>
+<details><summary class="muted">M4 Colony/voyage non-regression</summary>
+<div class="dod">DoD: zero diff hunks in renderColony/renderVoyage function bounds</div>
+<div class="task done">✔ both screens render top-to-bottom unchanged</div>
+<div class="task done">✔ no shared selector narrowed</div>
+</details>
+<details><summary class="muted">M5 Proof — harness, gate, evidence, docs pair</summary>
+<div class="dod">DoD: harness committed and green · GATE PASS · frozen-baseline byte-identical · docs pair in commit</div>
+<div class="task done">✔ new test/layout_onescreen.js static-CSS harness (loud, count&gt;=10)</div>
+<div class="task done">✔ bash scripts/verify.sh GATE PASS</div>
+<div class="task done">✔ live screenshots: 1280x720 + 390x844 travel manual+autopilot + colony + voyage &lt;=900px, no-clipping assertions</div>
+<div class="task done">✔ docs pair: dashboard.html + implementation-plan Addendum in same commit</div>
+</details>
+</details></div>
+<div class="card"><details open><summary>Targeted remediation: D1 topbar/log space, D2 label clip, D3 crew-grid clip <span class="badge b-merged">merged</span> <span class="muted">9/9</span></summary>
+<details><summary class="muted">M1 D1 topbar (conditional G1 + ellipsis floor)</summary>
+<div class="dod">DoD: hide only with visibility evidence; unsurfaced fallback = FAIL</div>
+<div class="task done">✔ one-line ellipsis floor &lt;=900px</div>
+<div class="task done">✔ :has(.bridge) scoped hide</div>
+<div class="task done">✔ premise gate: chips+vs-foot visible at 390x844 else G3 fallback surfaced</div>
+</details>
+<details><summary class="muted">M2 D2 route labels at short heights</summary>
+<div class="dod">DoD: no label clip at 1280x720</div>
+<div class="task done">✔ cur/nxt-only labels + routemap padding tighten in max-height:800px block</div>
+</details>
+<details><summary class="muted">M3 D3 shared crew grid retune &lt;=900px</summary>
+<div class="dod">DoD: STATUS header inside right edge at 390 on voyage+travel+colony</div>
+<div class="task done">✔ last track 88-&gt;60, gap 10-&gt;6, header tracking 1px (freed ~46px)</div>
+</details>
+<details><summary class="muted">M4 proof</summary>
+<div class="dod">DoD: gate green 10 harnesses · game.js+index.html zero-diff · frozen baseline untouched · docs pair</div>
+<div class="task done">✔ extend layout_onescreen.js with (h)(i)(j)</div>
+<div class="task done">✔ GATE PASS</div>
+<div class="task done">✔ orchestrator live evidence per divergence</div>
+<div class="task done">✔ docs pair M-UI2b same commit</div>
+</details>
+</details></div>
+<div class="card"><details open><summary>Micro: mobile distance chip (D4) <span class="badge b-merged">merged</span> <span class="muted">6/6</span></summary>
+<details><summary class="muted">M1 chip + CSS pair + harness (l)</summary>
+<div class="dod">DoD: game.js diff confined to renderTravel body · old (k) does not satisfy DoD 5</div>
+<div class="task done">✔ chip dist markup in renderTravel (ly wording locked)</div>
+<div class="task done">✔ .chip.dist hidden default, shown &lt;=900px</div>
+<div class="task done">✔ harness (l1)(l2)(l3) content-specific, mutation-tested</div>
+</details>
+<details><summary class="muted">M2 proof + docs</summary>
+<div class="dod">DoD: baseline byte-identical to ba0347a</div>
+<div class="task done">✔ GATE PASS</div>
+<div class="task done">✔ live evidence: 390 distance visible + rail/current node visible; 1280 unchanged</div>
+<div class="task done">✔ docs pair M-UI2c</div>
+</details>
+</details></div>
+<div class="card"><details open><summary>The flight home: named landmarks + anchored decisions (M-HOME1-3) <span class="badge b-merged">merged</span> <span class="muted">5/5</span></summary>
+<details><summary class="muted">M-HOME1 landmark structure + anchored events</summary>
+<div class="dod">DoD: structure-only proven; voyageOutcome-only effects</div>
+<div class="task done">✔ HOME_WAYPOINTS sibling + voyageCrossLandmarks + renderReturnMap plotting</div>
+<div class="task done">✔ anchored longdark at Halfway Dark + broadcast-or-run-dark at Last Beacon via landmark-gated dispatch</div>
+</details>
+<details><summary class="muted">M-HOME2 constants (documented no-op per locks)</summary>
+<div class="dod">DoD: declaration lines byte-identical</div>
+<div class="task done">✔ all constants byte-identical per D4A/D5</div>
+</details>
+<details><summary class="muted">M-HOME3 proof + docs</summary>
+<div class="dod">DoD: windows [94,100]/[28,52] exact; rates recorded in dashboard</div>
+<div class="task done">✔ test/homeleg.js n&gt;=200/arm + B-preview + quiet-share + births + coupling guard</div>
+<div class="task done">✔ GATE PASS 11 harnesses + docs pair M-HOME1</div>
+</details>
+</details></div>
+<div class="card"><details open><summary><b>DECISION &amp; VEER LOG</b> <span class="muted">22 entries · newest first</span></summary>
+<div class="note"><span class="note-date">2026-07-02T18:20:08-04:00</span><span class="tag t-shipped">shipped</span><br><b>P4 orchestrator evidence (e2d8062): landmark chart verified via DOM geometry; screenshots unavailable (renderer degraded)</b><div class="muted">Live DOM evidence at 1440x900 and 390x844 on the wt-phase-4 build: renderReturnMap plots 5 nodes - Earth 0%, The Last Beacon 20%, The Halfway Dark 50%, The Fold Seam 80%, Proxima 100% - mirror math correct (at=0.20 from Proxima = 80% from Earth); with v.distance=55% home and waypointIndex=2, crossed landmarks render visited and The Last Beacon renders current (halo); mobile 390: all 5 nodes inside width, x-overflow 0, mirrored home ark present, rail 30px. HONEST LIMIT: pixel screenshots unavailable this pass - the preview renderer wedged on ALL screens incl. the many-times-verified title (environmental degradation after a long session), while DOM/geometry evals remained live; the chart visual language was pixel-verified in M-UI3b with the same machinery. Harness-side evidence (committed test/homeleg.js, n=200/arm): sound 99.5% survival [94,100] with 32 winning tiers; wounded 35.5% LOST [28,52]; B-preview (in-harness 0.40) survival 99.5%, quiet 32.4%-&gt;28.2%; births 13/18/13; all 600 arrivals passed the 3 interior landmarks in order; coupling guard confirms the anchored longdark beat fires at The Halfway Dark.</div></div>
+<div class="note"><span class="note-date">2026-07-02T18:00:19-04:00</span><span class="tag t-decision">decision</span><br><b>P4 locks BIND: D1=A (named void landmarks, structure-only) - D2=B (2 anchored) - D3=roster as proposed - D4=A shipped (+DA measurement rider) - D5=leave all constants</b><div class="muted">Tom locked all five 2026-07-02; DA upheld 8/9 and the D4 partial overturn was absorbed as a measurement-only rider under orchestrator ruling. Build riders: (1) homeleg sweep records quiet-turn share so the D3 count flag is data-backed; (2) coupling drift guard test per P4-P3 flag; (3) B-preview arm in-harness only.</div></div>
+<div class="note"><span class="note-date">2026-07-02T17:58:30-04:00</span><span class="tag t-process">process</span><br><b>P4 review: cycle 2 conditional PASS - both one-line residuals verified fixed</b><div class="muted">2A parenthetical struck (blurb-only; proximity-weighting now lives solely under 4C FENCED); sigma wording corrected without widening windows. Plan lockable at 474 lines.</div></div>
+<div class="note"><span class="note-date">2026-07-02T17:53:11-04:00</span><span class="tag t-decision">decision</span><br><b>Tom locks the five P4 decisions (provisional pending DA)</b><div class="muted">D1: named void landmarks, narrative/anchor-only (Option A, revised lock boundary - no odds authority). D2: anchored decisions at a subset of landmarks (Option B); trade-hub Option C stays FENCED. D3: roster as proposed - Fold Seam ~0.20 narrative, Halfway Dark ~0.50 anchored, Last Beacon ~0.80 anchored. D4: Option A - HOME_HAZARD_P/HOME_EVENT_P byte-identical; Tom accepts the honest framing (constants unchanged, anchored-event distribution shift bounded by the hard-numbered AC4 sweep). D5: LEAVE every remaining M-INT2 constant byte-identical (Tom: &#x27;oh i love this&#x27;); newlife de-weight only if the sweep shows a birth-rate problem, as its own lock. Locks recorded BEFORE the DA pass - any DA overturn goes back to Tom with the flip per protocol.</div></div>
+<div class="note"><span class="note-date">2026-07-02T17:47:31-04:00</span><span class="tag t-process">process</span><br><b>P4 review cycle 1: 3 major + 2 minor</b><div class="muted">Cite discipline best of the run (~30 file:line claims all exact). Majors: D1 recommendation smuggled 4C position-dependent odds (a D1 lock would authorize an unlocked mechanism); 4A claimed winnability-unchanged-by-construction, false under 2B anchored events; AC4 calibration not auditor-decidable (e.g.-floors, no numeric tolerance, wounded arm one-sided). Minors: D2-1 fence scope unsupported (present 4C as presumptively fenced); sacred-list classification wording. Routed to Planner (cycle 1/5).</div></div>
+<div class="note"><span class="note-date">2026-07-02T17:35:10-04:00</span><span class="tag t-gotcha">gotcha</span><br><b>Graph corpus growth - self-indexing loop suspected</b><div class="muted">graphify update counts ballooned 725 -&gt; 3260 -&gt; 11164 -&gt; 31530 nodes across four runs; it appears to be indexing its own exports (AgenticOS/obsidian, ObsidianVault) and orchestration docs recursively. Planner told to prefer scoped graphify query and treat oversized results skeptically; corpus exclusion tuning flagged for later.</div></div>
+<div class="note"><span class="note-date">2026-07-02T09:47:58-04:00</span><span class="tag t-shipped">shipped</span><br><b>P3 official live evidence PASS (f591fd2)</b><div class="muted">390x844 travel: Dist chip visible (Dist 0 / 434 ly) inside viewscreen; route rail AND current waypoint node fully inside the 135px cap (DoD-6 satisfied after the interior-reclaim correction); cur/nxt labels visible; log 152px HELD; min touch 44px; 9/9 commands in view; page/app/x overflow 0/0/0. 1280x720: Dist chip hidden, vs-foot ly-abs readout + vs-title unchanged, 0 overflow, 9/9 commands. D4 closes on the evidence level.</div></div>
+<div class="note"><span class="note-date">2026-07-02T09:36:33-04:00</span><span class="tag t-gotcha">gotcha</span><br><b>P3 evidence: chip lands but DoD-6 rail visibility FAILS at 390x844</b><div class="muted">ab6b2ce: Dist chip visible on chip row 2 (no new row; head 80px unchanged). But the route rail sits y123-153 inside the 135px cap - clipped. Geometry shows the borderline state predates the chip (P2 evidence pinned chips, never the rail). Executor directed to tune viewscreen internals (&lt;=900px: chip compression / vs-title / routemap padding) without raising the cap or costing the 152px log.</div></div>
+<div class="note"><span class="note-date">2026-07-02T09:28:38-04:00</span><span class="tag t-process">process</span><br><b>P3 review: cycle 1 (1 major false-green vector + 1 minor) -&gt; cycle 2 PASS</b><div class="muted">Major: harness label (k) collision made DoD 5 vacuously satisfiable; fixed via (l) rename + three independently pinned constructs + explicit not-satisfied-by-old-(k) clause. Minor: viewscreen-internals non-regression (rail + current node visible) added to 390x844 evidence. ly/ly-abs wording locked deliberate.</div></div>
+<div class="note"><span class="note-date">2026-07-02T09:06:44-04:00</span><span class="tag t-shipped">shipped</span><br><b>P2 official live evidence PASS (96de88d)</b><div class="muted">D1 390x844 travel: log 62 -&gt; 152px (5+ lines readable), topbar single line, page/app/x overflow 0/0/0, 9/9 commands in view, min touch 44px, stations 101px glance strip; title topbar single line. HONEST RESIDUAL: at 390px the ellipsized topbar status squeezes to ~zero visible chars, so the ly-abs distance figure is absent on mobile travel (Day/Next chips + spatial route plot remain) - recorded, not hidden. D2 1280x720: only cur/nxt labels render at short heights, zero clipped, AC1 re-verified (0 overflow, 9/9 buttons). D3 390x844: STATUS header + values inside right edge on travel AND colony AND voyage (all three shared-grid call sites verified per Fork I). Premise-gate history: G1 hide shipped in 791b553, orchestrator evidence showed vs-foot clipped -&gt; G3 fallback shipped in 96de88d per plan conditional; FORK-D1b (stations bound + command compression) DA-upheld.</div></div>
+<div class="note"><span class="note-date">2026-07-02T09:01:50-04:00</span><span class="tag t-fork-tuning">fork-tuning</span><br><b>FORK-D1b parameter tuning (within chosen option c)</b><div class="muted">The fork entry cited stations clamp(96px,14vh,160px) as the (a)-mechanism example. In-browser measurement at 390x844 with 14vh showed log=131px: the commands stack is touch-floor-dominated (54px primary + 8x44px buttons) and compressed to 255px, not the estimated 232-248 - the floors, which are untouchable, set the limit. Shipped tuning, same mechanism: stations clamp vh 14-&gt;12 (stations 118-&gt;101px) and .bridge gap 6-&gt;4px (+4px). Measured result: log=152px at 390x844 (&gt;= ~150 target), no page scroll, min button 44px, primary 54px. Honest added cost vs the fork text: stations show ~2 crew rows instead of ~2.5 before scrolling. No new mechanism introduced; option (c) as logged, parameters tuned to actually meet the target it declared.</div></div>
+<div class="note"><span class="note-date">2026-07-02T08:51:36-04:00</span><span class="tag t-decision">fork · </span>
+<div class="fork "><b></b>: options a, b, c → chose <b></b><div class="muted">Neither mechanism alone reaches the ~150px log target (a: ~120px, b: ~124-140px); c clears it with margin (~188px by arithmetic). Splitting the reclaim keeps each cost moderate: stations keep internal scroll and a 96px floor (header + ~2 rows visible before scrolling), and the commands compression only trims paddings/gaps/font — the 44/48px touch floors are untouched and the harness now pins the 48px primary floor so compression can never silently eat the touch target. Cheap-vs-right, honestly: the CHEAPEST fix was (a) alone with a brutal cap (~10vh) — rejected because it buries the crew/supply glance to buy the last 30px; the &#x27;rightest&#x27; fix would let the log row participate directly in the bridge slack (e.g. raising the minmax log floor), but the bridge console row is minmax(min-content,1fr) — a bigger log floor inflates min-content and risks re-opening page scroll on shorter phones (&lt;=700px tall), gambling the Phase-1 no-scroll guarantee, which a remediation must not do. c stays entirely inside the plan&#x27;s existing internal-scroll pattern and the &lt;=900px block. VERIFICATION HONESTY: this executor has no browser; the ~188px figure is arithmetic from the orchestrator&#x27;s measured numbers, and the orchestrator&#x27;s T4.3 evidence pass owns confirming log &gt;= ~150px live. Also shipped in the same commit, per the coordinator&#x27;s direction and plan T1.4 (not part of this fork): the G3 flip — the #crt:has(.bridge) #topbar-status display:none rule deleted, ellipsis floor kept, harness (h2) now REQUIRES the hide&#x27;s absence, dashboard/Addendum record the fallback.</div>
+</div></div>
+<div class="note"><span class="note-date">2026-07-02T08:47:50-04:00</span><span class="tag t-gotcha">gotcha</span><br><b>D1 deeper finding: freed topbar space never reaches the log</b><div class="muted">At 390x844 on 791b553 with the hide active: topbar 62, viewscreen 135, stations 154, console 378 = log-row 84px floor + commands 288 + gap; log visible 62px, UNCHANGED from pre-P2. The ~87px freed by the topbar fix flows to the stations block (internal-scroll area), not the log - the console row sits at its min-content (commands-dominated) and the 1fr log row never grows. D1&#x27;s goal (log comfortably in view) requires bounding stations harder at &lt;=900px (or compressing the commands stack) so freed space reaches the log row. Routed to executor as a disclosed execution-time fork.</div></div>
+<div class="note"><span class="note-date">2026-07-02T08:36:52-04:00</span><span class="tag t-process">process</span><br><b>P2 review cycle 2: PASS</b><div class="muted">T1.4 conditional coherent end-to-end; auditor can byte-distinguish legitimate G3 fallback from skipped G1 (unsurfaced fallback = FAIL). Two non-defect nits recorded.</div></div>
+<div class="note"><span class="note-date">2026-07-02T08:32:17-04:00</span><span class="tag t-process">process</span><br><b>P2 review cycle 1: 1 major + 2 minor</b><div class="muted">Major: D1 redundancy premise unverified at 390x844 (vs-foot may clip inside the capped viewscreen before topbar dedupe fires) - conditional fallback to ellipsized topbar required. Minors: T3.1 arithmetic (144 not 154px); Fork I colony evidence gap. Fork I scope judged honest, not creep. Routed to Planner (cycle 1/5).</div></div>
+<div class="note"><span class="note-date">2026-07-02T08:15:01-04:00</span><span class="tag t-shipped">shipped</span><br><b>T5.3 live evidence matrix PASS (commits ee616e8+eedc1ce, rebased onto grafted main)</b><div class="muted">1280x720 travel manual: app/page/x overflow 0/0/0, all 9 command buttons in view (incl ATLAS + Abandon, previously clipped). 1280x720 autopilot: 3/3 in view, 0 overflow. 390x844 travel manual: 0 overflow on all axes, 9/9 buttons visible, min button height 44px, nav chips + crew status column inside right edge. 390x844 autopilot: page/x 0, all buttons visible &gt;=44px, log strip 62px visible, #app retains 51px slack from the autopilot banner (buttons still all reachable unscrolled). 390x844 colony (real state via test seam): 10 action buttons min 44px, no right-edge clip, #app scrolls normally. 390x844 voyage (real state): 7 buttons min 44px, no x overflow. COSMETIC FINDINGS (non-blocking, next-phase candidates): mobile topbar status wraps ~5 lines duplicating nav chips and squeezes the log; desktop 720px-height viewscreen clips below-rail route labels; voyage crew-table STATUS header clips at 390px.</div></div>
+<div class="note"><span class="note-date">2026-07-02T08:06:31-04:00</span><span class="tag t-decision">decision</span><br><b>Preservation audit of legacy local docs — one parked idea rescued</b><div class="muted">Tom asked for a compare-before-supersede pass on the four pre-git local docs (proximatrailimplementationplan.md, 2026-0619_ draft, dashboard (1).html, docs/README.md). Verdict: all four SUPERSEDED by the canonical plan/dashboard; webapp/* files are byte-identical to historical commits (no unique edits). SINGLE unique item preserved here from the 2026-0619 draft L219-220: PARKED HARD-MODE IDEA - Out There-style saving-costs-a-resource save model; self-flagged likely too harsh for a browser homage, off by default. NOTE: implementing it would touch the fenced S2-4 save-integrity area and the sacred difficulty posture - it stays a parked note unless Tom explicitly unfences it. Legacy files left in place untouched; nothing deleted.</div></div>
+<div class="note"><span class="note-date">2026-07-02T07:51:25-04:00</span><span class="tag t-gotcha">gotcha</span><br><b>T5.3 live evidence FAIL at 1280x720 (pre-audit)</b><div class="muted">Commit 7974884: travel manual state — ATLAS (bottom 726) and Abandon run (bottom 774) render below the 720px viewport while #app reports scrollHeight==clientHeight (618) — content is being CLIPPED by the grid/overflow chain rather than fitting or scrolling; Continue/Thrust/Rations/Power/Pods/Repair/Mine are in view. This is the clipping-masquerade failure mode DoD 7 exists to catch. Routed back to executor for fix + re-commit before audit.</div></div>
+<div class="note"><span class="note-date">2026-07-01T22:33:50-04:00</span><span class="tag t-process">process</span><br><b>Review cycle 2: PASS</b><div class="muted">All 7 defects verified fixed at specific plan lines; new factual claims re-checked against game.js bytes; no new defects. Verification chain now layered honestly: static harness = construct presence, auditor diff = sacred/scope guard, md5 = frozen-three, screenshots = pixel truth.</div></div>
+<div class="note"><span class="note-date">2026-07-01T22:28:27-04:00</span><span class="tag t-process">process</span><br><b>Review cycle 1: 3 major + 4 minor defects</b><div class="muted">Layout strategy sound, cites verified against bytes. Defects target proof mechanisms: autopilot .commands variant missed by Fork C/DoD-4; false-loud harness text-scan assertion (g); missing frozen-baseline immutability clause; index.html scope pin; unparseable DoD-6 line ranges; Fork E cross-screen risk undeclared; overflow-x:hidden clipping mask. Routed back to Planner for revision (cycle 1/5).</div></div>
+<div class="note"><span class="note-date">2026-07-01T22:21:47-04:00</span><span class="tag t-process">process</span><br><b>Setup complete (adopt mode)</b><div class="muted">Dev home git-initialized at C:/Users/thoma/Dropbox/My Documents/Programs/Proxima Trail (baseline d890166 mirrors Y: repo 8a088e0). Skill installed to .claude/skills + .claude/agents + scripts. Graph: 725 nodes / 2298 edges / 53 communities via graphifyy. Deterministic gate verified green here (9 harnesses). Legacy docs/webapp copies adopted, not deleted. Cloud backend, full-auto, no laragon, sign-off off.</div></div>
+<div class="note"><span class="note-date">2026-07-01T22:21:47-04:00</span><span class="tag t-decision">fork · plan</span>
+<div class="fork "><b>F-SETUP-1</b>: options Render orchestration dashboard to docs/dashboard.html per skill default (overwrites the curated game changelog dashboard), Set ORCH_DOCS_DIR=docs/orchestration so event log / heartbeat / orchestration dashboard live beside, not over, the curated one → chose <b>docs/orchestration via the ORCH_DOCS_DIR env seam</b><div class="muted">docs/dashboard.html is a CLAUDE.md-protected curated artifact (game changelog + milestone status); the skill adopt-never-overwrite law forbids clobbering it. The env seam is provided by the script itself, zero code modification. Not the cheap path (cheap = let it overwrite); chosen for correctness.</div>
+<div class="muted">DA: <b>UPHOLD</b> — S2 is the non-cheap, correct path: protects the curated dashboard via a zero-code env seam.</div>
+</div></div>
+</details></div>
+<div class="card"><b>DIVERGENCES</b> <span class="muted">3 open / 8 total</span>
+<div class="note"><b>D1</b> [closed · closed] pass 2<div class="muted">D1 verified closed on merged main ba0347a (reconciler re-ran gate + read shipped bytes).</div></div>
+<div class="note"><b>D2</b> [closed · closed] pass 2<div class="muted">D2 verified closed on merged main ba0347a (reconciler re-ran gate + read shipped bytes).</div></div>
+<div class="note"><b>D3</b> [closed · closed] pass 2<div class="muted">D3 verified closed on merged main ba0347a (reconciler re-ran gate + read shipped bytes).</div></div>
+<div class="note"><b>D4</b> [closed · closed] pass 3<div class="muted">Mobile distance chip shipped (f591fd2): Dist N / 434 ly visible at 390x844 with rail + current node inside the cap; desktop unchanged. Closed on audited bytes + orchestrator evidence.</div></div>
+<div class="note"><b>C1</b> [open · degrades-goal] pass 0<div class="muted">COLONY HAS NO BIRTH PATH - confirmed at bytes: game._pregnancy machinery lives in outbound ageCrew (game.js:468-483) and v._pregnancy in voyageAgeCrew (:671), but colonyAgeDrift has only aging/come-of-age/elder-mortality; addChild has zero colony call sites. A colony can only age out - no new life at Proxima. Queued for P5 decision blocks.</div></div>
+<div class="note"><b>C2</b> [open · degrades-goal] pass 0<div class="muted">NO ROAD HOME PRE-FOOTHOLD - confirmed: the launch/beacon/settle hub (The future) renders only when col.footholdReached (game.js:4707), set solely at stage=foothold (:1908), plus shipReadiness&gt;=LAUNCH_READY refit grind. A colony that stalls before foothold has NO path back to Earth ever. Design question (brutality vs dead-end) for P5 locks.</div></div>
+<div class="note"><b>C3</b> [open · degrades-goal] pass 0<div class="muted">EARTH NEVER SENDS SHIPS - confirmed: the STAY arrival choice literally promises &#x27;signal Earth to send more&#x27; (game.js:1260) and beaconHeard is written by sendBeacon, but NO mechanic anywhere delivers arriving ships/new colonists; beaconHeard feeds only ending composition. A promise-vs-outcome gap: reinforcement is promised, never delivered. Queued for P5 decision blocks (ties to earth.truth + EARTH_DOOM_YEARS - heavy sacred-list territory).</div></div>
+<div class="note"><b>P4-anchored-beats</b> [closed · closed] pass 4<div class="muted">Reverse-intent caveat (two position-locked beats) ruled NOT a divergence: exactly the Tom-locked D2=B intent; outcomes remain sampled; 4C covert version verified fenced at bytes.</div></div>
+</div>
+<div class="card"><b>CLOSEOUT</b><div>P4 run complete and ALIGNED: the flight home gained its trail. HOME_WAYPOINTS sibling structure (Fold Seam / Halfway Dark / Last Beacon) with two anchored sampled-outcome decisions, rendered on the homebound starchart; every constant byte-identical per Tom&#x27;s five locks; DA 8-uphold + 1 measurement-only overturn absorbed; audit PASS; homeleg sweep in-window on two independent runs (sound 99.5-100 percent survival, wounded 35.5-43.5 percent LOST, n=200/arm, all 600 arrivals crossed landmarks in order). C1/C2/C3 routed forward to P5 with C2 (no road home pre-foothold) examine-first.</div><div class="muted">4 divergences over 4 reconcile pass(es)</div></div>
+</body></html>

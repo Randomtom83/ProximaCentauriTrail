@@ -1,0 +1,4730 @@
+{
+  "nodes": [
+    {
+      "id": "g0",
+      "type": "group",
+      "label": "Ship Systems & Exodus Clock",
+      "x": 0,
+      "y": 0,
+      "width": 1980,
+      "height": 1020,
+      "color": "1"
+    },
+    {
+      "id": "n_proximatrail_game",
+      "type": "file",
+      "file": "unnamed.md",
+      "x": 20,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_earth_clock_engine",
+      "type": "file",
+      "file": "Cascade The Earth clock.md",
+      "x": 220,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_exodus_clock",
+      "type": "file",
+      "file": "Exodus clock (exodusYears).md",
+      "x": 420,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_m_int1",
+      "type": "file",
+      "file": "M-INT1 (endings re-tier).md",
+      "x": 620,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_m_int1b",
+      "type": "file",
+      "file": "M-INT1b (parallel-fronts legibility layer).md",
+      "x": 820,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_m_int1b_1c",
+      "type": "file",
+      "file": "1c Adaptive off-front digest.md",
+      "x": 1020,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_m_int1b_2a",
+      "type": "file",
+      "file": "2a Both-fronts status strip.md",
+      "x": 1220,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_m_int1b_3a",
+      "type": "file",
+      "file": "3a Single canonical shared clock.md",
+      "x": 1420,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_animationson",
+      "type": "file",
+      "file": "animationsOn().md",
+      "x": 1620,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_applyjobreward",
+      "type": "file",
+      "file": "applyJobReward().md",
+      "x": 20,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_autopilotrun",
+      "type": "file",
+      "file": "autopilotRun().md",
+      "x": 220,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_capturedigest",
+      "type": "file",
+      "file": "captureDigest().md",
+      "x": 420,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_cargospace",
+      "type": "file",
+      "file": "cargoSpace().md",
+      "x": 620,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_cargoused",
+      "type": "file",
+      "file": "cargoUsed().md",
+      "x": 820,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_checkarrival",
+      "type": "file",
+      "file": "checkArrival().md",
+      "x": 1020,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_clearsave",
+      "type": "file",
+      "file": "clearSave().md",
+      "x": 1220,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_closeminigame",
+      "type": "file",
+      "file": "closeMinigame().md",
+      "x": 1420,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colheads",
+      "type": "file",
+      "file": "colHeads().md",
+      "x": 1620,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonyafterturn",
+      "type": "file",
+      "file": "colonyAfterTurn().md",
+      "x": 20,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonyautostep",
+      "type": "file",
+      "file": "colonyAutoStep().md",
+      "x": 220,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_composeending",
+      "type": "file",
+      "file": "composeEnding().md",
+      "x": 420,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_computescore",
+      "type": "file",
+      "file": "computeScore().md",
+      "x": 620,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_crewstrip",
+      "type": "file",
+      "file": "crewStrip().md",
+      "x": 820,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_deriveearthstatus",
+      "type": "file",
+      "file": "deriveEarthStatus().md",
+      "x": 1020,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_digestblock",
+      "type": "file",
+      "file": "digestBlock().md",
+      "x": 1220,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_earthtruthstep",
+      "type": "file",
+      "file": "earthTruthStep().md",
+      "x": 1420,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_el",
+      "type": "file",
+      "file": "el().md",
+      "x": 1620,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_elapsedyears",
+      "type": "file",
+      "file": "elapsedYears  Earth clock (visible).md",
+      "x": 20,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_endcolonycheck",
+      "type": "file",
+      "file": "endColonyCheck().md",
+      "x": 220,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_endgame",
+      "type": "file",
+      "file": "endGame().md",
+      "x": 420,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_endmining",
+      "type": "file",
+      "file": "endMining().md",
+      "x": 620,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_exodusyears",
+      "type": "file",
+      "file": "exodusYears().md",
+      "x": 820,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_game",
+      "type": "file",
+      "file": "game().md",
+      "x": 1020,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game",
+      "type": "file",
+      "file": "game.js.md",
+      "x": 1220,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_genjobs",
+      "type": "file",
+      "file": "genJobs().md",
+      "x": 1420,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_habmult",
+      "type": "file",
+      "file": "habMult().md",
+      "x": 1620,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_label",
+      "type": "file",
+      "file": "label().md",
+      "x": 20,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_loadmeta",
+      "type": "file",
+      "file": "loadMeta().md",
+      "x": 220,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_loadsave",
+      "type": "file",
+      "file": "loadSave().md",
+      "x": 420,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_manifestmini",
+      "type": "file",
+      "file": "manifestMini().md",
+      "x": 620,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_maybesuccession",
+      "type": "file",
+      "file": "maybeSuccession().md",
+      "x": 820,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_modalopen",
+      "type": "file",
+      "file": "modalOpen().md",
+      "x": 1020,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_newgame",
+      "type": "file",
+      "file": "newGame().md",
+      "x": 1220,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_nextstationidx",
+      "type": "file",
+      "file": "nextStationIdx().md",
+      "x": 1420,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_offoneliner",
+      "type": "file",
+      "file": "offOneLiner().md",
+      "x": 1620,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_offsnap",
+      "type": "file",
+      "file": "offSnap().md",
+      "x": 20,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_offstripline",
+      "type": "file",
+      "file": "offStripLine().md",
+      "x": 220,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_opencolonyallocate",
+      "type": "file",
+      "file": "openColonyAllocate().md",
+      "x": 420,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openmining",
+      "type": "file",
+      "file": "openMining().md",
+      "x": 620,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_playtransit",
+      "type": "file",
+      "file": "playTransit().md",
+      "x": 820,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_priceat",
+      "type": "file",
+      "file": "priceAt().md",
+      "x": 1020,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_queuehazard",
+      "type": "file",
+      "file": "queueHazard().md",
+      "x": 1220,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_queuestation",
+      "type": "file",
+      "file": "queueStation().md",
+      "x": 1420,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_queuevoid",
+      "type": "file",
+      "file": "queueVoid().md",
+      "x": 1620,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rankfor",
+      "type": "file",
+      "file": "rankFor().md",
+      "x": 20,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_renderapp",
+      "type": "file",
+      "file": "renderApp().md",
+      "x": 220,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rendercolony",
+      "type": "file",
+      "file": "renderColony().md",
+      "x": 420,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_renderend",
+      "type": "file",
+      "file": "renderEnd().md",
+      "x": 620,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_renderlog",
+      "type": "file",
+      "file": "renderLog().md",
+      "x": 820,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rendermininghud",
+      "type": "file",
+      "file": "renderMiningHud().md",
+      "x": 1020,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_renderrole",
+      "type": "file",
+      "file": "renderRole().md",
+      "x": 1220,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_renderrolescreen",
+      "type": "file",
+      "file": "renderRoleScreen().md",
+      "x": 1420,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_renderroutemap",
+      "type": "file",
+      "file": "renderRouteMap().md",
+      "x": 1620,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_renderstore",
+      "type": "file",
+      "file": "renderStore().md",
+      "x": 20,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rendertitle",
+      "type": "file",
+      "file": "renderTitle().md",
+      "x": 220,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rendervoyage",
+      "type": "file",
+      "file": "renderVoyage().md",
+      "x": 420,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rerollnames",
+      "type": "file",
+      "file": "rerollNames().md",
+      "x": 620,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_savemeta",
+      "type": "file",
+      "file": "saveMeta().md",
+      "x": 820,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_setalert",
+      "type": "file",
+      "file": "setAlert().md",
+      "x": 1020,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_spawnloop",
+      "type": "file",
+      "file": "spawnLoop().md",
+      "x": 1220,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_spawnrock",
+      "type": "file",
+      "file": "spawnRock().md",
+      "x": 1420,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_updatetopbar",
+      "type": "file",
+      "file": "updateTopbar().md",
+      "x": 1620,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voypower",
+      "type": "file",
+      "file": "voyPower().md",
+      "x": 20,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageafterturn",
+      "type": "file",
+      "file": "voyageAfterTurn().md",
+      "x": 220,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageautostep",
+      "type": "file",
+      "file": "voyageAutoStep().md",
+      "x": 420,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyagestep",
+      "type": "file",
+      "file": "voyageStep().md",
+      "x": 620,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_wingame",
+      "type": "file",
+      "file": "winGame().md",
+      "x": 820,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_harness_commit_spec_seam",
+      "type": "file",
+      "file": "window.__PROXIMA_TEST__ test seam.md",
+      "x": 1020,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g1",
+      "type": "group",
+      "label": "Crew & Outcome Engine",
+      "x": 2060,
+      "y": 0,
+      "width": 1760,
+      "height": 820,
+      "color": "2"
+    },
+    {
+      "id": "n_game_addchild",
+      "type": "file",
+      "file": "addChild().md",
+      "x": 2080,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_addcolonist",
+      "type": "file",
+      "file": "addColonist().md",
+      "x": 2280,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_addcrewmember",
+      "type": "file",
+      "file": "addCrewMember().md",
+      "x": 2480,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_adjustmoraleall",
+      "type": "file",
+      "file": "adjustMoraleAll().md",
+      "x": 2680,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_afflict",
+      "type": "file",
+      "file": "afflict().md",
+      "x": 2880,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_agecrew",
+      "type": "file",
+      "file": "ageCrew().md",
+      "x": 3080,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_aiglitch",
+      "type": "file",
+      "file": "aiGlitch().md",
+      "x": 3280,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_aihostile",
+      "type": "file",
+      "file": "aiHostile().md",
+      "x": 3480,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_aiturn",
+      "type": "file",
+      "file": "aiTurn().md",
+      "x": 2080,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_ailing",
+      "type": "file",
+      "file": "ailing().md",
+      "x": 2280,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_alive",
+      "type": "file",
+      "file": "alive().md",
+      "x": 2480,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_applycommanderfloor",
+      "type": "file",
+      "file": "applyCommanderFloor().md",
+      "x": 2680,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_applyhazardseverity",
+      "type": "file",
+      "file": "applyHazardSeverity().md",
+      "x": 2880,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_applyoutcome",
+      "type": "file",
+      "file": "applyOutcome().md",
+      "x": 3080,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_autopilotturn",
+      "type": "file",
+      "file": "autopilotTurn().md",
+      "x": 3280,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_awake",
+      "type": "file",
+      "file": "awake().md",
+      "x": 3480,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_chance",
+      "type": "file",
+      "file": "chance().md",
+      "x": 2080,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_checkbreakdowns",
+      "type": "file",
+      "file": "checkBreakdowns().md",
+      "x": 2280,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_checkend",
+      "type": "file",
+      "file": "checkEnd().md",
+      "x": 2480,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonyagedrift",
+      "type": "file",
+      "file": "colonyAgeDrift().md",
+      "x": 2680,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_consumeunits",
+      "type": "file",
+      "file": "consumeUnits().md",
+      "x": 2880,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_earthsignal",
+      "type": "file",
+      "file": "earthSignal().md",
+      "x": 3080,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_finishvoyage",
+      "type": "file",
+      "file": "finishVoyage().md",
+      "x": 3280,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_foodunits",
+      "type": "file",
+      "file": "foodUnits().md",
+      "x": 3480,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_hasawakecommander",
+      "type": "file",
+      "file": "hasAwakeCommander().md",
+      "x": 2080,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_hasawakespecialist",
+      "type": "file",
+      "file": "hasAwakeSpecialist().md",
+      "x": 2280,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_influence",
+      "type": "file",
+      "file": "influence().md",
+      "x": 2480,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_killcrew",
+      "type": "file",
+      "file": "killCrew().md",
+      "x": 2680,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_neededrole",
+      "type": "file",
+      "file": "neededRole().md",
+      "x": 2880,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_pick",
+      "type": "file",
+      "file": "pick().md",
+      "x": 3080,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_pilotmitigate",
+      "type": "file",
+      "file": "pilotMitigate().md",
+      "x": 3280,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presenthomehazard",
+      "type": "file",
+      "file": "presentHomeHazard().md",
+      "x": 3480,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presentvoyageevent",
+      "type": "file",
+      "file": "presentVoyageEvent().md",
+      "x": 2080,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolveacttwo",
+      "type": "file",
+      "file": "resolveActTwo().md",
+      "x": 2280,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvecontact",
+      "type": "file",
+      "file": "resolveContact().md",
+      "x": 2480,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvehomehazard",
+      "type": "file",
+      "file": "resolveHomeHazard().md",
+      "x": 2680,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolveturn",
+      "type": "file",
+      "file": "resolveTurn().md",
+      "x": 2880,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvevoyagecheck",
+      "type": "file",
+      "file": "resolveVoyageCheck().md",
+      "x": 3080,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvewormhole",
+      "type": "file",
+      "file": "resolveWormhole().md",
+      "x": 3280,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rint",
+      "type": "file",
+      "file": "rint().md",
+      "x": 3480,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rollhomehazard",
+      "type": "file",
+      "file": "rollHomeHazard().md",
+      "x": 2080,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rollvoyageevent",
+      "type": "file",
+      "file": "rollVoyageEvent().md",
+      "x": 2280,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_round1",
+      "type": "file",
+      "file": "round1().md",
+      "x": 2480,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_sampleweighted",
+      "type": "file",
+      "file": "sampleWeighted().md",
+      "x": 2680,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_seedsettlers",
+      "type": "file",
+      "file": "seedSettlers().md",
+      "x": 2880,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_sleepers",
+      "type": "file",
+      "file": "sleepers().md",
+      "x": 3080,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageaddchild",
+      "type": "file",
+      "file": "voyageAddChild().md",
+      "x": 3280,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageagecrew",
+      "type": "file",
+      "file": "voyageAgeCrew().md",
+      "x": 3480,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyagearrive",
+      "type": "file",
+      "file": "voyageArrive().md",
+      "x": 2080,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageearthsignal",
+      "type": "file",
+      "file": "voyageEarthSignal().md",
+      "x": 2280,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyagehazardseverity",
+      "type": "file",
+      "file": "voyageHazardSeverity().md",
+      "x": 2480,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageneededrole",
+      "type": "file",
+      "file": "voyageNeededRole().md",
+      "x": 2680,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageoutcome",
+      "type": "file",
+      "file": "voyageOutcome().md",
+      "x": 2880,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyagescavenge",
+      "type": "file",
+      "file": "voyageScavenge().md",
+      "x": 3080,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyageturn",
+      "type": "file",
+      "file": "voyageTurn().md",
+      "x": 3280,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g2",
+      "type": "group",
+      "label": "ATLAS AI, Power & Launch",
+      "x": 3900,
+      "y": 0,
+      "width": 1760,
+      "height": 820,
+      "color": "3"
+    },
+    {
+      "id": "n_game_aidiagnostics",
+      "type": "file",
+      "file": "aiDiagnostics().md",
+      "x": 3920,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_aipurge",
+      "type": "file",
+      "file": "aiPurge().md",
+      "x": 4120,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_aistate",
+      "type": "file",
+      "file": "aiState().md",
+      "x": 4320,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_autoresolvehazard",
+      "type": "file",
+      "file": "autoResolveHazard().md",
+      "x": 4520,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_bindsetter",
+      "type": "file",
+      "file": "bindSetter().md",
+      "x": 4720,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_closemodal",
+      "type": "file",
+      "file": "closeModal().md",
+      "x": 4920,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonylaunch",
+      "type": "file",
+      "file": "colonyLaunch().md",
+      "x": 5120,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonystagecheck",
+      "type": "file",
+      "file": "colonyStageCheck().md",
+      "x": 5320,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_computepower",
+      "type": "file",
+      "file": "computePower().md",
+      "x": 3920,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_confirmselfpod",
+      "type": "file",
+      "file": "confirmSelfPod().md",
+      "x": 4120,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_confirmsettlement",
+      "type": "file",
+      "file": "confirmSettlement().md",
+      "x": 4320,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_dispositiontext",
+      "type": "file",
+      "file": "dispositionText().md",
+      "x": 4520,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_dobuy",
+      "type": "file",
+      "file": "doBuy().md",
+      "x": 4720,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_dolaunch",
+      "type": "file",
+      "file": "doLaunch().md",
+      "x": 4920,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_dorestrepair",
+      "type": "file",
+      "file": "doRestRepair().md",
+      "x": 5120,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_enterautopilot",
+      "type": "file",
+      "file": "enterAutopilot().md",
+      "x": 5320,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_flushqueues",
+      "type": "file",
+      "file": "flushQueues().md",
+      "x": 3920,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_handle",
+      "type": "file",
+      "file": "handle().md",
+      "x": 4120,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_landfallbriefing",
+      "type": "file",
+      "file": "landfallBriefing().md",
+      "x": 4320,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_log",
+      "type": "file",
+      "file": "log().md",
+      "x": 4520,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_oncontinue",
+      "type": "file",
+      "file": "onContinue().md",
+      "x": 4720,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openai",
+      "type": "file",
+      "file": "openAI().md",
+      "x": 4920,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openallocate",
+      "type": "file",
+      "file": "openAllocate().md",
+      "x": 5120,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openbrownout",
+      "type": "file",
+      "file": "openBrownout().md",
+      "x": 5320,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_opencontact",
+      "type": "file",
+      "file": "openContact().md",
+      "x": 3920,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openexpedition",
+      "type": "file",
+      "file": "openExpedition().md",
+      "x": 4120,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openfuturedecision",
+      "type": "file",
+      "file": "openFutureDecision().md",
+      "x": 4320,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openhibernation",
+      "type": "file",
+      "file": "openHibernation().md",
+      "x": 4520,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openjobs",
+      "type": "file",
+      "file": "openJobs().md",
+      "x": 4720,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openmodal",
+      "type": "file",
+      "file": "openModal().md",
+      "x": 4920,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openrations",
+      "type": "file",
+      "file": "openRations().md",
+      "x": 5120,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openthrust",
+      "type": "file",
+      "file": "openThrust().md",
+      "x": 5320,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_opentrade",
+      "type": "file",
+      "file": "openTrade().md",
+      "x": 3920,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openvoyagerations",
+      "type": "file",
+      "file": "openVoyageRations().md",
+      "x": 4120,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_openvoyagethrust",
+      "type": "file",
+      "file": "openVoyageThrust().md",
+      "x": 4320,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_playerchar",
+      "type": "file",
+      "file": "playerChar().md",
+      "x": 4520,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presentfirstcontact",
+      "type": "file",
+      "file": "presentFirstContact().md",
+      "x": 4720,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presenthazard",
+      "type": "file",
+      "file": "presentHazard().md",
+      "x": 4920,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presentstation",
+      "type": "file",
+      "file": "presentStation().md",
+      "x": 5120,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presentsuccession",
+      "type": "file",
+      "file": "presentSuccession().md",
+      "x": 5320,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presentvoid",
+      "type": "file",
+      "file": "presentVoid().md",
+      "x": 3920,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presentwormhole",
+      "type": "file",
+      "file": "presentWormhole().md",
+      "x": 4120,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rendertravel",
+      "type": "file",
+      "file": "renderTravel().md",
+      "x": 4320,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvehazard",
+      "type": "file",
+      "file": "resolveHazard().md",
+      "x": 4520,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvejob",
+      "type": "file",
+      "file": "resolveJob().md",
+      "x": 4720,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_save",
+      "type": "file",
+      "file": "save().md",
+      "x": 4920,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_sendbeacon",
+      "type": "file",
+      "file": "sendBeacon().md",
+      "x": 5120,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_sfx",
+      "type": "file",
+      "file": "sfx().md",
+      "x": 5320,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_showhowto",
+      "type": "file",
+      "file": "showHowTo().md",
+      "x": 3920,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_showlogbook",
+      "type": "file",
+      "file": "showLogbook().md",
+      "x": 4120,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_skillfor",
+      "type": "file",
+      "file": "skillFor().md",
+      "x": 4320,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyagehibernate",
+      "type": "file",
+      "file": "voyageHibernate().md",
+      "x": 4520,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_wakeself",
+      "type": "file",
+      "file": "wakeSelf().md",
+      "x": 4720,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_wpindexof",
+      "type": "file",
+      "file": "wpIndexOf().md",
+      "x": 4920,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g3",
+      "type": "group",
+      "label": "Agent OS & Remediation",
+      "x": 5740,
+      "y": 0,
+      "width": 1540,
+      "height": 820,
+      "color": "4"
+    },
+    {
+      "id": "n_agenticos_index_remediation_viewer",
+      "type": "file",
+      "file": "AgenticOS remediation graph viewer.md",
+      "x": 5760,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agents_auditor_auditor",
+      "type": "file",
+      "file": "Auditor (agent).md",
+      "x": 5960,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_input_isolation",
+      "type": "file",
+      "file": "Auditor input isolation.md",
+      "x": 6160,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agents_builder_builder",
+      "type": "file",
+      "file": "Builder (agent).md",
+      "x": 6360,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_endings_golden_cases",
+      "type": "file",
+      "file": "CASES.md",
+      "x": 6560,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_workflows_ci_verify",
+      "type": "file",
+      "file": "CI gate (verify workflow).md",
+      "x": 6760,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_fenced_d2_1",
+      "type": "file",
+      "file": "D2-1 void-leg pacing (fenced).md",
+      "x": 6960,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_deterministic_gate",
+      "type": "file",
+      "file": "Deterministic gate (scriptsverify.sh).md",
+      "x": 5760,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_fail_loud",
+      "type": "file",
+      "file": "FAIL LOUD  no-silent-death.md",
+      "x": 5960,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_fenced_items",
+      "type": "file",
+      "file": "Fenced items (need Tom's decision).md",
+      "x": 6160,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_names5",
+      "type": "file",
+      "file": "NAMES5.md",
+      "x": 6360,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_harness_commit_spec_contract",
+      "type": "file",
+      "file": "No-silent-death harness contract.md",
+      "x": 6560,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agents_planner_planner",
+      "type": "file",
+      "file": "Planner (agent).md",
+      "x": 6760,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_orchestration_loop",
+      "type": "file",
+      "file": "Planner - Builder - Gate - Auditor loop.md",
+      "x": 6960,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_root",
+      "type": "file",
+      "file": "ROOT_1.md",
+      "x": 5760,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_fenced_s2_2",
+      "type": "file",
+      "file": "S2-2 seeded RNG (fenced).md",
+      "x": 5960,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_fenced_s2_4",
+      "type": "file",
+      "file": "S2-4 save integrity (fenced).md",
+      "x": 6160,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_fenced_s3_1",
+      "type": "file",
+      "file": "S3-1 sibling-applier dedup (fenced).md",
+      "x": 6360,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_fenced_s3_3",
+      "type": "file",
+      "file": "S3-3 file split (fenced).md",
+      "x": 6560,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_zero_diff_gate",
+      "type": "file",
+      "file": "Zero-diff gate.md",
+      "x": 6760,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_apphtml",
+      "type": "file",
+      "file": "appHTML().md",
+      "x": 6960,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_assertendrendered",
+      "type": "file",
+      "file": "assertEndRendered().md",
+      "x": 5760,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_assertnoerrors",
+      "type": "file",
+      "file": "assertNoErrors().md",
+      "x": 5960,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_boot",
+      "type": "file",
+      "file": "boot().md",
+      "x": 6160,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot",
+      "type": "file",
+      "file": "boot.js.md",
+      "x": 6360,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_brownout_hazard",
+      "type": "file",
+      "file": "brownout_hazard.js.md",
+      "x": 6560,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_mint1b_clockinhud",
+      "type": "file",
+      "file": "clockInHud().md",
+      "x": 6760,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_colony_smoke",
+      "type": "file",
+      "file": "colony_smoke.js.md",
+      "x": 6960,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_endings_golden",
+      "type": "file",
+      "file": "endings_golden.js.md",
+      "x": 5760,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_fail",
+      "type": "file",
+      "file": "fail()_1.md",
+      "x": 5960,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_freshgame",
+      "type": "file",
+      "file": "freshGame().md",
+      "x": 6160,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_fs",
+      "type": "file",
+      "file": "fs_2.md",
+      "x": 6360,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_loss_path",
+      "type": "file",
+      "file": "loss_path.js.md",
+      "x": 6560,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_mint1b",
+      "type": "file",
+      "file": "mint1b.js.md",
+      "x": 6760,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_pass",
+      "type": "file",
+      "file": "pass().md",
+      "x": 6960,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_path",
+      "type": "file",
+      "file": "path_1.md",
+      "x": 5760,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_settle",
+      "type": "file",
+      "file": "settle().md",
+      "x": 5960,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_smoke_full_run",
+      "type": "file",
+      "file": "smoke_full_run.js.md",
+      "x": 6160,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_voyage_smoke",
+      "type": "file",
+      "file": "voyage_smoke.js.md",
+      "x": 6360,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_win_path",
+      "type": "file",
+      "file": "win_path.js.md",
+      "x": 6560,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lib_boot_jsdom",
+      "type": "file",
+      "file": "{ JSDOM }.md",
+      "x": 6760,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_brownout_hazard_boot_freshgame_settle_apphtml_assertnoerrors_assertendrendered_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, appHTML, assertNoErrors, assertEndRendered, pass, fail }.md",
+      "x": 6960,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_loss_path_boot_freshgame_settle_apphtml_assertnoerrors_assertendrendered_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, appHTML, assertNoErrors, assertEndRendered, pass, fail }_1.md",
+      "x": 5760,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_smoke_full_run_boot_freshgame_settle_apphtml_assertnoerrors_assertendrendered_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, appHTML, assertNoErrors, assertEndRendered, pass, fail }_2.md",
+      "x": 5960,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_win_path_boot_freshgame_settle_apphtml_assertnoerrors_assertendrendered_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, appHTML, assertNoErrors, assertEndRendered, pass, fail }_3.md",
+      "x": 6160,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_mint1b_boot_freshgame_settle_apphtml_assertnoerrors_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, appHTML, assertNoErrors, pass, fail }.md",
+      "x": 6360,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_colony_smoke_boot_freshgame_settle_assertnoerrors_assertendrendered_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, assertNoErrors, assertEndRendered, pass, fail }.md",
+      "x": 6560,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_endings_golden_boot_freshgame_settle_assertnoerrors_assertendrendered_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, assertNoErrors, assertEndRendered, pass, fail }_1.md",
+      "x": 6760,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_voyage_smoke_boot_freshgame_settle_assertnoerrors_assertendrendered_pass_fail",
+      "type": "file",
+      "file": "{ boot, freshGame, settle, assertNoErrors, assertEndRendered, pass, fail }_2.md",
+      "x": 6960,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g4",
+      "type": "group",
+      "label": "Colony Turn Engine",
+      "x": 0,
+      "y": 1100,
+      "width": 1540,
+      "height": 720,
+      "color": "5"
+    },
+    {
+      "id": "n_game_adjusthealthall",
+      "type": "file",
+      "file": "adjustHealthAll().md",
+      "x": 20,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_aiassist",
+      "type": "file",
+      "file": "aiAssist().md",
+      "x": 220,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_applycolonyaction",
+      "type": "file",
+      "file": "applyColonyAction().md",
+      "x": 420,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_applycolonyoutcome",
+      "type": "file",
+      "file": "applyColonyOutcome().md",
+      "x": 620,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_arriveatproxima",
+      "type": "file",
+      "file": "arriveAtProxima().md",
+      "x": 820,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_byname",
+      "type": "file",
+      "file": "byName().md",
+      "x": 1020,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_clamp",
+      "type": "file",
+      "file": "clamp().md",
+      "x": 1220,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colhabdrain",
+      "type": "file",
+      "file": "colHabDrain().md",
+      "x": 20,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colhands",
+      "type": "file",
+      "file": "colHands().md",
+      "x": 220,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colharsh",
+      "type": "file",
+      "file": "colHarsh().md",
+      "x": 420,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colpower",
+      "type": "file",
+      "file": "colPower().md",
+      "x": 620,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colwinbar",
+      "type": "file",
+      "file": "colWinBar().md",
+      "x": 820,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonydecay",
+      "type": "file",
+      "file": "colonyDecay().md",
+      "x": 1020,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonyeventphase",
+      "type": "file",
+      "file": "colonyEventPhase().md",
+      "x": 1220,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonyrecovery",
+      "type": "file",
+      "file": "colonyRecovery().md",
+      "x": 20,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_colonyturn",
+      "type": "file",
+      "file": "colonyTurn().md",
+      "x": 220,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_currentzone",
+      "type": "file",
+      "file": "currentZone().md",
+      "x": 420,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_docolonyhazard",
+      "type": "file",
+      "file": "doColonyHazard().md",
+      "x": 620,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_docontact",
+      "type": "file",
+      "file": "doContact().md",
+      "x": 820,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_doexpedition",
+      "type": "file",
+      "file": "doExpedition().md",
+      "x": 1020,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_donativewar",
+      "type": "file",
+      "file": "doNativeWar().md",
+      "x": 1220,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_eventweight",
+      "type": "file",
+      "file": "eventWeight().md",
+      "x": 20,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_expeditionrisk",
+      "type": "file",
+      "file": "expeditionRisk().md",
+      "x": 220,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_finishcolonyturn",
+      "type": "file",
+      "file": "finishColonyTurn().md",
+      "x": 420,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_firecolonyevent",
+      "type": "file",
+      "file": "fireColonyEvent().md",
+      "x": 620,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_flashlog",
+      "type": "file",
+      "file": "flashLog().md",
+      "x": 820,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_odds",
+      "type": "file",
+      "file": "odds().md",
+      "x": 1020,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_presentevent",
+      "type": "file",
+      "file": "presentEvent().md",
+      "x": 1220,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvecheck",
+      "type": "file",
+      "file": "resolveCheck().md",
+      "x": 20,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvecolonycheck",
+      "type": "file",
+      "file": "resolveColonyCheck().md",
+      "x": 220,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_resolvecolonyhazard",
+      "type": "file",
+      "file": "resolveColonyHazard().md",
+      "x": 420,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_rollevent",
+      "type": "file",
+      "file": "rollEvent().md",
+      "x": 620,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_sitearch",
+      "type": "file",
+      "file": "siteArch().md",
+      "x": 820,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_skillawake",
+      "type": "file",
+      "file": "skillAwake().md",
+      "x": 1020,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_tierdecay",
+      "type": "file",
+      "file": "tierDecay().md",
+      "x": 1220,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_tierodds",
+      "type": "file",
+      "file": "tierOdds().md",
+      "x": 20,
+      "y": 1580,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_tierthreshold",
+      "type": "file",
+      "file": "tierThreshold().md",
+      "x": 220,
+      "y": 1580,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyagehazarddanger",
+      "type": "file",
+      "file": "voyageHazardDanger().md",
+      "x": 420,
+      "y": 1580,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_voyagerest",
+      "type": "file",
+      "file": "voyageRest().md",
+      "x": 620,
+      "y": 1580,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_youin",
+      "type": "file",
+      "file": "youIn().md",
+      "x": 820,
+      "y": 1580,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g5",
+      "type": "group",
+      "label": "Frozen Core & Dual-Front Setup",
+      "x": 2060,
+      "y": 1100,
+      "width": 1100,
+      "height": 620,
+      "color": "6"
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_dual_front_engine",
+      "type": "file",
+      "file": "Dual-front engine (colony + ark).md",
+      "x": 2080,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_frozen",
+      "type": "file",
+      "file": "FROZEN.md",
+      "x": 2280,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_frozen_three",
+      "type": "file",
+      "file": "Frozen-three (applyOutcomeresolveChecktryCompose).md",
+      "x": 2480,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_proxima_trail",
+      "type": "file",
+      "file": "Proxima Trail (the game).md",
+      "x": 2680,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_args",
+      "type": "file",
+      "file": "args.md",
+      "x": 2880,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_arrivalchoices",
+      "type": "file",
+      "file": "arrivalChoices().md",
+      "x": 2080,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_begincolony",
+      "type": "file",
+      "file": "beginColony().md",
+      "x": 2280,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_beginreturn",
+      "type": "file",
+      "file": "beginReturn().md",
+      "x": 2480,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_bodyat",
+      "type": "file",
+      "file": "bodyAt().md",
+      "x": 2680,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_crypto",
+      "type": "file",
+      "file": "crypto.md",
+      "x": 2880,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_cur",
+      "type": "file",
+      "file": "cur.md",
+      "x": 2080,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_finishcolony",
+      "type": "file",
+      "file": "finishColony().md",
+      "x": 2280,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen",
+      "type": "file",
+      "file": "frozen.js.md",
+      "x": 2480,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_fs",
+      "type": "file",
+      "file": "fs_1.md",
+      "x": 2680,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_hope",
+      "type": "file",
+      "file": "hope (visible meter).md",
+      "x": 2880,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_index_proxima_trail_app",
+      "type": "file",
+      "file": "index.html (playable game shell).md",
+      "x": 2080,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_missing",
+      "type": "file",
+      "file": "missing.md",
+      "x": 2280,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_seedcolonysites",
+      "type": "file",
+      "file": "seedColonySites().md",
+      "x": 2480,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_seednativestance",
+      "type": "file",
+      "file": "seedNativeStance().md",
+      "x": 2680,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_frozen_src",
+      "type": "file",
+      "file": "src.md",
+      "x": 2880,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_startvoyage",
+      "type": "file",
+      "file": "startVoyage().md",
+      "x": 2080,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_game_trycompose",
+      "type": "file",
+      "file": "tryCompose().md",
+      "x": 2280,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g6",
+      "type": "group",
+      "label": "NPM Package Manifest",
+      "x": 3900,
+      "y": 1100,
+      "width": 1100,
+      "height": 620,
+      "color": "1"
+    },
+    {
+      "id": "n_package_author",
+      "type": "file",
+      "file": "author.md",
+      "x": 3920,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_bugs",
+      "type": "file",
+      "file": "bugs.md",
+      "x": 4120,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_description",
+      "type": "file",
+      "file": "description.md",
+      "x": 4320,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_devdependencies",
+      "type": "file",
+      "file": "devDependencies.md",
+      "x": 4520,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_directories",
+      "type": "file",
+      "file": "directories.md",
+      "x": 4720,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_directories_doc",
+      "type": "file",
+      "file": "doc.md",
+      "x": 3920,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_homepage",
+      "type": "file",
+      "file": "homepage.md",
+      "x": 4120,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_devdependencies_jsdom",
+      "type": "file",
+      "file": "jsdom.md",
+      "x": 4320,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_keywords",
+      "type": "file",
+      "file": "keywords.md",
+      "x": 4520,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_license",
+      "type": "file",
+      "file": "license.md",
+      "x": 4720,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_main",
+      "type": "file",
+      "file": "main.md",
+      "x": 3920,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_name",
+      "type": "file",
+      "file": "name.md",
+      "x": 4120,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package",
+      "type": "file",
+      "file": "package.json.md",
+      "x": 4320,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_repository",
+      "type": "file",
+      "file": "repository.md",
+      "x": 4520,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_scripts",
+      "type": "file",
+      "file": "scripts.md",
+      "x": 4720,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_directories_test",
+      "type": "file",
+      "file": "test.md",
+      "x": 3920,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_scripts_test",
+      "type": "file",
+      "file": "test_1.md",
+      "x": 4120,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_repository_type",
+      "type": "file",
+      "file": "type.md",
+      "x": 4320,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_type",
+      "type": "file",
+      "file": "type_1.md",
+      "x": 4520,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_bugs_url",
+      "type": "file",
+      "file": "url_1.md",
+      "x": 4720,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_repository_url",
+      "type": "file",
+      "file": "url.md",
+      "x": 3920,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_package_version",
+      "type": "file",
+      "file": "version.md",
+      "x": 4120,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g7",
+      "type": "group",
+      "label": "Graphify Viewer Generator",
+      "x": 5740,
+      "y": 1100,
+      "width": 1100,
+      "height": 620,
+      "color": "2"
+    },
+    {
+      "id": "n_agenticos_graphify_docs_md",
+      "type": "file",
+      "file": "DOCS_MD.md",
+      "x": 5760,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_html_file",
+      "type": "file",
+      "file": "HTML_FILE.md",
+      "x": 5960,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_root",
+      "type": "file",
+      "file": "ROOT.md",
+      "x": 6160,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_state_color",
+      "type": "file",
+      "file": "STATE_COLOR.md",
+      "x": 6360,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_state_file",
+      "type": "file",
+      "file": "STATE_FILE.md",
+      "x": 6560,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_state_order",
+      "type": "file",
+      "file": "STATE_ORDER.md",
+      "x": 5760,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_today",
+      "type": "file",
+      "file": "TODAY.md",
+      "x": 5960,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_track_label",
+      "type": "file",
+      "file": "TRACK_LABEL.md",
+      "x": 6160,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_track_order",
+      "type": "file",
+      "file": "TRACK_ORDER.md",
+      "x": 6360,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_vault",
+      "type": "file",
+      "file": "VAULT.md",
+      "x": 6560,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_byid",
+      "type": "file",
+      "file": "byId.md",
+      "x": 5760,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_fs",
+      "type": "file",
+      "file": "fs.md",
+      "x": 5960,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify",
+      "type": "file",
+      "file": "graphify.js.md",
+      "x": 6160,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_localymd",
+      "type": "file",
+      "file": "localYMD().md",
+      "x": 6360,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_mermaidid",
+      "type": "file",
+      "file": "mermaidId().md",
+      "x": 6560,
+      "y": 1340,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_neighbors",
+      "type": "file",
+      "file": "neighbors().md",
+      "x": 5760,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_path",
+      "type": "file",
+      "file": "path.md",
+      "x": 5960,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_rewritehtml",
+      "type": "file",
+      "file": "rewriteHtml().md",
+      "x": 6160,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_state",
+      "type": "file",
+      "file": "state.md",
+      "x": 6360,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_writedocsmd",
+      "type": "file",
+      "file": "writeDocsMd().md",
+      "x": 6560,
+      "y": 1420,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_agenticos_graphify_writevault",
+      "type": "file",
+      "file": "writeVault().md",
+      "x": 5760,
+      "y": 1500,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g8",
+      "type": "group",
+      "label": "Consequence Ledger (hidden meters)",
+      "x": 0,
+      "y": 1900,
+      "width": 880,
+      "height": 520,
+      "color": "3"
+    },
+    {
+      "id": "n_docs_consequence_ledger_hidden_meters",
+      "type": "file",
+      "file": "Hidden long-tail meters.md",
+      "x": 20,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_no_orphan_meter",
+      "type": "file",
+      "file": "No-orphan-meter rule.md",
+      "x": 220,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_the_fever_season",
+      "type": "file",
+      "file": "Payoff The Fever Season.md",
+      "x": 420,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_the_ground_remembers",
+      "type": "file",
+      "file": "Payoff The Ground Remembers.md",
+      "x": 620,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_the_long_crack",
+      "type": "file",
+      "file": "Payoff The Long Crack.md",
+      "x": 20,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_the_one_who_couldnt",
+      "type": "file",
+      "file": "Payoff The One Who Couldn't.md",
+      "x": 220,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_the_reckoning",
+      "type": "file",
+      "file": "Payoff The Reckoning at the Treeline.md",
+      "x": 420,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_difficulty_tiers",
+      "type": "file",
+      "file": "Settler  Pioneer  Voyager tiers.md",
+      "x": 620,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_claude_sacred_list",
+      "type": "file",
+      "file": "The sacred list.md",
+      "x": 20,
+      "y": 2140,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_visible_plus_hidden",
+      "type": "file",
+      "file": "Visible-effect + hidden-long-tail rule.md",
+      "x": 220,
+      "y": 2140,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_contamination",
+      "type": "file",
+      "file": "contamination (hidden meter).md",
+      "x": 420,
+      "y": 2140,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_ecoharm",
+      "type": "file",
+      "file": "ecoHarm (hidden meter).md",
+      "x": 620,
+      "y": 2140,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_nativetrust",
+      "type": "file",
+      "file": "nativeTrust (hidden meter).md",
+      "x": 20,
+      "y": 2220,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_relations",
+      "type": "file",
+      "file": "relations (visible surface stance).md",
+      "x": 220,
+      "y": 2220,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_structuraldebt",
+      "type": "file",
+      "file": "structuralDebt (hidden meter).md",
+      "x": 420,
+      "y": 2220,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_consequence_ledger_trauma",
+      "type": "file",
+      "file": "trauma (hidden meter).md",
+      "x": 620,
+      "y": 2220,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g9",
+      "type": "group",
+      "label": "Audio / SFX",
+      "x": 2060,
+      "y": 1900,
+      "width": 660,
+      "height": 420,
+      "color": "4"
+    },
+    {
+      "id": "n_audio",
+      "type": "file",
+      "file": "audio.js.md",
+      "x": 2080,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_audio_init",
+      "type": "file",
+      "file": "init().md",
+      "x": 2280,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_audio_ismuted",
+      "type": "file",
+      "file": "isMuted().md",
+      "x": 2480,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_audio_noise",
+      "type": "file",
+      "file": "noise().md",
+      "x": 2080,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_audio_note",
+      "type": "file",
+      "file": "note().md",
+      "x": 2280,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_audio_play",
+      "type": "file",
+      "file": "play().md",
+      "x": 2480,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_audio_setmuted",
+      "type": "file",
+      "file": "setMuted().md",
+      "x": 2080,
+      "y": 2140,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g10",
+      "type": "group",
+      "label": "Endings Matrix",
+      "x": 3900,
+      "y": 1900,
+      "width": 660,
+      "height": 400,
+      "color": "5"
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_ending_extinct",
+      "type": "file",
+      "file": "Ending EXTINCT.md",
+      "x": 3920,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_ending_the_messenger",
+      "type": "file",
+      "file": "Ending THE MESSENGER.md",
+      "x": 4120,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_ending_word_got_through",
+      "type": "file",
+      "file": "Ending THE WORD GOT THROUGH.md",
+      "x": 4320,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_ending_two_worlds",
+      "type": "file",
+      "file": "Ending TWO WORLDS.md",
+      "x": 3920,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_endings_matrix",
+      "type": "file",
+      "file": "Endings matrix (composeEnding).md",
+      "x": 4120,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_proxima_trail_implementation_plan_beacon_heard",
+      "type": "file",
+      "file": "beaconHeard (a beacon that reached a living Earth).md",
+      "x": 4320,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g11",
+      "type": "group",
+      "label": "Deterministic Gate (verify.sh)",
+      "x": 5740,
+      "y": 1900,
+      "width": 600,
+      "height": 400,
+      "color": "6"
+    },
+    {
+      "id": "n_scripts_verify_fail",
+      "type": "file",
+      "file": "fail().md",
+      "x": 5760,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_verify_ok",
+      "type": "file",
+      "file": "ok().md",
+      "x": 5960,
+      "y": 1980,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_scripts_verify",
+      "type": "file",
+      "file": "verify.sh.md",
+      "x": 5760,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_raidrive_thoma_sftp_proximatrail_scripts_verify_sh__entry",
+      "type": "file",
+      "file": "verify.sh script.md",
+      "x": 5960,
+      "y": 2060,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g12",
+      "type": "group",
+      "label": "Plan-File Discipline",
+      "x": 0,
+      "y": 2500,
+      "width": 600,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_claude_plan_file_discipline",
+      "type": "file",
+      "file": "Plan-file discipline.md",
+      "x": 20,
+      "y": 2580,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g13",
+      "type": "group",
+      "label": "Labor / Power Cascade",
+      "x": 2060,
+      "y": 2500,
+      "width": 600,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_docs_consequence_ledger_labor_power_hub",
+      "type": "file",
+      "file": "Cascade Laborpower hub.md",
+      "x": 2080,
+      "y": 2580,
+      "width": 180,
+      "height": 60
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_byid",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_byid",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_docs_md",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_docs_md",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_fs",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_fs",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_html_file",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_html_file",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_localymd",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_localymd",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_mermaidid",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_mermaidid",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_neighbors",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_neighbors",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_path",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_path",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_rewritehtml",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_rewritehtml",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_root",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_root",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_state",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_state",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_state_color",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_state_color",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_state_file",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_state_file",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_state_order",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_state_order",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_today",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_today",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_track_label",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_track_label",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_track_order",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_track_order",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_vault",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_vault",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_writedocsmd",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_writedocsmd",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_agenticos_graphify_writevault",
+      "fromNode": "n_agenticos_graphify",
+      "toNode": "n_agenticos_graphify_writevault",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_mermaidid_agenticos_graphify_writedocsmd",
+      "fromNode": "n_agenticos_graphify_mermaidid",
+      "toNode": "n_agenticos_graphify_writedocsmd",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_agenticos_graphify_neighbors_agenticos_graphify_writevault",
+      "fromNode": "n_agenticos_graphify_neighbors",
+      "toNode": "n_agenticos_graphify_writevault",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_audio_audio_init",
+      "fromNode": "n_audio",
+      "toNode": "n_audio_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_audio_audio_ismuted",
+      "fromNode": "n_audio",
+      "toNode": "n_audio_ismuted",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_audio_audio_noise",
+      "fromNode": "n_audio",
+      "toNode": "n_audio_noise",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_audio_audio_note",
+      "fromNode": "n_audio",
+      "toNode": "n_audio_note",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_audio_audio_play",
+      "fromNode": "n_audio",
+      "toNode": "n_audio_play",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_audio_audio_setmuted",
+      "fromNode": "n_audio",
+      "toNode": "n_audio_setmuted",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_addchild",
+      "fromNode": "n_game",
+      "toNode": "n_game_addchild",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_addcolonist",
+      "fromNode": "n_game",
+      "toNode": "n_game_addcolonist",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_addcrewmember",
+      "fromNode": "n_game",
+      "toNode": "n_game_addcrewmember",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_adjusthealthall",
+      "fromNode": "n_game",
+      "toNode": "n_game_adjusthealthall",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_adjustmoraleall",
+      "fromNode": "n_game",
+      "toNode": "n_game_adjustmoraleall",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_afflict",
+      "fromNode": "n_game",
+      "toNode": "n_game_afflict",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_agecrew",
+      "fromNode": "n_game",
+      "toNode": "n_game_agecrew",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_aiassist",
+      "fromNode": "n_game",
+      "toNode": "n_game_aiassist",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_aidiagnostics",
+      "fromNode": "n_game",
+      "toNode": "n_game_aidiagnostics",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_aiglitch",
+      "fromNode": "n_game",
+      "toNode": "n_game_aiglitch",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_aihostile",
+      "fromNode": "n_game",
+      "toNode": "n_game_aihostile",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_ailing",
+      "fromNode": "n_game",
+      "toNode": "n_game_ailing",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_aipurge",
+      "fromNode": "n_game",
+      "toNode": "n_game_aipurge",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_aistate",
+      "fromNode": "n_game",
+      "toNode": "n_game_aistate",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_aiturn",
+      "fromNode": "n_game",
+      "toNode": "n_game_aiturn",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_alive",
+      "fromNode": "n_game",
+      "toNode": "n_game_alive",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_animationson",
+      "fromNode": "n_game",
+      "toNode": "n_game_animationson",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_applycolonyaction",
+      "fromNode": "n_game",
+      "toNode": "n_game_applycolonyaction",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_applycolonyoutcome",
+      "fromNode": "n_game",
+      "toNode": "n_game_applycolonyoutcome",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_applycommanderfloor",
+      "fromNode": "n_game",
+      "toNode": "n_game_applycommanderfloor",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_applyhazardseverity",
+      "fromNode": "n_game",
+      "toNode": "n_game_applyhazardseverity",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_applyjobreward",
+      "fromNode": "n_game",
+      "toNode": "n_game_applyjobreward",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_applyoutcome",
+      "fromNode": "n_game",
+      "toNode": "n_game_applyoutcome",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_arrivalchoices",
+      "fromNode": "n_game",
+      "toNode": "n_game_arrivalchoices",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_arriveatproxima",
+      "fromNode": "n_game",
+      "toNode": "n_game_arriveatproxima",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_autopilotrun",
+      "fromNode": "n_game",
+      "toNode": "n_game_autopilotrun",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_autopilotturn",
+      "fromNode": "n_game",
+      "toNode": "n_game_autopilotturn",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_autoresolvehazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_autoresolvehazard",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_awake",
+      "fromNode": "n_game",
+      "toNode": "n_game_awake",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_begincolony",
+      "fromNode": "n_game",
+      "toNode": "n_game_begincolony",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_beginreturn",
+      "fromNode": "n_game",
+      "toNode": "n_game_beginreturn",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_bindsetter",
+      "fromNode": "n_game",
+      "toNode": "n_game_bindsetter",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_byname",
+      "fromNode": "n_game",
+      "toNode": "n_game_byname",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_capturedigest",
+      "fromNode": "n_game",
+      "toNode": "n_game_capturedigest",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_cargospace",
+      "fromNode": "n_game",
+      "toNode": "n_game_cargospace",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_cargoused",
+      "fromNode": "n_game",
+      "toNode": "n_game_cargoused",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_chance",
+      "fromNode": "n_game",
+      "toNode": "n_game_chance",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_checkarrival",
+      "fromNode": "n_game",
+      "toNode": "n_game_checkarrival",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_checkbreakdowns",
+      "fromNode": "n_game",
+      "toNode": "n_game_checkbreakdowns",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_checkend",
+      "fromNode": "n_game",
+      "toNode": "n_game_checkend",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_clamp",
+      "fromNode": "n_game",
+      "toNode": "n_game_clamp",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_clearsave",
+      "fromNode": "n_game",
+      "toNode": "n_game_clearsave",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_closeminigame",
+      "fromNode": "n_game",
+      "toNode": "n_game_closeminigame",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_closemodal",
+      "fromNode": "n_game",
+      "toNode": "n_game_closemodal",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colhabdrain",
+      "fromNode": "n_game",
+      "toNode": "n_game_colhabdrain",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colhands",
+      "fromNode": "n_game",
+      "toNode": "n_game_colhands",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colharsh",
+      "fromNode": "n_game",
+      "toNode": "n_game_colharsh",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colheads",
+      "fromNode": "n_game",
+      "toNode": "n_game_colheads",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonyafterturn",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonyafterturn",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonyagedrift",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonyagedrift",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonyautostep",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonyautostep",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonydecay",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonydecay",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonyeventphase",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonyeventphase",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonylaunch",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonylaunch",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonyrecovery",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonyrecovery",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonystagecheck",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonystagecheck",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colonyturn",
+      "fromNode": "n_game",
+      "toNode": "n_game_colonyturn",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colpower",
+      "fromNode": "n_game",
+      "toNode": "n_game_colpower",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_colwinbar",
+      "fromNode": "n_game",
+      "toNode": "n_game_colwinbar",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_composeending",
+      "fromNode": "n_game",
+      "toNode": "n_game_composeending",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_computepower",
+      "fromNode": "n_game",
+      "toNode": "n_game_computepower",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_computescore",
+      "fromNode": "n_game",
+      "toNode": "n_game_computescore",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_confirmselfpod",
+      "fromNode": "n_game",
+      "toNode": "n_game_confirmselfpod",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_confirmsettlement",
+      "fromNode": "n_game",
+      "toNode": "n_game_confirmsettlement",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_consumeunits",
+      "fromNode": "n_game",
+      "toNode": "n_game_consumeunits",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_crewstrip",
+      "fromNode": "n_game",
+      "toNode": "n_game_crewstrip",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_currentzone",
+      "fromNode": "n_game",
+      "toNode": "n_game_currentzone",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_deriveearthstatus",
+      "fromNode": "n_game",
+      "toNode": "n_game_deriveearthstatus",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_digestblock",
+      "fromNode": "n_game",
+      "toNode": "n_game_digestblock",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_dispositiontext",
+      "fromNode": "n_game",
+      "toNode": "n_game_dispositiontext",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_dobuy",
+      "fromNode": "n_game",
+      "toNode": "n_game_dobuy",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_docolonyhazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_docolonyhazard",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_docontact",
+      "fromNode": "n_game",
+      "toNode": "n_game_docontact",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_doexpedition",
+      "fromNode": "n_game",
+      "toNode": "n_game_doexpedition",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_dolaunch",
+      "fromNode": "n_game",
+      "toNode": "n_game_dolaunch",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_donativewar",
+      "fromNode": "n_game",
+      "toNode": "n_game_donativewar",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_dorestrepair",
+      "fromNode": "n_game",
+      "toNode": "n_game_dorestrepair",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_earthsignal",
+      "fromNode": "n_game",
+      "toNode": "n_game_earthsignal",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_earthtruthstep",
+      "fromNode": "n_game",
+      "toNode": "n_game_earthtruthstep",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_el",
+      "fromNode": "n_game",
+      "toNode": "n_game_el",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_endcolonycheck",
+      "fromNode": "n_game",
+      "toNode": "n_game_endcolonycheck",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_endgame",
+      "fromNode": "n_game",
+      "toNode": "n_game_endgame",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_endmining",
+      "fromNode": "n_game",
+      "toNode": "n_game_endmining",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_enterautopilot",
+      "fromNode": "n_game",
+      "toNode": "n_game_enterautopilot",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_eventweight",
+      "fromNode": "n_game",
+      "toNode": "n_game_eventweight",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_exodusyears",
+      "fromNode": "n_game",
+      "toNode": "n_game_exodusyears",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_expeditionrisk",
+      "fromNode": "n_game",
+      "toNode": "n_game_expeditionrisk",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_finishcolony",
+      "fromNode": "n_game",
+      "toNode": "n_game_finishcolony",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_finishcolonyturn",
+      "fromNode": "n_game",
+      "toNode": "n_game_finishcolonyturn",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_finishvoyage",
+      "fromNode": "n_game",
+      "toNode": "n_game_finishvoyage",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_firecolonyevent",
+      "fromNode": "n_game",
+      "toNode": "n_game_firecolonyevent",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_flashlog",
+      "fromNode": "n_game",
+      "toNode": "n_game_flashlog",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_flushqueues",
+      "fromNode": "n_game",
+      "toNode": "n_game_flushqueues",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_foodunits",
+      "fromNode": "n_game",
+      "toNode": "n_game_foodunits",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_game",
+      "fromNode": "n_game",
+      "toNode": "n_game_game",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_genjobs",
+      "fromNode": "n_game",
+      "toNode": "n_game_genjobs",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_habmult",
+      "fromNode": "n_game",
+      "toNode": "n_game_habmult",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_handle",
+      "fromNode": "n_game",
+      "toNode": "n_game_handle",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_hasawakecommander",
+      "fromNode": "n_game",
+      "toNode": "n_game_hasawakecommander",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_hasawakespecialist",
+      "fromNode": "n_game",
+      "toNode": "n_game_hasawakespecialist",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_influence",
+      "fromNode": "n_game",
+      "toNode": "n_game_influence",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_killcrew",
+      "fromNode": "n_game",
+      "toNode": "n_game_killcrew",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_label",
+      "fromNode": "n_game",
+      "toNode": "n_game_label",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_landfallbriefing",
+      "fromNode": "n_game",
+      "toNode": "n_game_landfallbriefing",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_loadmeta",
+      "fromNode": "n_game",
+      "toNode": "n_game_loadmeta",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_loadsave",
+      "fromNode": "n_game",
+      "toNode": "n_game_loadsave",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_log",
+      "fromNode": "n_game",
+      "toNode": "n_game_log",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_manifestmini",
+      "fromNode": "n_game",
+      "toNode": "n_game_manifestmini",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_maybesuccession",
+      "fromNode": "n_game",
+      "toNode": "n_game_maybesuccession",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_modalopen",
+      "fromNode": "n_game",
+      "toNode": "n_game_modalopen",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_neededrole",
+      "fromNode": "n_game",
+      "toNode": "n_game_neededrole",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_newgame",
+      "fromNode": "n_game",
+      "toNode": "n_game_newgame",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_nextstationidx",
+      "fromNode": "n_game",
+      "toNode": "n_game_nextstationidx",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_odds",
+      "fromNode": "n_game",
+      "toNode": "n_game_odds",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_offoneliner",
+      "fromNode": "n_game",
+      "toNode": "n_game_offoneliner",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_offsnap",
+      "fromNode": "n_game",
+      "toNode": "n_game_offsnap",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_offstripline",
+      "fromNode": "n_game",
+      "toNode": "n_game_offstripline",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_oncontinue",
+      "fromNode": "n_game",
+      "toNode": "n_game_oncontinue",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openai",
+      "fromNode": "n_game",
+      "toNode": "n_game_openai",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openallocate",
+      "fromNode": "n_game",
+      "toNode": "n_game_openallocate",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openbrownout",
+      "fromNode": "n_game",
+      "toNode": "n_game_openbrownout",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_opencolonyallocate",
+      "fromNode": "n_game",
+      "toNode": "n_game_opencolonyallocate",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_opencontact",
+      "fromNode": "n_game",
+      "toNode": "n_game_opencontact",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openexpedition",
+      "fromNode": "n_game",
+      "toNode": "n_game_openexpedition",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openfuturedecision",
+      "fromNode": "n_game",
+      "toNode": "n_game_openfuturedecision",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openhibernation",
+      "fromNode": "n_game",
+      "toNode": "n_game_openhibernation",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openjobs",
+      "fromNode": "n_game",
+      "toNode": "n_game_openjobs",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openmining",
+      "fromNode": "n_game",
+      "toNode": "n_game_openmining",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openmodal",
+      "fromNode": "n_game",
+      "toNode": "n_game_openmodal",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openrations",
+      "fromNode": "n_game",
+      "toNode": "n_game_openrations",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openthrust",
+      "fromNode": "n_game",
+      "toNode": "n_game_openthrust",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_opentrade",
+      "fromNode": "n_game",
+      "toNode": "n_game_opentrade",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openvoyagerations",
+      "fromNode": "n_game",
+      "toNode": "n_game_openvoyagerations",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_openvoyagethrust",
+      "fromNode": "n_game",
+      "toNode": "n_game_openvoyagethrust",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_pick",
+      "fromNode": "n_game",
+      "toNode": "n_game_pick",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_pilotmitigate",
+      "fromNode": "n_game",
+      "toNode": "n_game_pilotmitigate",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_playerchar",
+      "fromNode": "n_game",
+      "toNode": "n_game_playerchar",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_playtransit",
+      "fromNode": "n_game",
+      "toNode": "n_game_playtransit",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presentevent",
+      "fromNode": "n_game",
+      "toNode": "n_game_presentevent",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presentfirstcontact",
+      "fromNode": "n_game",
+      "toNode": "n_game_presentfirstcontact",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presenthazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_presenthazard",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presenthomehazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_presenthomehazard",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presentstation",
+      "fromNode": "n_game",
+      "toNode": "n_game_presentstation",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presentsuccession",
+      "fromNode": "n_game",
+      "toNode": "n_game_presentsuccession",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presentvoid",
+      "fromNode": "n_game",
+      "toNode": "n_game_presentvoid",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presentvoyageevent",
+      "fromNode": "n_game",
+      "toNode": "n_game_presentvoyageevent",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_presentwormhole",
+      "fromNode": "n_game",
+      "toNode": "n_game_presentwormhole",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_priceat",
+      "fromNode": "n_game",
+      "toNode": "n_game_priceat",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_queuehazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_queuehazard",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_queuestation",
+      "fromNode": "n_game",
+      "toNode": "n_game_queuestation",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_queuevoid",
+      "fromNode": "n_game",
+      "toNode": "n_game_queuevoid",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_rankfor",
+      "fromNode": "n_game",
+      "toNode": "n_game_rankfor",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_renderapp",
+      "fromNode": "n_game",
+      "toNode": "n_game_renderapp",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_rendercolony",
+      "fromNode": "n_game",
+      "toNode": "n_game_rendercolony",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_renderend",
+      "fromNode": "n_game",
+      "toNode": "n_game_renderend",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_renderlog",
+      "fromNode": "n_game",
+      "toNode": "n_game_renderlog",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_rendermininghud",
+      "fromNode": "n_game",
+      "toNode": "n_game_rendermininghud",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_renderrole",
+      "fromNode": "n_game",
+      "toNode": "n_game_renderrole",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_renderrolescreen",
+      "fromNode": "n_game",
+      "toNode": "n_game_renderrolescreen",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_renderroutemap",
+      "fromNode": "n_game",
+      "toNode": "n_game_renderroutemap",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_renderstore",
+      "fromNode": "n_game",
+      "toNode": "n_game_renderstore",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_rendertitle",
+      "fromNode": "n_game",
+      "toNode": "n_game_rendertitle",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_rendertravel",
+      "fromNode": "n_game",
+      "toNode": "n_game_rendertravel",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_rendervoyage",
+      "fromNode": "n_game",
+      "toNode": "n_game_rendervoyage",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_rerollnames",
+      "fromNode": "n_game",
+      "toNode": "n_game_rerollnames",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_resolveacttwo",
+      "fromNode": "n_game",
+      "toNode": "n_game_resolveacttwo",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_resolvecheck",
+      "fromNode": "n_game",
+      "toNode": "n_game_resolvecheck",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_resolvecolonycheck",
+      "fromNode": "n_game",
+      "toNode": "n_game_resolvecolonycheck",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_resolvecolonyhazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_resolvecolonyhazard",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_resolvecontact",
+      "fromNode": "n_game",
+      "toNode": "n_game_resolvecontact",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_resolvehazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_resolvehazard",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_game_game_resolvehomehazard",
+      "fromNode": "n_game",
+      "toNode": "n_game_resolvehomehazard",
+      "label": "contains [EXTRACTED]"
+    }
+  ]
+}

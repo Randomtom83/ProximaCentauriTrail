@@ -1,0 +1,28 @@
+{
+  "name": "proximatrail",
+  "version": "1.0.0",
+  "description": "*The Oregon Trail, in space.*",
+  "main": "audio.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/randomtom83/proximacentauritrail.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/randomtom83/proximacentauritrail/issues"
+  },
+  "homepage": "https://github.com/randomtom83/proximacentauritrail#readme",
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

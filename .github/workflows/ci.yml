@@ -1,0 +1,38 @@
+# .github/workflows/ci.yml — audit item S1-1: the automated, mount-independent gate.
+name: verify
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # The deterministic gate. It is set -euo pipefail and refuses a vacuous pass,
+      # so a missing baseline / too-few harnesses / frozen drift all FAIL the job.
+      # No `|| true`, no `continue-on-error` — a red gate must fail CI loudly.
+      - name: Install test deps (jsdom — harnesses need it; node_modules is gitignored)
+        run: npm ci
+
+      - name: Deterministic gate
+        run: bash scripts/verify.sh
+
+  # Optional second job: mobile screenshots at 390x844 via Playwright.
+  # Left commented so CI stays green-or-red on the core gate only; enable once the
+  # Playwright harness is committed. It must also FAIL on any page error (no silent death).
+  #
+  # mobile:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: "24" }
+  #     - run: npm i -D playwright && npx playwright install --with-deps chromium
+  #     - run: node test/mobile_390x844.js   # must throw (nonzero) on any console/page error
+  #     - uses: actions/upload-artifact@v4
+  #       with: { name: mobile-shots, path: test/out/*.png, if-no-files-found: error }

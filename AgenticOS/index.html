@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  AgenticOS/index.html — redirect to the live graphify knowledge-graph viewer.
+  Single source of truth: graphify regenerates graphify-out/graph.html; this 1-line
+  pointer always shows the current graph (no stale 428KB snapshot committed here).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AgenticOS — Proxima Trail (knowledge graph)</title>
+<meta http-equiv="refresh" content="0; url=../graphify-out/graph.html">
+<script>location.replace("../graphify-out/graph.html");</script>
+<style>
+  html,body{height:100%;margin:0;background:#04070f;color:#d8e6ff;
+    font-family:"Helvetica Neue","Segoe UI",Arial,sans-serif}
+  .wrap{display:flex;height:100%;align-items:center;justify-content:center;text-align:center}
+  a{color:#5fd8ff}
+</style>
+</head>
+<body>
+  <div class="wrap"><div>
+    Opening the live graphify knowledge graph…<br>
+    <a href="../graphify-out/graph.html">graphify-out/graph.html</a>
+  </div></div>
+</body>
+</html>
