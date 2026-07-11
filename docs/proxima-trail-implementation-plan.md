@@ -1715,3 +1715,35 @@ impossible; fuel-0 countdown terminates) · a non-pinning assertion (60-cycle st
 colony must show life-support variance in the back 40). Phase 3.0 is ~odds-neutral
 except the closed exploits — sweep before/after to prove the exploit-sized delta.
 Full audit + routing detail: Tom's plan file (i-want-you-to-parsed-diffie).
+
+# ============================================================
+# RE-VISION Phase 2.7 (2026-07-10) — QoL keys: numbered prompts & the port stays open
+# Tom's ask: keyboard commands for prompts (the trading post especially), and a way
+# back into the trading post if you closed the menu but haven't left yet.
+# ============================================================
+
+## Shipped (input/UX only — zero odds changes, frozen-three untouched)
+- Numbered prompts: every multi-choice modal numbers its buttons with amber .key-n
+  chips and the modal key trap maps digits 1–9 to them (openModal builds the chips;
+  _modalTrap dispatches; inputs/textareas exempt; single-choice modals stay unnumbered).
+  At the trading post: 1 Trade · 2 Work · 3 Rest & repair · 4 Depart.
+- The port stays open until the ship moves: station arrival sets game._dockedAt
+  (persisted in the save); "Depart"/closing the menu no longer locks you out — the
+  travel console gains "⌖ Return to <station> (s)" and the S key reopens the port via
+  a new handle("station") case. presentStation's fresh-arrival business (contraband
+  fine, courier drop) stays one-shot: _stationFresh is consumed on first entry, so
+  re-entry can never re-roll it. resolveTurn clears _dockedAt — one real turn and the
+  port is genuinely behind you. Autopilot unaffected (it never docks).
+- Seam: resolveTurn exported to the test seam (docked-teardown assertable headlessly).
+
+## Verification
+- New harness test/station_keys.js (15th): real arrival at Lunar Gateway via
+  checkArrival → asserts 4 numbered chips, digit-4 fires Depart, _dockedAt persists
+  after Depart, handle("station") reopens WITHOUT re-rolling the fresh-arrival fine
+  (heat planted, credits asserted unchanged), resolveTurn undocks, and the station
+  action is a no-op once departed.
+- GATE PASS — 15 harnesses green, frozen-three md5-identical, endings golden untouched.
+- Live browser (desktop 1470px, real keydowns): chips render on the Gateway menu,
+  "4" departs, "⌖ Return to Lunar Gateway s" appears under Continue, "s" reopens.
+  Player's live Day-29 save backed up and restored around the check. Phone-width
+  evidence follows the standing orchestrator sign-off convention.

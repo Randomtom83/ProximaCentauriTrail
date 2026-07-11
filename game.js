@@ -978,6 +978,7 @@
 
   function resolveTurn() {
     game.turn++;
+    game._dockedAt = null;   // the ship moves — whatever port we sat at is behind us now
     var al = game.power.allocation;
     var th = THRUST[game.thrust];
     var rat = RATIONS[game.rations];
@@ -3488,6 +3489,9 @@
     if (p.stations.length) {
       var st = WAYPOINTS[p.stations.shift()];
       game._stationFresh = true;
+      // Docked until the ship actually moves (resolveTurn clears this) — so closing the
+      // station menu is never a lockout; the travel console offers a way back aboard.
+      game._dockedAt = WAYPOINTS.indexOf(st);
       playTransit({ variant: "dock", caption: "APPROACHING · " + st.name.toUpperCase() }, function () { presentStation(st); });
       return;
     }
@@ -4250,8 +4254,10 @@
     $("#modal-body").innerHTML = opts.body || "";
     var box = $("#modal-choices");
     box.innerHTML = "";
-    (opts.choices || []).forEach(function (ch) {
-      var b = el("button", { class: "btn" + (ch.disabled ? " disabled" : "") }, ch.label);
+    var multi = (opts.choices || []).length > 1;   // number the keys only when there's a choice to make
+    (opts.choices || []).forEach(function (ch, i) {
+      var chip = (multi && i < 9) ? "<span class='key-n'>" + (i + 1) + "</span>" : "";
+      var b = el("button", { class: "btn" + (ch.disabled ? " disabled" : "") }, chip + ch.label);
       if (ch.disabled) b.disabled = true;
       b.addEventListener("click", function () { if (b.disabled) return; sfx("blip"); ch.onClick(); });
       box.appendChild(b);
@@ -4262,6 +4268,15 @@
     var _f = modalFocusables();
     if (_f.length) _f[0].focus(); else { var _box = $("#modal .modal-box"); if (_box) _box.focus(); }
     _modalTrap = function (e) {
+      // Number keys press the numbered choice (the chips on the buttons are the legend).
+      if (e.key >= "1" && e.key <= "9" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        var tag = e.target && e.target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        var btns = $("#modal-choices").querySelectorAll("button.btn");
+        var pick = btns[+e.key - 1];
+        if (btns.length > 1 && pick && !pick.disabled) { e.preventDefault(); pick.click(); }
+        return;
+      }
       if (e.key !== "Tab") return;
       var f = modalFocusables(); if (!f.length) return;
       var first = f[0], last = f[f.length - 1];
@@ -4764,6 +4779,10 @@
         "</div>"
       : "<div class='commands'>" +
           "<button class='btn primary' data-action='continue'>▶ Continue<span class='key'>space</span></button>" +
+          // Still docked (the ship hasn't moved since arrival): the port stays open.
+          (game._dockedAt != null && WAYPOINTS[game._dockedAt]
+            ? "<button class='btn small' data-action='station'>⌖ Return to " + WAYPOINTS[game._dockedAt].name + " <span class='key'>s</span></button>"
+            : "") +
           "<div class='cmd-grid'>" +
             "<button class='btn' data-action='thrust'>⚙ Thrust</button>" +
             "<button class='btn' data-action='rations'>🍽 Rations</button>" +
@@ -5315,6 +5334,9 @@
         break;
       case "focus":   // switch which front you're actively running (parallel Act II)
         game.screen = arg; sfx("blip"); renderApp(); break;
+      case "station":   // re-enter the port you're still docked at (closed menu ≠ departed)
+        if (game._dockedAt != null && WAYPOINTS[game._dockedAt] && !modalOpen()) presentStation(WAYPOINTS[game._dockedAt]);
+        break;
       case "autorun": autopilotRun(); break;
       case "wakeself": wakeSelf("you force yourself awake"); save(); renderTravel(); break;
       case "abandon":
@@ -5379,6 +5401,7 @@
       else if (k === "r") handle("rations");
       else if (k === "p") handle("power");
       else if (k === "m") handle("mine");
+      else if (k === "s" && game._dockedAt != null) handle("station");
     }
   });
 
@@ -5442,6 +5465,9 @@
       // error-boundary verification seam (inert in production): fire the guarded dispatch
       // and the hardened autosave directly.
       handle: handle, save: save,
+      // station-keys verification seam (inert in production): drive a real travel turn so the
+      // docked-state teardown (resolveTurn clearing game._dockedAt) is directly assertable.
+      resolveTurn: resolveTurn,
       // M-HOME1 verification seam (inert in production): drive the return-leg turn loop directly
       // and read the landmark trail for the homeleg distributional sweep + coupling-drift guard.
       voyageTurn: voyageTurn, HOME_WAYPOINTS: HOME_WAYPOINTS,
